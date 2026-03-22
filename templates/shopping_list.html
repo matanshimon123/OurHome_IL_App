@@ -1,0 +1,525 @@
+{% extends "base.html" %}
+{% block title %}קניות - OurHome IL{% endblock %}
+{% block content %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
+
+*{font-family:'Heebo',sans-serif;box-sizing:border-box;}
+#favList{max-height:245px;overflow-y:auto;padding-left:2px;}
+#favList::-webkit-scrollbar{width:3px;}
+#favList::-webkit-scrollbar-thumb{background:#fed7aa;border-radius:99px;}
+:root{
+  --accent:#ff5c28;--accent2:#ff8c42;
+  --surface:#fafaf8;--card:#ffffff;
+  --border:#f0ede8;
+  --text1:#1a1a1a;--text2:#6b6b6b;--text3:#a8a8a8;
+  --green:#00b37e;--amber:#f59e0b;--sheet-r:24px;
+}
+
+.page{max-width:600px;margin:0 auto;direction:rtl;background:var(--surface);min-height:100vh;padding-bottom:100px;overflow-x:hidden;}
+
+/* ── HEADER ── */
+.pg-header{background:linear-gradient(145deg,#1c0a00 0%,#3d1500 45%,#5c2200 100%);padding:20px 20px 36px;margin:-10px -10px 0;position:relative;overflow:hidden;}
+.pg-header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:28px;background:var(--surface);border-radius:28px 28px 0 0;}
+.ph-glow{position:absolute;top:-60px;right:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(255,92,40,.28) 0%,transparent 65%);pointer-events:none;}
+.ph-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;margin-bottom:20px;}
+.ph-title{color:#fff;}
+.ph-label{font-size:.65rem;color:rgba(255,255,255,.4);font-weight:300;margin-bottom:3px;letter-spacing:.06em;}
+.ph-name{font-size:1.5rem;font-weight:900;letter-spacing:-.5px;line-height:1.1;}
+.ph-name span{color:var(--accent2);}
+.ph-sub{font-size:.72rem;color:rgba(255,255,255,.35);font-weight:300;margin-top:3px;}
+.ph-stats{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;position:relative;z-index:1;}
+.ph-stat{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 8px;text-align:center;backdrop-filter:blur(8px);}
+.ph-stat .sv{font-size:1.4rem;font-weight:900;color:#fff;line-height:1;}
+.ph-stat .sl{font-size:.62rem;color:rgba(255,255,255,.45);margin-top:3px;}
+.ph-stat.accent .sv{color:var(--accent2);}
+.ph-stat.done-s .sv{color:#4ade80;}
+.ph-prog{margin-top:12px;position:relative;z-index:1;}
+.ph-prog-track{height:5px;background:rgba(255,255,255,.12);border-radius:99px;overflow:hidden;}
+.ph-prog-fill{height:100%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.ph-prog-lbl{font-size:.62rem;color:rgba(255,255,255,.35);margin-top:5px;text-align:left;}
+
+.content{padding:14px 14px 0;}
+
+/* ── ADD BAR ── */
+.add-bar{background:var(--card);border-radius:18px;box-shadow:0 2px 20px rgba(0,0,0,.07);border:1.5px solid var(--border);margin-bottom:14px;overflow:hidden;}
+.add-bar-tabs{display:flex;border-bottom:1px solid var(--border);}
+.ab-tab{flex:1;padding:12px 8px;background:none;border:none;font-size:.82rem;font-weight:700;color:var(--text3);cursor:pointer;transition:all .2s;position:relative;}
+.ab-tab.active{color:var(--accent);}
+.ab-tab.active::after{content:'';position:absolute;bottom:-1px;left:15%;right:15%;height:2.5px;background:var(--accent);border-radius:99px;}
+.ab-panel{display:none;padding:14px;}
+.ab-panel.active{display:block;}
+.add-field-row{display:flex;gap:8px;margin-bottom:8px;}
+.add-field{flex:1;padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:.9rem;font-family:inherit;background:#fafaf8;color:var(--text1);transition:border-color .2s;outline:none;}
+.add-field:focus{border-color:var(--accent);background:#fff;}
+.add-qty{width:60px;flex:0 0 60px;text-align:center;}
+.add-cat{width:100%;padding:10px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:.85rem;font-family:inherit;background:#fafaf8;color:var(--text2);outline:none;margin-bottom:10px;}
+.add-cat:focus{border-color:var(--accent);background:#fff;}
+.add-btn{width:100%;padding:12px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:12px;font-size:.92rem;font-weight:700;font-family:inherit;cursor:pointer;}
+.add-btn:active{opacity:.88;}
+
+/* ── FAVORITES ── */
+.fav-add-all{width:100%;padding:10px;margin-bottom:8px;background:linear-gradient(135deg,#f59e0b,#f97316);color:#fff;border:none;border-radius:11px;font-size:.85rem;font-weight:700;font-family:inherit;cursor:pointer;}
+.fav-empty{text-align:center;padding:20px 0;color:var(--text3);font-size:.82rem;}
+.fav-new-btn{width:100%;padding:10px;margin-top:2px;background:none;border:1.5px dashed #fed7aa;color:#f97316;border-radius:11px;font-size:.82rem;font-weight:700;font-family:inherit;cursor:pointer;}
+
+/* Fav items — bigger buttons */
+.fav-item{display:flex;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--border);}
+.fav-item:last-child{border:none;}
+.fname{flex:1;font-size:.88rem;font-weight:700;color:var(--text1);}
+.fcat{font-size:.65rem;color:#d97706;background:#fef3c7;padding:3px 8px;border-radius:8px;flex-shrink:0;}
+.fqty{font-size:.78rem;color:var(--text3);flex-shrink:0;}
+.fav-item button{
+  border:none;cursor:pointer;border-radius:8px;font-size:.7rem;
+  font-weight:700;font-family:inherit;padding:4px 9px;
+}
+.fadd{background:#dcfce7;color:#15803d;}
+.fadd:active{background:#bbf7d0;}
+.fedit{background:#dbeafe;color:#1d4ed8;}
+.fdel{background:#fee2e2;color:#dc2626;}
+
+/* ── SECTION ── */
+.sec-hdr{display:flex;justify-content:space-between;align-items:center;padding:4px 2px 10px;}
+.sec-hdr-title{font-size:.7rem;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;}
+.clear-btn{font-size:.72rem;font-weight:700;color:#ef4444;background:none;border:none;cursor:pointer;font-family:inherit;padding:4px 10px;border-radius:8px;}
+.clear-btn:hover{background:#fef2f2;}
+
+/* ── CATEGORY ── */
+.cat-section{margin-bottom:6px;}
+.cat-pill{display:inline-flex;align-items:center;gap:5px;padding:4px 10px 4px 8px;border-radius:99px;font-size:.7rem;font-weight:700;margin-bottom:8px;background:#f3f4f6;color:#4b5563;}
+
+/* ── ITEM CARD ── */
+.item{display:flex;align-items:center;gap:10px;background:var(--card);border-radius:14px;padding:12px 14px;margin-bottom:6px;box-shadow:0 1px 6px rgba(0,0,0,.05);border:1px solid var(--border);transition:opacity .25s;}
+.item.done{opacity:.42;}
+.item.done .item-name{text-decoration:line-through;color:var(--text3);}
+.cb{position:relative;width:26px;height:26px;flex-shrink:0;cursor:pointer;}
+.cb input{position:absolute;opacity:0;width:100%;height:100%;cursor:pointer;margin:0;}
+.cb .mark{width:26px;height:26px;border-radius:50%;border:2px solid #d1d5db;display:flex;align-items:center;justify-content:center;transition:all .22s;background:#fff;}
+.cb input:checked + .mark{background:var(--green);border-color:var(--green);}
+.cb input:checked + .mark::after{content:'✓';color:#fff;font-size:.78rem;font-weight:900;}
+.item-thumb{width:42px;height:42px;border-radius:10px;object-fit:cover;cursor:pointer;flex-shrink:0;border:1px solid var(--border);}
+.item-body{flex:1;min-width:0;}
+.item-name{font-weight:700;font-size:1rem;color:var(--text1);}
+.item-cat-inline{font-size:.65rem;color:var(--text3);margin-top:2px;}
+.qty-badge{background:#f3f4f6;color:var(--text2);padding:3px 10px;border-radius:99px;font-size:.75rem;font-weight:800;flex-shrink:0;}
+.item-acts{display:flex;gap:2px;flex-shrink:0;}
+.item-acts button{background:none;border:none;cursor:pointer;padding:7px 8px;font-size:.85rem;border-radius:9px;color:var(--text3);transition:background .15s,color .15s;}
+.i-fav:hover,.i-fav.active{background:#fffbeb;color:var(--amber);}
+.i-fav.active{color:var(--amber);}
+.i-edit:hover{background:#eff6ff;color:#3b82f6;}
+.i-del:hover{background:#fef2f2;color:#ef4444;}
+
+.done-divider{display:flex;align-items:center;gap:10px;padding:12px 0 8px;}
+.done-divider span{font-size:.68rem;font-weight:700;color:var(--text3);white-space:nowrap;}
+.done-divider::before,.done-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+
+.sl-empty{text-align:center;padding:40px 20px;color:var(--text3);}
+.sl-empty .e-icon{font-size:2.8rem;margin-bottom:10px;opacity:.5;}
+.sl-empty .e-title{font-size:.95rem;font-weight:700;color:var(--text2);margin-bottom:4px;}
+.sl-empty .e-sub{font-size:.78rem;}
+
+/* ── SHEETS ── */
+.sheet-overlay{display:none;position:fixed;z-index:2000;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);justify-content:flex-end;flex-direction:column;align-items:center;}
+.sheet-overlay.open{display:flex;}
+.sheet{background:var(--card);border-radius:var(--sheet-r) var(--sheet-r) 0 0;padding:20px 20px 32px;width:100%;max-width:600px;direction:rtl;animation:slideUp .28s cubic-bezier(.4,0,.2,1);}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.sheet-handle{width:36px;height:4px;background:#e5e7eb;border-radius:99px;margin:0 auto 18px;}
+.sheet-title{font-size:1.05rem;font-weight:900;color:var(--text1);margin-bottom:16px;text-align:center;}
+.sheet label{display:block;font-size:.75rem;font-weight:700;color:var(--text2);margin-bottom:5px;}
+.sheet input[type="text"],.sheet input[type="number"]{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:.92rem;font-family:inherit;background:#fafaf8;color:var(--text1);outline:none;margin-bottom:12px;}
+.sheet input:focus{border-color:var(--accent);background:#fff;}
+.sheet select{width:100%;padding:11px 14px;border:1.5px solid var(--border);border-radius:12px;font-size:.88rem;font-family:inherit;background:#fafaf8;color:var(--text2);outline:none;margin-bottom:12px;}
+.sheet select:focus{border-color:var(--accent);}
+.sheet-row{display:flex;gap:8px;width:100%;}
+.sheet-row>div{flex:1;min-width:0;box-sizing:border-box;}
+.sheet .preview-row{display:flex;align-items:center;gap:10px;margin-bottom:12px;}
+.sheet .preview-row img{width:50px;height:50px;border-radius:10px;object-fit:cover;}
+.sheet .preview-row button{padding:5px 12px;background:#fee2e2;color:#ef4444;border:none;border-radius:8px;font-size:.72rem;font-weight:700;cursor:pointer;}
+.sheet-save{width:100%;padding:13px;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;border-radius:13px;font-size:.92rem;font-weight:800;font-family:inherit;cursor:pointer;margin-bottom:8px;}
+.sheet-save.yellow{background:linear-gradient(135deg,#f59e0b,#f97316);}
+.sheet-cancel{width:100%;padding:10px;background:none;border:none;color:var(--text3);font-size:.85rem;font-family:inherit;cursor:pointer;}
+
+.img-popup{display:none;position:fixed;z-index:3000;inset:0;background:rgba(0,0,0,.85);justify-content:center;align-items:center;}
+.img-popup.open{display:flex;}
+.img-popup img{max-width:90%;max-height:80vh;border-radius:14px;}
+
+.fu{opacity:0;transform:translateY(12px);animation:fu .38s ease forwards;}
+@keyframes fu{to{opacity:1;transform:translateY(0)}}
+.d1{animation-delay:.03s}.d2{animation-delay:.09s}.d3{animation-delay:.16s}
+</style>
+
+<div class="page">
+
+  <div class="pg-header fu d1">
+    <div class="ph-glow"></div>
+    <div class="ph-top">
+      <div class="ph-title">
+        <div class="ph-label">OurHome IL</div>
+        <div class="ph-name"><span>🛒</span> רשימת קניות</div>
+        <div class="ph-sub">מה צריך לקנות היום?</div>
+      </div>
+    </div>
+    <div class="ph-stats">
+      <div class="ph-stat accent">
+        <div class="sv" id="slLeft">0</div>
+        <div class="sl">נותרו</div>
+      </div>
+      <div class="ph-stat done-s">
+        <div class="sv" id="slDone">0</div>
+        <div class="sl">הושלמו</div>
+      </div>
+      <div class="ph-stat">
+        <div class="sv" id="slTotal">0</div>
+        <div class="sl">סה"כ</div>
+      </div>
+    </div>
+    <div class="ph-prog">
+      <div class="ph-prog-track"><div class="ph-prog-fill" id="slBar" style="width:0%"></div></div>
+      <div class="ph-prog-lbl" id="slPct">0% הושלם</div>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <div class="add-bar fu d2">
+      <div class="add-bar-tabs">
+        <button class="ab-tab active" onclick="slTab('add',this)">➕ הוספה</button>
+        <button class="ab-tab" onclick="slTab('fav',this)">⭐ מועדפים (<span id="favCount">0</span>)</button>
+      </div>
+      <div class="ab-panel active" id="tab-add">
+        <div class="add-field-row">
+          <input type="text" id="itemInput" class="add-field" placeholder="שם פריט..." dir="rtl">
+          <input type="number" id="qtyInput" class="add-field add-qty" value="1" min="1">
+        </div>
+        <select id="catSelect" class="add-cat">
+          <option value="">ללא קטגוריה</option>
+          <option value="🥬 ירקות ופירות">🥬 ירקות ופירות</option>
+          <option value="🥛 חלבי">🥛 חלבי</option>
+          <option value="🥩 בשר ודגים">🥩 בשר ודגים</option>
+          <option value="🍞 לחם ומאפים">🍞 לחם ומאפים</option>
+          <option value="🧊 קפואים">🧊 קפואים</option>
+          <option value="🧴 ניקיון">🧴 ניקיון</option>
+          <option value="🍼 תינוק">🍼 תינוק</option>
+          <option value="📦 כללי">📦 כללי</option>
+        </select>
+        <button class="add-btn" onclick="addItem()">+ הוסף לרשימה</button>
+      </div>
+      <div class="ab-panel" id="tab-fav">
+        <button class="fav-add-all" id="favAddAllBtn" onclick="addAllFavorites()" style="display:none;">⚡ הוסף את כולם לרשימה</button>
+        <div id="favList"></div>
+        <button class="fav-new-btn" onclick="document.getElementById('addFavModal').classList.add('open')">⭐ הוסף מועדף חדש</button>
+      </div>
+    </div>
+
+    <div class="fu d3">
+      <div class="sec-hdr">
+        <span class="sec-hdr-title">הרשימה</span>
+        <button class="clear-btn" id="clearBtn" style="display:none" onclick="clearDone()">🗑 נקה שהושלמו</button>
+      </div>
+      <div id="itemsList">
+        <div class="sl-empty"><div class="e-icon">🛒</div><div class="e-title">הרשימה ריקה</div><div class="e-sub">הוסף פריטים למעלה</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- EDIT ITEM SHEET -->
+<div class="sheet-overlay" id="editModal" onclick="if(event.target===this)closeEdit()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">✏️ עריכת פריט</div>
+    <input type="hidden" id="editId">
+    <label>שם פריט</label>
+    <input type="text" id="editName" placeholder="שם פריט" dir="rtl">
+    <div class="sheet-row">
+      <div>
+        <label>כמות</label>
+        <input type="number" id="editQty" min="1" placeholder="כמות">
+      </div>
+      <div>
+        <label>תמונה</label>
+        <input type="file" id="editImg" accept="image/*" style="font-size:.78rem;padding:10px;border:1.5px solid #f0ede8;border-radius:12px;width:100%;background:#fafaf8;">
+      </div>
+    </div>
+    <label>קטגוריה</label>
+    <select id="editCat">
+      <option value="">ללא קטגוריה</option>
+      <option value="🥬 ירקות ופירות">🥬 ירקות ופירות</option>
+      <option value="🥛 חלבי">🥛 חלבי</option>
+      <option value="🥩 בשר ודגים">🥩 בשר ודגים</option>
+      <option value="🍞 לחם ומאפים">🍞 לחם ומאפים</option>
+      <option value="🧊 קפואים">🧊 קפואים</option>
+      <option value="🧴 ניקיון">🧴 ניקיון</option>
+      <option value="🍼 תינוק">🍼 תינוק</option>
+      <option value="📦 כללי">📦 כללי</option>
+    </select>
+    <div class="preview-row" id="editPreview"></div>
+    <button class="sheet-save" onclick="saveEdit()">שמור שינויים</button>
+    <button class="sheet-cancel" onclick="closeEdit()">ביטול</button>
+  </div>
+</div>
+
+<!-- ADD FAVORITE SHEET -->
+<div class="sheet-overlay" id="addFavModal" onclick="if(event.target===this)this.classList.remove('open')">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">⭐ מועדף חדש</div>
+    <label>שם פריט</label>
+    <input type="text" id="newFavName" placeholder="שם פריט..." dir="rtl">
+    <label>כמות</label>
+    <input type="number" id="newFavQty" value="1" min="1">
+    <label>קטגוריה</label>
+    <select id="newFavCat">
+      <option value="">ללא קטגוריה</option>
+      <option value="🥬 ירקות ופירות">🥬 ירקות ופירות</option>
+      <option value="🥛 חלבי">🥛 חלבי</option>
+      <option value="🥩 בשר ודגים">🥩 בשר ודגים</option>
+      <option value="🍞 לחם ומאפים">🍞 לחם ומאפים</option>
+      <option value="🧊 קפואים">🧊 קפואים</option>
+      <option value="🧴 ניקיון">🧴 ניקיון</option>
+      <option value="🍼 תינוק">🍼 תינוק</option>
+      <option value="📦 כללי">📦 כללי</option>
+    </select>
+    <button class="sheet-save yellow" onclick="addNewFav()">⭐ שמור למועדפים</button>
+    <button class="sheet-cancel" onclick="document.getElementById('addFavModal').classList.remove('open')">ביטול</button>
+  </div>
+</div>
+
+<!-- EDIT FAVORITE SHEET -->
+<div class="sheet-overlay" id="editFavModal" onclick="if(event.target===this)closeEditFav()">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-title">✏️ עריכת מועדף</div>
+    <label>שם פריט</label>
+    <input type="text" id="editFavName" placeholder="שם פריט" dir="rtl">
+    <label>כמות</label>
+    <input type="number" id="editFavQty" min="1">
+    <label>קטגוריה</label>
+    <select id="editFavCat">
+      <option value="">ללא קטגוריה</option>
+      <option value="🥬 ירקות ופירות">🥬 ירקות ופירות</option>
+      <option value="🥛 חלבי">🥛 חלבי</option>
+      <option value="🥩 בשר ודגים">🥩 בשר ודגים</option>
+      <option value="🍞 לחם ומאפים">🍞 לחם ומאפים</option>
+      <option value="🧊 קפואים">🧊 קפואים</option>
+      <option value="🧴 ניקיון">🧴 ניקיון</option>
+      <option value="🍼 תינוק">🍼 תינוק</option>
+      <option value="📦 כללי">📦 כללי</option>
+    </select>
+    <button class="sheet-save" onclick="saveEditFav()">שמור</button>
+    <button class="sheet-cancel" onclick="closeEditFav()">ביטול</button>
+  </div>
+</div>
+
+<!-- IMAGE POPUP -->
+<div class="img-popup" id="imgPopup" onclick="this.classList.remove('open')">
+  <img id="imgPopupSrc" src="">
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let items=[];
+let editImageData=null;
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+async function loadItems(){
+  try{
+    const r=await fetch('/api/shopping-items');
+    items=await r.json();
+    renderItems();updateStats();loadFavCount();
+  }catch(e){console.error(e);}
+}
+
+function updateStats(){
+  const total=items.length,done=items.filter(i=>i.checked).length,left=total-done;
+  const pct=total>0?Math.round(done/total*100):0;
+  document.getElementById('slTotal').textContent=total;
+  document.getElementById('slDone').textContent=done;
+  document.getElementById('slLeft').textContent=left;
+  document.getElementById('slBar').style.width=pct+'%';
+  document.getElementById('slPct').textContent=pct+'% הושלם';
+  document.getElementById('clearBtn').style.display=done>0?'block':'none';
+}
+
+function renderItems(){
+  const list=document.getElementById('itemsList');
+  if(items.length===0){list.innerHTML=`<div class="sl-empty"><div class="e-icon">🛒</div><div class="e-title">הרשימה ריקה</div><div class="e-sub">הוסף פריטים למעלה</div></div>`;return;}
+  const sorted=[...items].sort((a,b)=>{if(a.checked!==b.checked)return a.checked-b.checked;return(a.category||'zzz').localeCompare(b.category||'zzz');});
+  let html='',lastCat=null,doneHeaderShown=false;
+  sorted.forEach(i=>{
+    const cat=i.checked?'__done__':(i.category||'');
+    if(cat!==lastCat){
+      if(cat==='__done__'){if(!doneHeaderShown){html+=`<div class="done-divider"><span>✓ הושלמו</span></div>`;doneHeaderShown=true;}}
+      else if(cat){html+=`<div class="cat-section"><div class="cat-pill">${esc(cat)}</div></div>`;}
+      lastCat=cat;
+    }
+    html+=`<div class="item ${i.checked?'done':''}">
+      <div class="cb"><input type="checkbox" ${i.checked?'checked':''} onchange="toggleItem(${i.id},this.checked)"><div class="mark"></div></div>
+      ${i.image?`<img src="${i.image}" class="item-thumb" onclick="showImg('${i.image.replace(/'/g,"\\'")}')">` :''}
+      <div class="item-body"><span class="item-name">${esc(i.name)}</span></div>
+      ${i.quantity>1?`<span class="qty-badge">×${i.quantity}</span>`:''}
+      <div class="item-acts">
+        <button class="i-fav ${i.favorite?'active':''}" onclick="toggleFav(${i.id},${!i.favorite})"><i class="fas fa-star"></i></button>
+        <button class="i-edit" onclick="openEdit(${i.id})"><i class="fas fa-pen"></i></button>
+        <button class="i-del" onclick="delItem(${i.id})"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>`;
+  });
+  list.innerHTML=html;
+}
+
+async function addItem(){
+  const name=document.getElementById('itemInput').value.trim();
+  const qty=parseInt(document.getElementById('qtyInput').value)||1;
+  const cat=document.getElementById('catSelect').value;
+  if(!name)return;
+  await fetch('/api/shopping-items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,quantity:qty,category:cat})});
+  document.getElementById('itemInput').value='';document.getElementById('qtyInput').value='1';
+  loadItems();
+}
+
+async function toggleItem(id,checked){await fetch(`/api/shopping-items/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({checked})});loadItems();}
+async function toggleFav(id,fav){await fetch(`/api/shopping-items/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({favorite:fav})});loadItems();}
+async function delItem(id){await fetch(`/api/shopping-items/${id}`,{method:'DELETE'});loadItems();}
+async function clearDone(){if(!confirm('לנקות את כל הפריטים שהושלמו?'))return;await fetch('/api/shopping-items/clear-completed',{method:'DELETE'});loadItems();}
+
+function slTab(tab,btn){
+  document.querySelectorAll('.ab-tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.ab-panel').forEach(c=>c.classList.remove('active'));
+  btn.classList.add('active');document.getElementById('tab-'+tab).classList.add('active');
+  if(tab==='fav')loadFavCount();
+}
+
+async function loadFavCount(){
+  try{
+    const r=await fetch('/api/shopping-items/favorites');const favs=await r.json();
+    document.getElementById('favCount').textContent=favs.length;
+    renderFavList(favs);
+  }catch(e){}
+}
+
+function renderFavList(favs){
+  const list=document.getElementById('favList'),addAllBtn=document.getElementById('favAddAllBtn');
+  if(favs.length===0){list.innerHTML='<div class="fav-empty">אין מועדפים עדיין. הוסף למטה או סמן ⭐ על פריטים.</div>';addAllBtn.style.display='none';return;}
+  addAllBtn.style.display='block';
+list.innerHTML=favs.map(f=>{
+    const alreadyIn=items.some(i=>i.name===f.name&&!i.checked);
+    return`<div class="fav-item">
+      <button class="fadd ${alreadyIn?'added':''}" onclick="addOneFav('${f.name.replace(/'/g,"\\'")}',${f.quantity},'${(f.category||'').replace(/'/g,"\\'")}')">
+        ${alreadyIn?'<i class="fas fa-basket-shopping"></i>':'<i class="fas fa-plus"></i>'}
+      </button>
+      <span class="fname">${esc(f.name)}</span>
+      ${f.category?`<span class="fcat">${esc(f.category)}</span>`:''}
+      <span class="fqty">×${f.quantity}</span>
+      <button class="fedit" onclick="editFav('${f.name.replace(/'/g,"\\'")}',${f.quantity},'${(f.category||'').replace(/'/g,"\\'")}')"><i class="fas fa-pen"></i></button>
+      <button class="fdel" onclick="delFav('${f.name.replace(/'/g,"\\'")}')"><i class="fas fa-trash"></i></button>
+    </div>`;
+  }).join('');
+}
+
+async function addOneFav(name,qty,cat){
+  const existing=items.find(i=>i.name===name&&!i.checked);
+  const btn=event.target.closest('button');
+  if(existing){btn.textContent='כבר ברשימה';setTimeout(()=>{btn.textContent='+ הוסף';},1500);return;}
+  await fetch('/api/shopping-items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,quantity:qty,category:cat})});
+  btn.textContent='✓ נוסף!';btn.style.background='#bbf7d0';
+  setTimeout(()=>{btn.textContent='+ הוסף';btn.style.background='';},1500);
+  loadItems();
+}
+
+async function delFav(name){
+  if(!confirm(`להסיר "${name}" מהמועדפים?`))return;
+  await fetch('/api/shopping-items/delete-favorite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name})});
+  loadFavCount();loadItems();
+}
+
+let editFavOldName=null;
+function editFav(name,qty,cat){
+  editFavOldName=name;
+  document.getElementById('editFavName').value=name;
+  document.getElementById('editFavQty').value=qty;
+  document.getElementById('editFavCat').value=cat||'';
+  document.getElementById('editFavModal').classList.add('open');
+}
+function closeEditFav(){document.getElementById('editFavModal').classList.remove('open');}
+async function saveEditFav(){
+  const newName=document.getElementById('editFavName').value.trim();
+  const newQty=parseInt(document.getElementById('editFavQty').value)||1;
+  const newCat=document.getElementById('editFavCat').value;
+  if(!newName)return;
+  await fetch('/api/shopping-items/edit-favorite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({old_name:editFavOldName,name:newName,quantity:newQty,category:newCat})});
+  closeEditFav();loadFavCount();
+}
+
+async function addNewFav(){
+  const name=document.getElementById('newFavName').value.trim();
+  const qty=parseInt(document.getElementById('newFavQty').value)||1;
+  const cat=document.getElementById('newFavCat').value;
+  if(!name)return;
+  await fetch('/api/shopping-items/add-new-favorite',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,quantity:qty,category:cat})});
+  document.getElementById('newFavName').value='';document.getElementById('newFavQty').value='1';
+  document.getElementById('addFavModal').classList.remove('open');loadFavCount();
+}
+
+async function addAllFavorites(){
+  const r=await fetch('/api/shopping-items/add-favorites',{method:'POST'});const d=await r.json();
+  const btn=document.querySelector('.fav-add-all');
+  btn.textContent=d.added>0?`✓ נוספו ${d.added} פריטים!`:'הכל כבר ברשימה';
+  setTimeout(()=>{btn.textContent='⚡ הוסף את כולם לרשימה';},2000);loadItems();
+}
+
+/* EDIT ITEM — with category */
+function openEdit(id){
+  const item=items.find(i=>i.id===id);if(!item)return;
+  document.getElementById('editId').value=id;
+  document.getElementById('editName').value=item.name;
+  document.getElementById('editQty').value=item.quantity;
+  document.getElementById('editCat').value=item.category||'';
+  editImageData=item.image||null;
+  const preview=document.getElementById('editPreview');
+  preview.innerHTML=item.image?`<img src="${item.image}"><button onclick="editImageData=null;document.getElementById('editPreview').innerHTML=''">הסר תמונה</button>`:'';
+  document.getElementById('editImg').value='';
+  document.getElementById('editModal').classList.add('open');
+  document.getElementById('editImg').onchange=function(e){
+    const file=e.target.files[0];if(!file)return;
+    const reader=new FileReader();
+    reader.onload=function(ev){
+      const img=new Image();
+      img.onload=function(){
+        const c=document.createElement('canvas');const max=800;
+        let w=img.width,h=img.height;
+        if(w>h){h=h*max/w;w=max;}else{w=w*max/h;h=max;}
+        c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
+        editImageData=c.toDataURL('image/jpeg',.7);
+        preview.innerHTML=`<img src="${editImageData}"><button onclick="editImageData=null;document.getElementById('editPreview').innerHTML=''">הסר תמונה</button>`;
+      };img.src=ev.target.result;
+    };reader.readAsDataURL(file);
+  };
+}
+function closeEdit(){document.getElementById('editModal').classList.remove('open');}
+async function saveEdit(){
+  const id=document.getElementById('editId').value;
+  const data={
+    name:document.getElementById('editName').value.trim(),
+    quantity:parseInt(document.getElementById('editQty').value)||1,
+    category:document.getElementById('editCat').value,
+    image:editImageData||''
+  };
+  if(!data.name)return;
+  await fetch(`/api/shopping-items/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(data)});
+  closeEdit();loadItems();
+}
+
+function showImg(src){document.getElementById('imgPopupSrc').src=src;document.getElementById('imgPopup').classList.add('open');}
+
+document.getElementById('itemInput').addEventListener('keypress',e=>{if(e.key==='Enter')addItem();});
+document.getElementById('newFavName').addEventListener('keypress',e=>{if(e.key==='Enter')addNewFav();});
+
+loadItems();
+setInterval(loadItems,15000);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadItems();});
+</script>
+{% endblock %}

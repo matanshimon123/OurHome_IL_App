@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}הגדרת משפחה - OurHome IL{% endblock %}
+{% block content %}
+<style>
+    .family-setup { max-width: 500px; margin: 5% auto; direction: rtl; }
+    .fs-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
+    .fs-card h2 { font-size: 1.3rem; font-weight: 700; color: #1e3a5f; margin-bottom: 8px; }
+    .fs-card p { color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+    .fs-card .icon { font-size: 3rem; margin-bottom: 10px; }
+    .fs-card input { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 12px; box-sizing: border-box; text-align: center; }
+    .fs-card input:focus { outline: none; border-color: #2563eb; }
+    .fs-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
+    .fs-btn.primary { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; }
+    .fs-btn.secondary { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+    .fs-or { text-align: center; color: #aaa; font-size: 0.85rem; margin: 15px 0; }
+
+    /* Family info card */
+    .fi-card { background: white; border-radius: 20px; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    .fi-card h2 { font-size: 1.2rem; font-weight: 700; color: #1e3a5f; margin-bottom: 15px; text-align: center; }
+    .fi-code { background: #f0f4ff; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
+    .fi-code .code { font-size: 2rem; font-weight: 800; letter-spacing: 4px; color: #2563eb; }
+    .fi-code .label { font-size: 0.8rem; color: #888; margin-top: 5px; }
+    .fi-members { margin-bottom: 15px; }
+    .fi-member { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .fi-member:last-child { border-bottom: none; }
+    .fi-avatar { width: 36px; height: 36px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; }
+    .fi-name { flex: 1; font-weight: 600; color: #333; }
+    .fi-role { font-size: 0.75rem; color: #888; background: #f0f4ff; padding: 2px 8px; border-radius: 10px; }
+    .fi-continue { width: 100%; padding: 12px; background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; text-decoration: none; display: block; text-align: center; }
+</style>
+
+<div class="family-setup">
+    {% if not family %}
+    <!-- No family yet - choose to create or join -->
+    <div class="fs-card">
+        <div class="icon">🏠</div>
+        <h2>ברוך הבא, {{ session.display_name }}!</h2>
+        <p>צור משפחה חדשה או הצטרף למשפחה קיימת</p>
+    </div>
+
+    <div class="fs-card">
+        <h2>צור משפחה חדשה</h2>
+        <p>אתה תהיה מנהל המשפחה ותקבל קוד הזמנה לשיתוף</p>
+        <form method="POST" action="{{ url_for('create_family') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="family_name" placeholder="שם המשפחה (למשל: משפחת כהן)" required dir="rtl">
+            <button type="submit" class="fs-btn primary">צור משפחה</button>
+        </form>
+    </div>
+
+    <div class="fs-or">— או —</div>
+
+    <div class="fs-card">
+        <h2>הצטרף למשפחה קיימת</h2>
+        <p>קיבלת קוד הזמנה? הכנס אותו כאן</p>
+        <form method="POST" action="{{ url_for('join_family') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="text" name="invite_code" placeholder="קוד הזמנה" required style="letter-spacing:3px; font-size:1.2rem; font-weight:700;">
+            <button type="submit" class="fs-btn secondary">הצטרף</button>
+        </form>
+    </div>
+
+    {% else %}
+    <!-- Already in a family - show info -->
+    <div class="fi-card">
+        <h2>🏠 {{ family.name }}</h2>
+
+        <div class="fi-code">
+            <div class="code">{{ family.invite_code }}</div>
+            <div class="label">קוד הזמנה — שתף עם בן/בת הזוג</div>
+        </div>
+
+        <h3 style="font-size:0.95rem; font-weight:700; color:#333; margin-bottom:10px;">👥 חברי המשפחה:</h3>
+        <div class="fi-members">
+            {% for member in members %}
+            <div class="fi-member">
+                <div class="fi-avatar">{{ member.display_name[0] }}</div>
+                <div class="fi-name">{{ member.display_name }}</div>
+                <span class="fi-role">{{ 'מנהל' if member.id == family.created_by else 'חבר' }}</span>
+            </div>
+            {% endfor %}
+        </div>
+
+        <a href="{{ url_for('home') }}" class="fi-continue">המשך לאפליקציה →</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}הרשמה - OurHome IL{% endblock %}
+{% block content %}
+<style>
+    .auth-card { max-width: 400px; margin: 8% auto; background: white; border-radius: 20px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); direction: rtl; }
+    .auth-card .logo { text-align: center; margin-bottom: 20px; }
+    .auth-card .logo img { width: 60px; height: 60px; border-radius: 15px; }
+    .auth-card h2 { text-align: center; font-size: 1.4rem; font-weight: 700; margin: 10px 0 5px; color: #1e3a5f; }
+    .auth-card p { text-align: center; color: #888; font-size: 0.85rem; margin-bottom: 20px; }
+    .auth-card input { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.95rem; margin-bottom: 12px; box-sizing: border-box; }
+    .auth-card input:focus { outline: none; border-color: #2563eb; }
+    .auth-card .btn-auth { width: 100%; padding: 12px; background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
+    .auth-card .link { text-align: center; font-size: 0.85rem; color: #2563eb; }
+    .auth-card .link a { color: #2563eb; text-decoration: none; font-weight: 600; }
+</style>
+<div class="auth-card">
+    <div class="logo"><img src="/static/icons/icon-96.png" alt="OurHome IL"></div>
+    <h2>הרשמה ל-OurHome IL</h2>
+    <p>ניהול משק בית חכם למשפחה</p>
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="text" name="display_name" placeholder="שם תצוגה (למשל: מתן)" required>
+        <input type="text" name="username" placeholder="שם משתמש" required>
+        <input type="email" name="email" placeholder="אימייל" required>
+        <input type="password" name="password" placeholder="סיסמה (לפחות 6 תווים)" required minlength="6">
+        <input type="password" name="password2" placeholder="אימות סיסמה" required>
+        <button type="submit" class="btn-auth">צור חשבון</button>
+    </form>
+    <div class="link">כבר יש לך חשבון? <a href="{{ url_for('login') }}">התחבר</a></div>
+</div>
+{% endblock %}

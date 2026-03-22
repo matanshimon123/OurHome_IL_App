@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#2563eb">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="OurHome IL">
+    <meta name="description" content="מעקב הוצאות, רשימת קניות ומעקב תינוק למשפחה הישראלית">
+    <link rel="manifest" href="/static/manifest.json">
+    <link rel="icon" type="image/png" href="/static/icons/favicon.png">
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+    <title>{% block title %}OurHome IL{% endblock %}</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f0f2f5;
+            --card: #ffffff;
+        }
+
+        * { -webkit-tap-highlight-color: transparent; }
+
+        /* ── iOS / Safari fixes ── */
+        canvas { direction: ltr !important; display: block; }
+        input, select, textarea {
+            -webkit-appearance: none;
+            appearance: none;
+            border-radius: 0;
+        }
+        input[type="checkbox"], input[type="radio"] {
+            -webkit-appearance: auto;
+            appearance: auto;
+        }
+
+        body {
+            background: var(--bg);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            padding-bottom: 70px;
+            color: #333;
+        }
+
+        .page-content { }
+
+        /* Cards */
+        .card {
+            border: none; border-radius: 15px; background: var(--card);
+            box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+        }
+
+        .stats-card {
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            color: white; border-radius: 20px; padding: 1.5rem; margin-bottom: 1rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), #3b82f6);
+            border: none; border-radius: 10px; padding: 10px 20px; font-weight: 600;
+        }
+
+        .form-control {
+            border: 2px solid #e5e7eb; border-radius: 10px; padding: 12px 15px;
+        }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 0.2rem rgba(37,99,235,0.15); }
+
+        .alert { display: none !important; } /* Hide default alerts - using toast instead */
+
+        @media (max-width: 768px) {
+            .container-fluid { padding: 10px; }
+        }
+
+        /* Back Button */
+        .back-bar { padding: 10px 15px; }
+        .back-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: #555; text-decoration: none; font-size: 0.85rem; font-weight: 600;
+            background: white; padding: 7px 14px; border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08); transition: all 0.2s;
+        }
+        .back-btn:hover { color: var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+        .back-btn i { font-size: 0.75rem; }
+
+        /* Bottom Navigation */
+        .bottom-nav {
+            position: fixed; bottom: 0; left: 0; right: 0;
+            background: white; display: flex; justify-content: space-around; align-items: center;
+            height: 58px; box-shadow: 0 -2px 15px rgba(0,0,0,0.08); z-index: 1000; direction: ltr;
+        }
+        .bnav-item {
+            display: flex; flex-direction: column; align-items: center; justify-content: center;
+            flex: 1; text-decoration: none; color: #aaa; font-size: 0.6rem; font-weight: 600;
+            padding: 6px 0; transition: all 0.2s; position: relative;
+        }
+        .bnav-item i { font-size: 1.15rem; margin-bottom: 2px; transition: all 0.2s; }
+        .bnav-item.active { color: var(--primary); }
+        .bnav-item.active i { transform: scale(1.15); }
+        .bnav-item.active::before {
+            content: ''; position: absolute; top: 0; left: 20%; right: 20%;
+            height: 3px; background: var(--primary); border-radius: 0 0 3px 3px;
+        }
+        .bnav-item:hover { color: var(--primary); text-decoration: none; }
+
+        /* Toast Notification */
+        .toast-container {
+            position: fixed; bottom: 70px; left: 50%; transform: translateX(-50%);
+            z-index: 2000; display: flex; flex-direction: column; align-items: center; gap: 8px;
+            pointer-events: none;
+        }
+        .toast-msg {
+            background: #333; color: white; padding: 10px 20px; border-radius: 25px;
+            font-size: 0.85rem; font-weight: 500; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            animation: toastIn 0.3s ease; white-space: nowrap; pointer-events: auto;
+        }
+        .toast-msg.success { background: #10b981; }
+        .toast-msg.error { background: #ef4444; }
+        .toast-msg.info { background: #2563eb; }
+        .toast-msg.hide { animation: toastOut 0.3s ease forwards; }
+        @keyframes toastIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes toastOut { from { opacity: 1; transform: translateY(0); } to { opacity: 0; transform: translateY(20px); } }
+
+        /* iOS safe area */
+        @supports (padding-bottom: env(safe-area-inset-bottom)) {
+            .bottom-nav { padding-bottom: env(safe-area-inset-bottom); }
+            body { padding-bottom: calc(70px + env(safe-area-inset-bottom)); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    {% if session.user_id and session.family_id %}
+    {% set current_page = request.endpoint %}
+    {% if current_page != 'home' %}
+<!--    <div class="back-bar">-->
+<!--        <a href="{% if current_page == 'history' %}{{ url_for('dashboard') }}{% else %}{{ url_for('home') }}{% endif %}" class="back-btn">-->
+<!--            <i class="fas fa-arrow-right"></i>-->
+<!--            {% if current_page == 'history' %}חזרה{% else %}בית{% endif %}-->
+<!--        </a>-->
+<!--    </div>-->
+    {% endif %}
+    {% endif %}
+
+    <div class="container-fluid px-0 {% if session.user_id and session.family_id and request.endpoint == 'home' %}mt-3{% else %}mt-1{% endif %} page-content">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        {% for category, message in messages %}
+                        showToast('{{ message|e }}', '{{ category }}');
+                        {% endfor %}
+                    });
+                </script>
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script>
+    // Auto-add CSRF token to all fetch POST/DELETE/PUT calls
+    const _origFetch = window.fetch;
+    window.fetch = function(url, opts={}) {
+        const method = (opts.method || 'GET').toUpperCase();
+        if (['POST','PUT','DELETE','PATCH'].includes(method)) {
+            opts.headers = opts.headers || {};
+            const token = document.cookie.split('; ')
+                .find(r => r.startsWith('csrf_token='))?.split('=')[1];
+            if (token) opts.headers['X-CSRFToken'] = token;
+        }
+        return _origFetch(url, opts);
+    };
+    </script>
+    {% block scripts %}{% endblock %}
+
+    {% if session.user_id and session.family_id %}
+    {% set current_page = request.endpoint %}
+    <nav class="bottom-nav">
+        <a href="{{ url_for('home') }}" class="bnav-item {% if current_page == 'home' %}active{% endif %}">
+            <i class="fas fa-home"></i>
+            <span>בית</span>
+        </a>
+        <a href="{{ url_for('dashboard') }}" class="bnav-item {% if current_page in ['dashboard', 'history'] %}active{% endif %}">
+            <i class="fas fa-wallet"></i>
+            <span>הוצאות</span>
+        </a>
+        <a href="{{ url_for('shopping_list') }}" class="bnav-item {% if current_page == 'shopping_list' %}active{% endif %}">
+            <i class="fas fa-cart-shopping"></i>
+            <span>קניות</span>
+        </a>
+        <a href="{{ url_for('baby_tracker') }}" class="bnav-item {% if current_page == 'baby_tracker' %}active{% endif %}">
+            <i class="fas fa-baby"></i>
+            <span>תינוק</span>
+        </a>
+        <a href="{{ url_for('settings') }}" class="bnav-item {% if current_page == 'settings' %}active{% endif %}">
+            <i class="fas fa-cog"></i>
+            <span>הגדרות</span>
+        </a>
+    </nav>
+    {% endif %}
+
+    <script>
+        // Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW:', err));
+        }
+
+        // Toast notification system
+        function showToast(message, type) {
+            type = type || 'info';
+            if (type === 'danger') type = 'error';
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = 'toast-msg ' + type;
+            toast.textContent = message;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.classList.add('hide');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,188 @@
+{% extends "base.html" %}
+{% block title %}Admin — OurHome IL{% endblock %}
+{% block content %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
+*{font-family:'Heebo',sans-serif;box-sizing:border-box;}
+.back-bar{display:none!important;}
+.adm{max-width:860px;margin:0 auto;direction:rtl;padding:0 14px 40px;}
+
+.adm-header{
+  background:linear-gradient(150deg,#06122a 0%,#0d2248 55%,#112d5e 100%);
+  border-radius:0 0 24px 24px;padding:22px 22px 28px;
+  margin:-10px -14px 20px;position:relative;overflow:hidden;
+}
+.adm-header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:24px;background:#f6f7fb;border-radius:24px 24px 0 0;}
+.adm-glow{position:absolute;top:-60px;right:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%);pointer-events:none;}
+.adm-title{color:#fff;position:relative;z-index:1;}
+.adm-label{font-size:.62rem;color:rgba(255,255,255,.38);font-weight:300;letter-spacing:.07em;margin-bottom:4px;}
+.adm-h1{font-size:1.5rem;font-weight:900;letter-spacing:-.5px;}
+.adm-h1 span{color:#60a5fa;}
+.adm-sub{font-size:.72rem;color:rgba(255,255,255,.38);margin-top:3px;}
+
+.sec-label{font-size:.66rem;font-weight:700;color:#94a3b8;letter-spacing:.09em;text-transform:uppercase;margin:0 0 10px 2px;}
+
+/* KPI grid */
+.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;}
+.kpi{background:#fff;border-radius:18px;padding:16px;box-shadow:0 2px 16px rgba(0,0,0,.06);border:1.5px solid #eef0f5;}
+.kpi .kv{font-size:2rem;font-weight:900;color:#0f172a;letter-spacing:-1px;line-height:1;}
+.kpi .kl{font-size:.7rem;color:#94a3b8;margin-top:4px;}
+.kpi .ks{font-size:.72rem;font-weight:700;margin-top:6px;}
+.kpi .ks.up{color:#10b981;}
+.kpi .ks.warn{color:#f59e0b;}
+.kpi.blue .kv{color:#2563eb;}
+.kpi.green .kv{color:#10b981;}
+.kpi.pink .kv{color:#e83e8c;}
+.kpi.amber .kv{color:#f59e0b;}
+
+/* Chart cards */
+.chart-card{background:#fff;border-radius:20px;padding:18px;box-shadow:0 2px 16px rgba(0,0,0,.06);border:1.5px solid #eef0f5;margin-bottom:14px;}
+.chart-card h3{font-size:.82rem;font-weight:800;color:#0f172a;margin:0 0 14px;display:flex;align-items:center;gap:7px;}
+.chart-card h3::before{content:'';width:8px;height:8px;border-radius:50%;background:#2563eb;flex-shrink:0;}
+.ch{position:relative;height:200px;}
+
+/* Family size */
+.fam-bars{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px;}
+.fb{background:#f8fafc;border-radius:14px;padding:14px;text-align:center;border:1.5px solid #eef0f5;}
+.fb .fv{font-size:1.8rem;font-weight:900;color:#2563eb;line-height:1;}
+.fb .fl{font-size:.68rem;color:#94a3b8;margin-top:4px;}
+.fb.solo{border-color:#bfdbfe;background:#eff6ff;}
+.fb.pair{border-color:#a7f3d0;background:#ecfdf5;} .fb.pair .fv{color:#10b981;}
+.fb.lg{border-color:#fde68a;background:#fffbeb;} .fb.lg .fv{color:#f59e0b;}
+</style>
+
+<div class="adm">
+  <!-- Header -->
+  <div class="adm-header">
+    <div class="adm-glow"></div>
+    <div class="adm-title">
+      <div class="adm-label">OurHome IL</div>
+      <div class="adm-h1">🛠️ <span>Admin</span> Dashboard</div>
+      <div class="adm-sub">{{ now_israel().strftime('%d/%m/%Y %H:%M') }}</div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="sec-label">סיכום כללי</div>
+  <div class="kpi-grid">
+    <div class="kpi blue">
+      <div class="kv">{{ total_users }}</div>
+      <div class="kl">משתמשים רשומים</div>
+      <div class="ks up">+{{ new_week }} השבוע · +{{ new_month }} החודש</div>
+    </div>
+    <div class="kpi green">
+      <div class="kv">{{ total_families }}</div>
+      <div class="kl">משפחות</div>
+      <div class="ks up">{{ active_families }} עם 2+ חברים</div>
+    </div>
+    <div class="kpi pink">
+      <div class="kv">{{ payments_month }}</div>
+      <div class="kl">תשלומים נרשמו החודש</div>
+      <div class="ks up">אגרגט — ללא פרטים</div>
+    </div>
+    <div class="kpi amber">
+      <div class="kv">{{ no_family }}</div>
+      <div class="kl">משתמשים ללא משפחה</div>
+      <div class="ks warn">נרשמו ולא השלימו הגדרה</div>
+    </div>
+  </div>
+
+  <!-- Registration chart -->
+  <div class="chart-card">
+    <h3>הרשמות — 30 ימים אחרונים</h3>
+    <div class="ch"><canvas id="regDailyChart"></canvas></div>
+  </div>
+
+  <!-- Monthly registrations -->
+  <div class="chart-card">
+    <h3>הרשמות חודשיות — 12 חודשים</h3>
+    <div class="ch"><canvas id="regMonthlyChart"></canvas></div>
+  </div>
+
+  <!-- Payments activity -->
+  <div class="chart-card">
+    <h3>פעילות תשלומים לפי חודש</h3>
+    <div class="ch"><canvas id="paymentsChart"></canvas></div>
+  </div>
+
+  <!-- Family size breakdown -->
+  <div class="chart-card">
+    <h3>גודל משפחות</h3>
+    <div class="fam-bars">
+      <div class="fb solo">
+        <div class="fv">{{ solo }}</div>
+        <div class="fl">👤 יחיד</div>
+      </div>
+      <div class="fb pair">
+        <div class="fv">{{ pairs }}</div>
+        <div class="fl">👫 זוג</div>
+      </div>
+      <div class="fb lg">
+        <div class="fv">{{ large }}</div>
+        <div class="fl">👨‍👩‍👧 3+</div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const regDaily   = {{ reg_daily | tojson }};
+const regMonthly = {{ reg_monthly | tojson }};
+const payMonthly = {{ payments_by_month | tojson }};
+
+const chartOpts = (label, color) => ({
+  responsive: true, maintainAspectRatio: false,
+  plugins: { legend: { display: false }, tooltip: { callbacks: { label: v => ' ' + v.raw + ' ' + label } } },
+  scales: {
+    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 9 }, color: '#94a3b8', stepSize: 1 } },
+    x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94a3b8' } }
+  }
+});
+
+// הרשמות יומיות
+new Chart(document.getElementById('regDailyChart'), {
+  type: 'bar',
+  data: {
+    labels: regDaily.map(r => r.day.slice(5)),
+    datasets: [{ data: regDaily.map(r => r.cnt),
+      backgroundColor: 'rgba(37,99,235,0.7)', borderRadius: 5, borderSkipped: false }]
+  },
+  options: chartOpts('משתמשים', '#2563eb')
+});
+
+// הרשמות חודשיות
+new Chart(document.getElementById('regMonthlyChart'), {
+  type: 'bar',
+  data: {
+    labels: regMonthly.map(r => r.month),
+    datasets: [{ data: regMonthly.map(r => r.cnt),
+      backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 5, borderSkipped: false }]
+  },
+  options: chartOpts('משתמשים', '#10b981')
+});
+
+// פעילות תשלומים
+new Chart(document.getElementById('paymentsChart'), {
+  type: 'bar',
+  data: {
+    labels: payMonthly.map(r => r.month),
+    datasets: [
+      { label: 'תשלומים', data: payMonthly.map(r => r.cnt),
+        backgroundColor: 'rgba(232,62,140,0.7)', borderRadius: 5, borderSkipped: false },
+      { label: 'משפחות פעילות', data: payMonthly.map(r => r.families),
+        backgroundColor: 'rgba(245,158,11,0.7)', borderRadius: 5, borderSkipped: false }
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: true, position: 'top', labels: { font: { size: 10 }, color: '#64748b' } } },
+    scales: {
+      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 9 }, color: '#94a3b8' } },
+      x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94a3b8' } }
+    }
+  }
+});
+</script>
+{% endblock %}

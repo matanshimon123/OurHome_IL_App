@@ -1,0 +1,382 @@
+{% extends "base.html" %}
+{% block title %}OurHome IL{% endblock %}
+{% block content %}
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
+* { font-family: 'Heebo', sans-serif; box-sizing: border-box; }
+
+.hw {
+    max-width: 600px;
+    margin: 0 auto;
+    direction: rtl;
+    padding: 0 14px 24px;
+    overflow-x: hidden;
+}
+
+/* ── HERO ── */
+.hero {
+    background: linear-gradient(150deg, #0d1b2e 0%, #1a3050 60%, #1e3a6e 100%);
+    border-radius: 0 0 28px 28px;
+    padding: 20px 20px 26px;
+    margin: -48px -14px 20px;
+    padding-top: 52px;
+    position: relative;
+    overflow: hidden;
+}
+.hero::before {
+    content: '';
+    position: absolute; top: -50px; left: -50px;
+    width: 180px; height: 180px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(37,99,235,0.22) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero::after {
+    content: '';
+    position: absolute; bottom: -40px; right: -30px;
+    width: 150px; height: 150px; border-radius: 50%;
+    background: radial-gradient(circle, rgba(232,62,140,0.12) 0%, transparent 70%);
+    pointer-events: none;
+}
+.hero-inner {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative; z-index: 1;
+}
+.hero-text { color: white; }
+.hero-date { font-size: 0.72rem; color: rgba(255,255,255,0.38); font-weight: 300; margin-bottom: 5px; }
+.hero-name { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.4px; line-height: 1.15; }
+.hero-name em { color: #60a5fa; font-style: normal; }
+.hero-tagline { font-size: 0.78rem; color: rgba(255,255,255,0.35); font-weight: 300; margin-top: 3px; }
+.hero-avatar {
+    width: 52px; height: 52px; border-radius: 50%;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.35rem; font-weight: 900; color: white;
+    box-shadow: 0 0 0 3px rgba(96,165,250,0.25); flex-shrink: 0;
+}
+
+/* ── SECTION LABEL ── */
+.sec-label {
+    font-size: 0.7rem; font-weight: 700; color: #94a3b8;
+    letter-spacing: 0.09em; text-transform: uppercase; margin: 0 0 10px 2px;
+}
+
+/* ── FINANCE CARD ── */
+.fin-card {
+    background: white; border-radius: 22px;
+    padding: 20px 20px 16px;
+    box-shadow: 0 4px 24px rgba(37,99,235,0.1);
+    border: 1.5px solid #dbeafe;
+    margin-bottom: 14px;
+    text-decoration: none; color: inherit; display: block;
+    transition: transform 0.16s;
+}
+.fin-card:active { transform: scale(0.985); color: inherit; }
+.fin-card:hover { color: inherit; }
+.fin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.fin-header-title { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 700; color: #64748b; }
+.fin-dot { width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg,#2563eb,#3b82f6); flex-shrink: 0; }
+.fin-header-arrow { font-size: 0.65rem; color: #cbd5e1; }
+.fin-amount-row { margin-bottom: 16px; }
+.fin-amount { font-size: 2.8rem; font-weight: 900; color: #0f172a; letter-spacing: -2px; line-height: 1; display: flex; align-items: baseline; gap: 3px; }
+.fin-amount .sym { font-size: 1.4rem; font-weight: 600; color: #94a3b8; letter-spacing: 0; }
+.fin-chips { display: flex; gap: 10px; margin-bottom: 16px; }
+.fin-chip { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 10px 12px; text-align: center; }
+.fin-chip .cv { font-size: 1.25rem; font-weight: 900; color: #1e293b; display: block; line-height: 1; }
+.fin-chip .cl { font-size: 0.68rem; color: #94a3b8; display: block; margin-top: 4px; }
+.fin-chip.blue { background: #eff6ff; border-color: #bfdbfe; }
+.fin-chip.blue .cv { color: #2563eb; }
+.fin-last {
+    padding-top: 12px; border-top: 1px solid #f1f5f9;
+    font-size: 0.78rem; color: #94a3b8;
+    display: flex; align-items: center; gap: 6px; overflow: hidden;
+}
+.fin-last i { font-size: 0.62rem; color: #93c5fd; flex-shrink: 0; }
+.fin-last span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ── FULL-WIDTH MINI CARDS ── */
+.mini-card {
+    background: white; border-radius: 20px;
+    padding: 18px 18px 16px;
+    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
+    text-decoration: none; color: inherit; display: block;
+    transition: transform 0.16s; margin-bottom: 14px;
+}
+.mini-card:active { transform: scale(0.985); color: inherit; }
+.mini-card:hover { color: inherit; }
+.shop-card { border: 1.5px solid #fed7aa; background: linear-gradient(150deg, #fff7ed 0%, #fff 60%); }
+.baby-card { border: 1.5px solid #fbcfe8; background: linear-gradient(150deg, #fdf4ff 0%, #fff 60%); }
+
+.mc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.mc-title { font-size: 0.95rem; font-weight: 800; color: #1e293b; }
+.mc-arrow { font-size: 0.65rem; color: #d1d5db; }
+
+/* ── SHOPPING CARD — horizontal ── */
+.shop-body { display: flex; align-items: center; gap: 20px; }
+.ring-container { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
+.ring-svg { width: 90px; height: 90px; transform: rotate(-90deg); }
+.ring-track { fill: none; stroke: #f3f4f6; stroke-width: 8; }
+.ring-fill {
+    fill: none; stroke: #f97316; stroke-width: 8; stroke-linecap: round;
+    stroke-dasharray: 219.9;
+    stroke-dashoffset: 219.9;
+    transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);
+}
+.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.ring-pct { font-size: 1.3rem; font-weight: 900; color: #f97316; line-height: 1; }
+.ring-sub { font-size: 0.6rem; color: #9ca3af; margin-top: 2px; }
+
+.shop-nums { flex: 1; }
+.shop-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f9f0e8; }
+.shop-row:last-child { border-bottom: none; }
+.shop-row-lbl { font-size: 0.82rem; color: #9ca3af; }
+.shop-row-val { font-size: 1.1rem; font-weight: 900; color: #374151; }
+.shop-row-val.orange { color: #f97316; }
+.shop-row-val.green { color: #10b981; }
+
+/* ── BABY CARD ── */
+.baby-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.bstat {
+    background: rgba(255,255,255,0.85); border-radius: 14px;
+    padding: 12px 14px; border: 1px solid rgba(251,207,232,0.5);
+    display: flex; align-items: center; gap: 10px;
+}
+.bstat-icon { font-size: 1.3rem; flex-shrink: 0; }
+.bstat-info {}
+.bstat-val { font-size: 1.4rem; font-weight: 900; color: #1e293b; line-height: 1; }
+.bstat-lbl { font-size: 0.68rem; color: #9ca3af; margin-top: 2px; }
+.bstat.hi .bstat-val { color: #e83e8c; }
+.bstat.green .bstat-val { color: #10b981; }
+
+.baby-last-strip {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,0.9); border: 1px solid rgba(251,207,232,0.6);
+    border-radius: 14px; padding: 10px 14px; margin-top: 10px;
+}
+.bls-label { font-size: 0.75rem; color: #9ca3af; }
+.bls-val { font-size: 1.05rem; font-weight: 900; color: #e83e8c; }
+
+.baby-alert-strip {
+    background: #fef2f2; border: 1px solid #fecaca;
+    border-radius: 12px; padding: 8px 12px; margin-top: 8px;
+    font-size: 0.78rem; color: #ef4444; font-weight: 700;
+    display: none; align-items: center; gap: 6px;
+}
+
+/* ── ANIMATIONS ── */
+.fu { opacity: 0; transform: translateY(14px); animation: fu 0.42s ease forwards; }
+@keyframes fu { to { opacity:1; transform:translateY(0); } }
+.d1 { animation-delay: 0.04s; }
+.d2 { animation-delay: 0.11s; }
+.d3 { animation-delay: 0.18s; }
+.d4 { animation-delay: 0.25s; }
+</style>
+
+<div class="hw">
+
+    <!-- HERO -->
+    <div class="hero fu d1">
+        <div class="hero-inner">
+            <div class="hero-text">
+                <div class="hero-date" id="dateLine"></div>
+                <div class="hero-name">שלום, <em>{{ session.display_name.split()[0] if session.display_name else 'שלום' }}</em> 👋</div>
+                <div class="hero-tagline">הנה הסיכום שלך להיום</div>
+            </div>
+            <div class="hero-avatar">{{ session.display_name[0].upper() if session.display_name else 'U' }}</div>
+        </div>
+    </div>
+
+    <!-- FINANCE -->
+    <div class="sec-label fu d2">הוצאות החודש</div>
+    <a href="{{ url_for('dashboard') }}" class="fin-card fu d2">
+        <div class="fin-header">
+            <div class="fin-header-title">
+                <span class="fin-dot"></span>סה"כ חודש נוכחי
+            </div>
+            <i class="fas fa-chevron-left fin-header-arrow"></i>
+        </div>
+        <div class="fin-amount-row">
+            <div class="fin-amount">
+                <span class="sym">₪</span>
+                <span id="finTotal">---</span>
+            </div>
+        </div>
+        <div class="fin-chips">
+            <div class="fin-chip blue">
+                <span class="cv" id="finCount">-</span>
+                <span class="cl">תשלומים</span>
+            </div>
+            <div class="fin-chip">
+                <span class="cv" id="finDaily">-</span>
+                <span class="cl">ממוצע יומי</span>
+            </div>
+        </div>
+        <div class="fin-last" id="finLast">
+            <i class="fas fa-clock"></i><span>טוען...</span>
+        </div>
+    </a>
+
+    <!-- SHOPPING -->
+    <div class="sec-label fu d3">היום</div>
+    <a href="{{ url_for('shopping_list') }}" class="mini-card shop-card fu d3">
+        <div class="mc-head">
+            <span class="mc-title">🛒 רשימת קניות</span>
+            <i class="fas fa-chevron-left mc-arrow"></i>
+        </div>
+        <div class="shop-body">
+            <div class="ring-container">
+                <svg class="ring-svg" viewBox="0 0 90 90">
+                    <circle class="ring-track" cx="45" cy="45" r="35"/>
+                    <circle class="ring-fill" id="shopRing" cx="45" cy="45" r="35"/>
+                </svg>
+                <div class="ring-center">
+                    <div class="ring-pct" id="shopPct">0%</div>
+                    <div class="ring-sub">הושלם</div>
+                </div>
+            </div>
+            <div class="shop-nums">
+                <div class="shop-row">
+                    <span class="shop-row-lbl">נותרו</span>
+                    <span class="shop-row-val orange" id="shopLeft">-</span>
+                </div>
+                <div class="shop-row">
+                    <span class="shop-row-lbl">הושלמו</span>
+                    <span class="shop-row-val green" id="shopDone">-</span>
+                </div>
+                <div class="shop-row">
+                    <span class="shop-row-lbl">סה"כ</span>
+                    <span class="shop-row-val" id="shopTotal">-</span>
+                </div>
+            </div>
+        </div>
+    </a>
+
+    <!-- BABY -->
+    <a href="{{ url_for('baby_tracker') }}" class="mini-card baby-card fu d4">
+        <div class="mc-head">
+            <span class="mc-title">👶 מעקב תינוק</span>
+            <i class="fas fa-chevron-left mc-arrow"></i>
+        </div>
+        <div class="baby-stats">
+            <div class="bstat hi">
+                <div class="bstat-icon">🍼</div>
+                <div class="bstat-info">
+                    <div class="bstat-val" id="babyMl">-</div>
+                    <div class="bstat-lbl">מ"ל בקבוק</div>
+                </div>
+            </div>
+            <div class="bstat">
+                <div class="bstat-icon">🤱</div>
+                <div class="bstat-info">
+                    <div class="bstat-val" id="babyBf">-</div>
+                    <div class="bstat-lbl">הנקות</div>
+                </div>
+            </div>
+            <div class="bstat">
+                <div class="bstat-icon">🚼</div>
+                <div class="bstat-info">
+                    <div class="bstat-val" id="babyDiapers">-</div>
+                    <div class="bstat-lbl">חיתולים</div>
+                </div>
+            </div>
+            <div class="bstat green">
+                <div class="bstat-icon">😴</div>
+                <div class="bstat-info">
+                    <div class="bstat-val" id="babySleep">-</div>
+                    <div class="bstat-lbl">שינה</div>
+                </div>
+            </div>
+        </div>
+        <div class="baby-last-strip">
+            <span class="bls-label">האכלה אחרונה לפני</span>
+            <span class="bls-val" id="babyLast">--</span>
+        </div>
+        <div class="baby-alert-strip" id="babyAlert">
+            <i class="fas fa-bell"></i>
+            <span id="babyAlertText"></span>
+        </div>
+    </a>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const days   = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
+    const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+    const n = new Date();
+    document.getElementById('dateLine').textContent =
+        `יום ${days[n.getDay()]}, ${n.getDate()} ב${months[n.getMonth()]} ${n.getFullYear()}`;
+
+    if (window.history && window.history.replaceState)
+        window.history.replaceState(null, '', window.location.href);
+
+    function setRing(pct) {
+        const r = 35, circ = 2 * Math.PI * r;
+        const el = document.getElementById('shopRing');
+        if (el) { el.style.strokeDasharray = circ; el.style.strokeDashoffset = circ * (1 - pct/100); }
+        const pel = document.getElementById('shopPct');
+        if (pel) pel.textContent = Math.round(pct) + '%';
+    }
+
+    async function loadSummary() {
+        try {
+            const r = await fetch('/api/home-summary');
+            const d = await r.json();
+
+            // Finance
+            const total = Math.round(d.finance.total);
+            document.getElementById('finTotal').textContent = total.toLocaleString('he-IL');
+            document.getElementById('finCount').textContent = d.finance.count;
+            const dayOfMonth = new Date().getDate();
+            const dailyAvg = dayOfMonth > 0 ? Math.round(d.finance.total / dayOfMonth) : 0;
+            document.getElementById('finDaily').textContent = '₪' + dailyAvg.toLocaleString('he-IL');
+
+            const finLast = document.getElementById('finLast');
+            if (d.finance.last) {
+                finLast.innerHTML = `<i class="fas fa-receipt"></i> <span>אחרון: ${d.finance.last.desc} — ₪${d.finance.last.amount.toFixed(0)}</span>`;
+            } else {
+                finLast.innerHTML = '<i class="fas fa-info-circle"></i> <span>אין עדיין תשלומים החודש</span>';
+            }
+
+            // Shopping
+            document.getElementById('shopLeft').textContent  = d.shopping.left;
+            document.getElementById('shopDone').textContent  = d.shopping.done;
+            document.getElementById('shopTotal').textContent = d.shopping.total;
+            const pct = d.shopping.total > 0 ? (d.shopping.done / d.shopping.total * 100) : 0;
+            setTimeout(() => setRing(pct), 400);
+
+            // Baby
+            document.getElementById('babyMl').textContent      = Math.round(d.baby.total_ml);
+            document.getElementById('babyBf').textContent      = d.baby.breastfeedings ?? 0;
+            document.getElementById('babyDiapers').textContent = d.baby.diapers || 0;
+            document.getElementById('babySleep').textContent   = d.baby.sleep_str ?? '--';
+            document.getElementById('babyLast').textContent    = d.baby.last_ago;
+
+            const countEl = document.getElementById('babyCount');
+            if (countEl) countEl.textContent = d.baby.count;
+
+            if (d.baby.last_ago && d.baby.last_ago !== '--') {
+                const parts = d.baby.last_ago.match(/(\d+)/);
+                if (parts) {
+                    const mins = d.baby.last_ago.includes('h')
+                        ? parseInt(parts[1]) * 60 : parseInt(parts[1]);
+                    if (mins >= 180) {
+                        const al = document.getElementById('babyAlert');
+                        al.style.display = 'flex';
+                        document.getElementById('babyAlertText').textContent =
+                            `עברו ${d.baby.last_ago} מהאכלה אחרונה`;
+                    }
+                }
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    loadSummary();
+    setInterval(loadSummary, 30000);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) loadSummary();
+    });
+</script>
+{% endblock %}

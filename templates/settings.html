@@ -1,0 +1,300 @@
+{% extends "base.html" %}
+{% block title %}הגדרות - OurHome IL{% endblock %}
+{% block content %}
+<style>
+    .settings-container { max-width: 600px; margin: 0 auto; direction: rtl; }
+    .s-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 15px; }
+    .s-card h3 { font-size: 1rem; font-weight: 700; margin: 0 0 15px; color: #333; display: flex; align-items: center; gap: 8px; }
+
+    /* Profile */
+    .profile-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+    .profile-avatar { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; }
+    .profile-info h2 { font-size: 1.2rem; margin: 0; color: #333; }
+    .profile-info p { font-size: 0.8rem; color: #888; margin: 2px 0 0; }
+
+    /* Family */
+    .invite-box { background: linear-gradient(135deg, #f0f4ff, #e8ecff); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
+    .invite-code { font-size: 2rem; font-weight: 800; letter-spacing: 4px; color: #2563eb; margin: 5px 0; }
+    .invite-label { font-size: 0.8rem; color: #888; }
+    .invite-copy { padding: 8px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
+    .invite-copy.copied { background: #10b981; }
+
+    .member-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
+    .member-item:last-child { border-bottom: none; }
+    .member-avatar { width: 38px; height: 38px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
+    .member-info { flex: 1; }
+    .member-name { font-weight: 600; font-size: 0.9rem; color: #333; }
+    .member-role { font-size: 0.75rem; color: #888; }
+    .member-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+    .member-badge.admin { background: #dbeafe; color: #2563eb; }
+    .member-badge.member { background: #f0f0f0; color: #888; }
+
+    /* Settings rows */
+    .s-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+    .s-row:last-child { border-bottom: none; }
+    .s-row-info { flex: 1; }
+    .s-row-label { font-weight: 600; font-size: 0.9rem; color: #333; }
+    .s-row-desc { font-size: 0.75rem; color: #888; margin-top: 2px; }
+    .s-row-action { flex-shrink: 0; }
+    .s-btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer; border: none; transition: all 0.2s; }
+    .s-btn.primary { background: #2563eb; color: white; }
+    .s-btn.danger { background: #fee2e2; color: #ef4444; }
+    .s-btn.outline { background: none; border: 2px solid #e0e0e0; color: #555; }
+    .s-btn:hover { transform: translateY(-1px); }
+
+    /* Forms */
+    .s-form input { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; box-sizing: border-box; }
+    .s-form input:focus { outline: none; border-color: #2563eb; }
+
+    /* Version */
+    .version { text-align: center; color: #ccc; font-size: 0.75rem; padding: 10px 0; }
+</style>
+
+<div class="settings-container">
+    <!-- Profile Card -->
+    <div class="s-card">
+        <div class="profile-header">
+            <div class="profile-avatar">{{ session.display_name[0] if session.display_name else 'U' }}</div>
+            <div class="profile-info">
+                <h2>{{ session.display_name }}</h2>
+                <p>@{{ session.username }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Family Card -->
+    <div class="s-card">
+        <h3>👨‍👩‍👧 המשפחה שלי</h3>
+        {% if family %}
+        <div class="invite-box">
+            <div class="invite-label">קוד הזמנה למשפחה</div>
+            <div class="invite-code" id="inviteCode">{{ family.invite_code }}</div>
+            <div class="invite-label">שתף עם בן/בת הזוג כדי להצטרף</div>
+            <button class="invite-copy" onclick="copyCode()">📋 העתק קוד</button>
+        </div>
+
+        <h4 style="font-size:0.9rem; font-weight:700; margin:0 0 10px; color:#555;">חברי המשפחה:</h4>
+        {% for member in members %}
+        <div class="member-item">
+            <div class="member-avatar">{{ member.display_name[0] if member.display_name else '?' }}</div>
+            <div class="member-info">
+                <div class="member-name">{{ member.display_name or member.username }}</div>
+                <div class="member-role">@{{ member.username }}</div>
+            </div>
+            <span class="member-badge {{ 'admin' if member.id == family.created_by else 'member' }}">
+                {{ 'מנהל' if member.id == family.created_by else 'חבר' }}
+            </span>
+            {% if session.user_id == family.created_by and member.id != family.created_by %}
+            <button class="s-btn danger" style="padding:4px 10px; font-size:0.7rem; margin-right:5px;"
+                    onclick="removeMember({{ member.id }}, '{{ member.display_name or member.username }}')">
+                <i class="fas fa-user-minus"></i>
+            </button>
+            {% endif %}
+        </div>
+        {% endfor %}
+
+        <!-- Share & Leave -->
+        <div style="margin-top:15px; display:flex; gap:8px; flex-wrap:wrap;">
+            <button class="s-btn primary" style="flex:1;" onclick="shareInvite()">
+                <i class="fas fa-share-alt"></i> שתף קוד הזמנה
+            </button>
+            {% if session.user_id != family.created_by %}
+            <button class="s-btn danger" style="flex:1;" onclick="leaveFamily()">
+                <i class="fas fa-door-open"></i> עזוב משפחה
+            </button>
+            {% endif %}
+        </div>
+        {% else %}
+        <div style="text-align:center; padding:15px;">
+            <p style="color:#888; margin-bottom:15px;">לא שייך למשפחה</p>
+            <a href="{{ url_for('family_setup') }}" class="s-btn primary" style="text-decoration:none; display:inline-block;">
+                <i class="fas fa-users"></i> הגדר משפחה
+            </a>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Account Settings -->
+    <div class="s-card">
+        <h3>⚙️ הגדרות חשבון</h3>
+
+        <div class="s-row">
+            <div class="s-row-info">
+                <div class="s-row-label">שינוי שם תצוגה</div>
+                <div class="s-row-desc">השם שמוצג באפליקציה</div>
+            </div>
+            <div class="s-row-action">
+                <button class="s-btn outline" onclick="toggleEdit('nameEdit')">ערוך</button>
+            </div>
+        </div>
+        <div id="nameEdit" style="display:none; padding:10px 0;">
+            <form method="POST" action="{{ url_for('update_profile') }}" class="s-form">
+                <input type="text" name="display_name" value="{{ session.display_name }}" placeholder="שם תצוגה" dir="rtl">
+                <button type="submit" class="s-btn primary" style="width:100%;">שמור</button>
+            </form>
+        </div>
+
+        <div class="s-row">
+            <div class="s-row-info">
+                <div class="s-row-label">שינוי סיסמה</div>
+                <div class="s-row-desc">עדכן את הסיסמה שלך</div>
+            </div>
+            <div class="s-row-action">
+                <button class="s-btn outline" onclick="toggleEdit('passEdit')">שנה</button>
+            </div>
+        </div>
+        <div id="passEdit" style="display:none; padding:10px 0;">
+            <form method="POST" action="{{ url_for('change_password') }}" class="s-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="password" name="current_password" placeholder="סיסמה נוכחית">
+                <input type="password" name="new_password" placeholder="סיסמה חדשה (לפחות 6 תווים)" minlength="6">
+                <button type="submit" class="s-btn primary" style="width:100%;">עדכן סיסמה</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Data -->
+    <div class="s-card">
+        <h3>📊 נתונים</h3>
+
+        <div class="s-row">
+            <div class="s-row-info">
+                <div class="s-row-label">ייצוא נתונים</div>
+                <div class="s-row-desc">הורד את התשלומים של החודש כ-CSV</div>
+            </div>
+            <div class="s-row-action">
+                <a href="{{ url_for('export_csv') }}" class="s-btn outline" style="text-decoration:none;">📥 הורד</a>
+            </div>
+        </div>
+
+        <div class="s-row">
+            <div class="s-row-info">
+                <div class="s-row-label">ניהול קטגוריות</div>
+                <div class="s-row-desc">הוסף או ערוך קטגוריות תשלום</div>
+            </div>
+            <div class="s-row-action">
+                <button class="s-btn outline" onclick="toggleEdit('catEdit')">ערוך</button>
+            </div>
+        </div>
+        <div id="catEdit" style="display:none; padding:10px 0;">
+            <div id="catList" style="margin-bottom:10px;"></div>
+            <div style="display:flex; gap:8px;">
+                <input type="text" id="newCatName" placeholder="שם קטגוריה חדשה" dir="rtl" style="flex:1; padding:8px; border:2px solid #e0e0e0; border-radius:8px;">
+                <input type="color" id="newCatColor" value="#2563eb" style="width:40px; height:38px; border:none; border-radius:8px; cursor:pointer;">
+                <button class="s-btn primary" onclick="addCategory()">הוסף</button>
+            </div>
+        </div>
+    </div>
+
+    {% if session.get('is_admin') %}
+<div class="s-card">
+    <h3>🛠️ ניהול מערכת</h3>
+    <div class="s-row">
+        <div class="s-row-info">
+            <div class="s-row-label">דשבורד אדמין</div>
+            <div class="s-row-desc">צפייה בכל המשתמשים והסטטיסטיקות</div>
+        </div>
+        <div class="s-row-action">
+            <a href="{{ url_for('admin_dashboard') }}" class="s-btn primary" style="text-decoration:none;">
+                כניסה
+            </a>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+    <!-- About -->
+    <div class="s-card">
+        <h3>ℹ️ אודות</h3>
+        <div class="s-row">
+            <div class="s-row-info">
+                <div class="s-row-label">OurHome IL</div>
+                <div class="s-row-desc">ניהול משק בית חכם למשפחה הישראלית</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Logout -->
+    <div style="text-align:center; margin:15px 0;">
+        <a href="{{ url_for('logout') }}" class="s-btn danger" style="text-decoration:none; display:inline-block; padding:12px 40px; font-size:0.95rem;">
+            🚪 התנתק
+        </a>
+    </div>
+
+    <div class="version">OurHome IL v1.0 | Built with ❤️</div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function toggleEdit(id) {
+    const el = document.getElementById(id);
+    el.style.display = el.style.display === 'none' ? 'block' : 'none';
+    if (id === 'catEdit' && el.style.display === 'block') loadCategories();
+}
+
+function copyCode() {
+    const code = document.getElementById('inviteCode').textContent;
+    navigator.clipboard.writeText(code).then(() => {
+        const btn = document.querySelector('.invite-copy');
+        btn.textContent = '✓ הועתק!';
+        btn.classList.add('copied');
+        setTimeout(() => { btn.textContent = '📋 העתק קוד'; btn.classList.remove('copied'); }, 2000);
+    });
+}
+
+async function loadCategories() {
+    try {
+        const r = await fetch('/api/categories');
+        const cats = await r.json();
+        document.getElementById('catList').innerHTML = cats.map(c =>
+            `<div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f0f0f0;">
+                <div style="width:16px;height:16px;border-radius:50%;background:${c.color};flex-shrink:0;"></div>
+                <span style="flex:1;font-size:0.85rem;">${c.name}</span>
+            </div>`
+        ).join('');
+    } catch(e) { console.error(e); }
+}
+
+async function addCategory() {
+    const name = document.getElementById('newCatName').value.trim();
+    const color = document.getElementById('newCatColor').value;
+    if (!name) return;
+    await fetch('/api/categories', { method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({name, color})});
+    document.getElementById('newCatName').value = '';
+    loadCategories();
+}
+
+async function removeMember(id, name) {
+    if (!confirm(`להסיר את ${name} מהמשפחה?`)) return;
+    const r = await fetch('/api/family/remove-member', {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({user_id: id})
+    });
+    if (r.ok) { location.reload(); }
+    else { alert('שגיאה בהסרת חבר'); }
+}
+
+function shareInvite() {
+    const code = document.getElementById('inviteCode').textContent.trim();
+    const text = `הצטרף/י למשפחה שלי ב-OurHome IL!\nקוד הזמנה: ${code}`;
+    if (navigator.share) {
+        navigator.share({ title: 'OurHome IL - הזמנה למשפחה', text: text }).catch(() => {});
+    } else {
+        navigator.clipboard.writeText(text).then(() => {
+            const btn = event.target.closest('button');
+            btn.innerHTML = '<i class="fas fa-check"></i> הועתק!';
+            setTimeout(() => { btn.innerHTML = '<i class="fas fa-share-alt"></i> שתף קוד הזמנה'; }, 2000);
+        });
+    }
+}
+
+async function leaveFamily() {
+    if (!confirm('בטוח שאתה רוצה לעזוב את המשפחה? תאבד גישה לכל הנתונים המשותפים.')) return;
+    const r = await fetch('/api/family/leave', { method: 'POST' });
+    if (r.ok) { window.location.href = '/family'; }
+    else { alert('שגיאה'); }
+}
+</script>
+{% endblock %}
