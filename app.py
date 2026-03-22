@@ -425,35 +425,35 @@ def change_password():
     if len(new_pw) < 6:
         flash('סיסמה חדשה חייבת להיות לפחות 6 תווים', 'error')
         return redirect(url_for('settings'))
+
     with get_db() as conn:
         user = conn.execute('SELECT * FROM users WHERE id=?', (session['user_id'],)).fetchone()
         if user and check_password_hash(user['password_hash'], current_pw):
             conn.execute('UPDATE users SET password_hash=? WHERE id=?',
                          (generate_password_hash(new_pw), session['user_id']))
+            # שליחת מייל בתוך ה-with כשה-conn עדיין פתוח
+            try:
+                if user['email']:
+                    msg = Message(
+                        subject='סיסמתך שונתה — OurHome IL',
+                        recipients=[user['email']],
+                        html=f'''
+                        <div dir="rtl" style="font-family:Arial;max-width:500px;margin:0 auto;">
+                            <h2>סיסמה שונתה</h2>
+                            <p>הסיסמה לחשבון שלך באפליקציית OurHome IL שונתה זה עתה.</p>
+                            <p style="color:#888;font-size:0.85rem;">
+                                אם לא ביקשת שינוי זה — פנה אלינו מיד.
+                            </p>
+                        </div>
+                        '''
+                    )
+                    mail.send(msg)
+            except Exception as e:
+                print(f'Mail error: {e}')
             flash('סיסמה שונתה בהצלחה!', 'success')
             return redirect(url_for('home'))
-        flash('סיסמה נוכחית שגויה', 'error')
 
-    try:
-        user_email = conn.execute('SELECT email FROM users WHERE id=?', (session['user_id'],)).fetchone()
-        if user_email and user_email['email']:
-            msg = Message(
-                subject='סיסמתך שונתה — OurHome IL',
-                recipients=[user_email['email']],
-                html=f'''
-                            <div dir="rtl" style="font-family:Arial;max-width:500px;margin:0 auto;">
-                                <h2>סיסמה שונתה</h2>
-                                <p>הסיסמה לחשבון שלך באפליקציית OurHome IL שונתה זה עתה.</p>
-                                <p style="color:#888;font-size:0.85rem;">
-                                    אם לא ביקשת שינוי זה — פנה אלינו מיד.
-                                </p>
-                            </div>
-                            '''
-            )
-            mail.send(msg)
-    except Exception as e:
-        print(f'Mail error: {e}')
-
+    flash('סיסמה נוכחית שגויה', 'error')
     return redirect(url_for('settings'))
 
 
