@@ -1,4 +1,5 @@
 import os
+import re
 import sqlite3
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -14,6 +15,7 @@ import io
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_wtf.csrf import CSRFProtect, generate_csrf
 from flask_mail import Mail, Message
+import jwt as pyjwt
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
 import calendar
@@ -30,6 +32,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-key-change-in-production')
 app.permanent_session_lifetime = timedelta(days=30)
 DATABASE = os.environ.get('DATABASE_PATH', 'finance_tracker.db')
+JWT_SECRET = os.environ.get('JWT_SECRET', app.secret_key)
+JWT_EXPIRY_DAYS = 30
 
 
 def is_admin():
@@ -62,6 +66,30 @@ def add_no_cache(response):
     return response
 
 
+@app.after_request
+def add_cors_headers(response):
+    """Allow mobile app to make API requests"""
+    origin = request.headers.get('Origin', '')
+    allowed_origins = [
+        'capacitor://localhost',
+        'http://localhost',
+        'https://localhost',
+    ]
+    if origin in allowed_origins or origin.startswith('http://localhost:'):
+        response.headers['Access-Control-Allow-Origin'] = origin
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+        response.headers['Access-Control-Allow-Credentials'] = 'true'
+    return response
+
+
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+@csrf.exempt
+def api_options(path):
+    """Handle CORS preflight for all API routes"""
+    return '', 204
+
+
 @app.before_request
 def make_session_permanent():
     session.permanent = True
@@ -88,6 +116,91 @@ def generate_invite_code():
 
 
 def get_family_id():
+    return session.get('family_id')
+
+
+# ──────────────────────────────────────────────
+# JWT Helper Functions (for Mobile API)
+# ──────────────────────────────────────────────
+def create_jwt_token(user_id, username, display_name, family_id, is_admin=False):
+    """Create a JWT token for the user"""
+    payload = {
+        'user_id': user_id,
+        'username': username,
+        'display_name': display_name,
+        'family_id': family_id,
+        'is_admin': is_admin,
+        'exp': datetime.utcnow() + timedelta(days=JWT_EXPIRY_DAYS),
+        'iat': datetime.utcnow()
+    }
+    return pyjwt.encode(payload, JWT_SECRET, algorithm='HS256')
+
+
+def decode_jwt_token(token):
+    """Decode and validate a JWT token"""
+    try:
+        return pyjwt.decode(token, JWT_SECRET, algorithms=['HS256'])
+    except pyjwt.ExpiredSignatureError:
+        return None
+    except pyjwt.InvalidTokenError:
+        return None
+
+
+def get_token_from_request():
+    """Extract JWT token from Authorization header"""
+    auth_header = request.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        return auth_header[7:]
+    return None
+
+
+def require_api_auth(f):
+    """Decorator: require valid JWT token for API endpoints"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        token = get_token_from_request()
+        if not token:
+            return jsonify({'error': 'נדרשת הזדהות', 'code': 'AUTH_REQUIRED'}), 401
+
+        payload = decode_jwt_token(token)
+        if not payload:
+            return jsonify({'error': 'טוקן לא תקין או פג תוקף', 'code': 'TOKEN_INVALID'}), 401
+
+        # Refresh user data from DB
+        with get_db() as conn:
+            user = conn.execute('SELECT * FROM users WHERE id=?', (payload['user_id'],)).fetchone()
+            if not user:
+                return jsonify({'error': 'משתמש לא נמצא', 'code': 'USER_NOT_FOUND'}), 401
+
+        request.api_user = {
+            'user_id': user['id'],
+            'username': user['username'],
+            'display_name': user['display_name'] or user['username'],
+            'family_id': user['family_id'],
+            'is_admin': bool(user['is_admin']),
+            'email': user['email']
+        }
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+def require_api_family(f):
+    """Decorator: require user to have a family"""
+    @wraps(f)
+    @require_api_auth
+    def decorated(*args, **kwargs):
+        if not request.api_user.get('family_id'):
+            return jsonify({'error': 'יש להצטרף למשפחה קודם', 'code': 'NO_FAMILY'}), 403
+        return f(*args, **kwargs)
+
+    return decorated
+
+
+def get_api_family_id():
+    """Get family_id from API auth or session"""
+    if hasattr(request, 'api_user'):
+        return request.api_user['family_id']
     return session.get('family_id')
 
 
@@ -1437,6 +1550,352 @@ def feedings_data():
                               'solids': solids['c'], 'diapers': diapers['c'], 'medications': meds['c'],
                               'sleeps': sleeps['c'], 'sleep_mins': float(sleeps['mins']), 'last_feeding': lt},
                     'weekly': weekly})
+
+
+# ══════════════════════════════════════════════
+# MOBILE API ENDPOINTS (JWT Auth)
+# ══════════════════════════════════════════════
+
+# --- AUTH: LOGIN ---
+@app.route('/api/auth/login', methods=['POST'])
+@csrf.exempt
+def api_login():
+    data = request.get_json(silent=True) or {}
+    username = data.get('username', '').strip().lower()
+    password = data.get('password', '')
+    if not username or not password:
+        return jsonify({'error': 'שם משתמש וסיסמה נדרשים'}), 400
+    with get_db() as conn:
+        user = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
+        if not user or not check_password_hash(user['password_hash'], password):
+            return jsonify({'error': 'שם משתמש או סיסמה שגויים'}), 401
+        token = create_jwt_token(user['id'], user['username'],
+                                  user['display_name'] or user['username'],
+                                  user['family_id'], bool(user['is_admin']))
+        return jsonify({
+            'token': token,
+            'user': {'id': user['id'], 'username': user['username'],
+                     'display_name': user['display_name'] or user['username'],
+                     'email': user['email'], 'family_id': user['family_id'],
+                     'is_admin': bool(user['is_admin'])}
+        })
+
+
+# --- AUTH: REGISTER ---
+@app.route('/api/auth/register', methods=['POST'])
+@csrf.exempt
+def api_register():
+    data = request.get_json(silent=True) or {}
+    display_name = data.get('display_name', '').strip()
+    username = data.get('username', '').strip().lower()
+    email = data.get('email', '').strip()
+    password = data.get('password', '')
+    password2 = data.get('password2', '')
+    if not display_name:
+        return jsonify({'error': 'שם תצוגה נדרש'}), 400
+    if not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
+        return jsonify({'error': 'שם משתמש חייב להכיל 3-20 תווים באנגלית, מספרים או _'}), 400
+    if email and not re.match(r'^[^@]+@[^@]+\.[^@]+$', email):
+        return jsonify({'error': 'כתובת אימייל לא תקינה'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'סיסמה חייבת להיות לפחות 6 תווים'}), 400
+    if password != password2:
+        return jsonify({'error': 'הסיסמאות לא תואמות'}), 400
+    with get_db() as conn:
+        if conn.execute('SELECT id FROM users WHERE username=?', (username,)).fetchone():
+            return jsonify({'error': 'שם משתמש כבר תפוס'}), 409
+        conn.execute('INSERT INTO users (username,email,display_name,password_hash) VALUES (?,?,?,?)',
+                     (username, email, display_name, generate_password_hash(password)))
+        user = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
+        token = create_jwt_token(user['id'], username, display_name, None, False)
+        return jsonify({
+            'token': token,
+            'user': {'id': user['id'], 'username': username, 'display_name': display_name,
+                     'email': email, 'family_id': None, 'is_admin': False}
+        }), 201
+
+
+# --- AUTH: GET CURRENT USER ---
+@app.route('/api/auth/me', methods=['GET'])
+@csrf.exempt
+@require_api_auth
+def api_me():
+    user = request.api_user
+    family = None
+    members = []
+    if user['family_id']:
+        with get_db() as conn:
+            fam = conn.execute('SELECT * FROM families WHERE id=?', (user['family_id'],)).fetchone()
+            if fam:
+                family = {'id': fam['id'], 'name': fam['name'], 'invite_code': fam['invite_code']}
+            mems = conn.execute('SELECT id,display_name,username FROM users WHERE family_id=?',
+                                (user['family_id'],)).fetchall()
+            members = [{'id': m['id'], 'display_name': m['display_name'], 'username': m['username']} for m in mems]
+    return jsonify({'user': user, 'family': family, 'members': members})
+
+
+# --- AUTH: REFRESH TOKEN ---
+@app.route('/api/auth/refresh', methods=['POST'])
+@csrf.exempt
+@require_api_auth
+def api_refresh_token():
+    u = request.api_user
+    token = create_jwt_token(u['user_id'], u['username'], u['display_name'], u['family_id'], u['is_admin'])
+    return jsonify({'token': token})
+
+
+# --- AUTH: CHANGE PASSWORD ---
+@app.route('/api/auth/change-password', methods=['POST'])
+@csrf.exempt
+@require_api_auth
+def api_change_password():
+    data = request.get_json(silent=True) or {}
+    current_pw = data.get('current_password', '')
+    new_pw = data.get('new_password', '')
+    if len(new_pw) < 6:
+        return jsonify({'error': 'סיסמה חדשה חייבת להיות לפחות 6 תווים'}), 400
+    with get_db() as conn:
+        user = conn.execute('SELECT * FROM users WHERE id=?', (request.api_user['user_id'],)).fetchone()
+        if not user or not check_password_hash(user['password_hash'], current_pw):
+            return jsonify({'error': 'סיסמה נוכחית שגויה'}), 401
+        conn.execute('UPDATE users SET password_hash=? WHERE id=?',
+                     (generate_password_hash(new_pw), request.api_user['user_id']))
+        # שליחת מייל התראה על שינוי סיסמה
+        try:
+            if user['email']:
+                msg = Message(
+                    subject='סיסמתך שונתה — OurHome IL',
+                    recipients=[user['email']],
+                    html=f'''
+                    <div dir="rtl" style="font-family:Arial;max-width:500px;margin:0 auto;">
+                        <h2>סיסמה שונתה</h2>
+                        <p>הסיסמה לחשבון שלך באפליקציית OurHome IL שונתה זה עתה.</p>
+                        <p style="color:#888;font-size:0.85rem;">
+                            אם לא ביקשת שינוי זה — פנה אלינו מיד.
+                        </p>
+                    </div>
+                    '''
+                )
+                mail.send(msg)
+        except Exception as e:
+            print(f'Mail error: {e}')
+    return jsonify({'message': 'סיסמה שונתה בהצלחה'})
+
+
+# --- AUTH: FORGOT PASSWORD ---
+@app.route('/api/auth/forgot-password', methods=['POST'])
+@csrf.exempt
+def api_forgot_password():
+    data = request.get_json(silent=True) or {}
+    email = data.get('email', '').strip()
+    if not email:
+        return jsonify({'error': 'אימייל נדרש'}), 400
+    with get_db() as conn:
+        user = conn.execute('SELECT * FROM users WHERE email=?', (email,)).fetchone()
+        if user:
+            token = secrets.token_urlsafe(32)
+            exp = (now_israel() + timedelta(hours=1)).strftime('%Y-%m-%d %H:%M:%S')
+            conn.execute('UPDATE users SET reset_token=?, reset_token_exp=? WHERE id=?',
+                         (token, exp, user['id']))
+            reset_url = url_for('reset_password', token=token, _external=True)
+            try:
+                msg = Message(subject='איפוס סיסמה — OurHome IL', recipients=[email],
+                              html=f'<div dir="rtl"><h2>איפוס סיסמה</h2>'
+                                   f'<a href="{reset_url}" style="padding:12px 24px;background:#2563eb;'
+                                   f'color:white;border-radius:8px;text-decoration:none;">אפס סיסמה</a>'
+                                   f'<p style="color:#888;">הקישור תקף לשעה אחת.</p></div>')
+                mail.send(msg)
+            except Exception as e:
+                print(f'Mail error: {e}')
+    return jsonify({'message': 'אם האימייל קיים במערכת, נשלחה הודעה עם קישור לאיפוס'})
+
+
+# --- AUTH: RESET PASSWORD ---
+@app.route('/api/auth/reset-password', methods=['POST'])
+@csrf.exempt
+def api_reset_password():
+    data = request.get_json(silent=True) or {}
+    token = data.get('token', '')
+    password = data.get('password', '')
+    password2 = data.get('password2', '')
+    if not token:
+        return jsonify({'error': 'טוקן נדרש'}), 400
+    if len(password) < 6:
+        return jsonify({'error': 'סיסמה חייבת להיות לפחות 6 תווים'}), 400
+    if password != password2:
+        return jsonify({'error': 'הסיסמאות לא תואמות'}), 400
+    with get_db() as conn:
+        user = conn.execute('SELECT * FROM users WHERE reset_token=? AND reset_token_exp > ?',
+                            (token, now_israel().strftime('%Y-%m-%d %H:%M:%S'))).fetchone()
+        if not user:
+            return jsonify({'error': 'הקישור לא תקין או פג תוקף'}), 400
+        conn.execute('UPDATE users SET password_hash=?, reset_token="", reset_token_exp=NULL WHERE id=?',
+                     (generate_password_hash(password), user['id']))
+    return jsonify({'message': 'סיסמה שונתה בהצלחה'})
+
+
+# --- FAMILY: GET INFO ---
+@app.route('/api/family/info', methods=['GET'])
+@csrf.exempt
+@require_api_auth
+def api_family_info():
+    user = request.api_user
+    if not user['family_id']:
+        return jsonify({'family': None, 'members': []})
+    with get_db() as conn:
+        family = conn.execute('SELECT * FROM families WHERE id=?', (user['family_id'],)).fetchone()
+        members = conn.execute('SELECT id,display_name,username FROM users WHERE family_id=?',
+                               (user['family_id'],)).fetchall()
+    return jsonify({
+        'family': {'id': family['id'], 'name': family['name'], 'invite_code': family['invite_code']} if family else None,
+        'members': [{'id': m['id'], 'display_name': m['display_name'], 'username': m['username']} for m in members]
+    })
+
+
+# --- FAMILY: CREATE ---
+@app.route('/api/family/create', methods=['POST'])
+@csrf.exempt
+@require_api_auth
+def api_create_family():
+    data = request.get_json(silent=True) or {}
+    name = data.get('family_name', '').strip()
+    if not name:
+        return jsonify({'error': 'שם משפחה נדרש'}), 400
+    code = generate_invite_code()
+    uid = request.api_user['user_id']
+    with get_db() as conn:
+        conn.execute('INSERT INTO families (name,invite_code,created_by) VALUES (?,?,?)', (name, code, uid))
+        fam = conn.execute('SELECT * FROM families WHERE invite_code=?', (code,)).fetchone()
+        conn.execute('UPDATE users SET family_id=? WHERE id=?', (fam['id'], uid))
+    u = request.api_user
+    token = create_jwt_token(uid, u['username'], u['display_name'], fam['id'], u['is_admin'])
+    return jsonify({
+        'token': token,
+        'family': {'id': fam['id'], 'name': name, 'invite_code': code},
+        'message': f'משפחה "{name}" נוצרה!'
+    }), 201
+
+
+# --- FAMILY: JOIN ---
+@app.route('/api/family/join', methods=['POST'])
+@csrf.exempt
+@require_api_auth
+def api_join_family():
+    data = request.get_json(silent=True) or {}
+    code = data.get('invite_code', '').strip().upper()
+    if not code:
+        return jsonify({'error': 'קוד הזמנה נדרש'}), 400
+    uid = request.api_user['user_id']
+    with get_db() as conn:
+        fam = conn.execute('SELECT * FROM families WHERE invite_code=?', (code,)).fetchone()
+        if not fam:
+            return jsonify({'error': 'קוד הזמנה לא נמצא'}), 404
+        conn.execute('UPDATE users SET family_id=? WHERE id=?', (fam['id'], uid))
+    u = request.api_user
+    token = create_jwt_token(uid, u['username'], u['display_name'], fam['id'], u['is_admin'])
+    return jsonify({
+        'token': token,
+        'family': {'id': fam['id'], 'name': fam['name'], 'invite_code': fam['invite_code']},
+        'message': f'הצטרפת למשפחת {fam["name"]}!'
+    })
+
+
+# --- SETTINGS: GET ---
+@app.route('/api/settings', methods=['GET'])
+@csrf.exempt
+@require_api_auth
+def api_get_settings():
+    user = request.api_user
+    family = None
+    members = []
+    if user['family_id']:
+        with get_db() as conn:
+            fam = conn.execute('SELECT * FROM families WHERE id=?', (user['family_id'],)).fetchone()
+            if fam:
+                family = {'id': fam['id'], 'name': fam['name'], 'invite_code': fam['invite_code']}
+            mems = conn.execute('SELECT id,display_name,username FROM users WHERE family_id=?',
+                                (user['family_id'],)).fetchall()
+            members = [{'id': m['id'], 'display_name': m['display_name'], 'username': m['username']} for m in mems]
+    return jsonify({
+        'user': {'id': user['user_id'], 'username': user['username'],
+                 'display_name': user['display_name'], 'email': user['email']},
+        'family': family, 'members': members
+    })
+
+
+# --- SETTINGS: UPDATE PROFILE ---
+@app.route('/api/settings/profile', methods=['PUT'])
+@csrf.exempt
+@require_api_auth
+def api_update_profile():
+    data = request.get_json(silent=True) or {}
+    display_name = data.get('display_name', '').strip()
+    if not display_name:
+        return jsonify({'error': 'שם תצוגה נדרש'}), 400
+    uid = request.api_user['user_id']
+    with get_db() as conn:
+        conn.execute('UPDATE users SET display_name=? WHERE id=?', (display_name, uid))
+    u = request.api_user
+    token = create_jwt_token(uid, u['username'], display_name, u['family_id'], u['is_admin'])
+    return jsonify({'token': token, 'message': 'שם תצוגה עודכן!', 'display_name': display_name})
+
+
+# --- PAYMENTS: DELETE ---
+@app.route('/api/payments/<int:pid>', methods=['DELETE'])
+@csrf.exempt
+@require_api_family
+def api_delete_payment(pid):
+    fid = request.api_user['family_id']
+    with get_db() as conn:
+        p = conn.execute('SELECT * FROM payments WHERE id=? AND family_id=?', (pid, fid)).fetchone()
+        if not p:
+            return jsonify({'error': 'תשלום לא נמצא'}), 404
+        conn.execute('DELETE FROM payments WHERE id=? AND family_id=?', (pid, fid))
+    return jsonify({'message': 'תשלום נמחק'})
+
+
+# --- PAYMENTS: ARCHIVE MONTH ---
+@app.route('/api/payments/archive', methods=['POST'])
+@csrf.exempt
+@require_api_family
+def api_archive_month():
+    fid = request.api_user['family_id']
+    now = now_israel()
+    cm = now.strftime('%Y-%m')
+    with get_db() as conn:
+        payments = conn.execute('SELECT * FROM payments WHERE month=? AND archived=FALSE AND family_id=?',
+                                (cm, fid)).fetchall()
+        if not payments:
+            return jsonify({'error': 'אין תשלומים לארכוב'}), 400
+        total = sum(p['amount'] for p in payments)
+        count = len(payments)
+        hebrew_months = {1:'ינואר',2:'פברואר',3:'מרץ',4:'אפריל',5:'מאי',6:'יוני',
+                         7:'יולי',8:'אוגוסט',9:'ספטמבר',10:'אוקטובר',11:'נובמבר',12:'דצמבר'}
+        label = f'{hebrew_months[now.month]} {now.year}'
+        conn.execute('INSERT INTO archived_cycles (family_id,label,total,count) VALUES (?,?,?,?)',
+                     (fid, label, total, count))
+        conn.execute('UPDATE payments SET archived=TRUE WHERE month=? AND archived=FALSE AND family_id=?', (cm, fid))
+    return jsonify({'message': f'חודש {label} אורכב!', 'archived': {'label': label, 'total': total, 'count': count}})
+
+
+# --- PAYMENTS: EXPORT CSV ---
+@app.route('/api/payments/export', methods=['GET'])
+@csrf.exempt
+@require_api_family
+def api_export_csv():
+    fid = request.api_user['family_id']
+    cm = now_israel().strftime('%Y-%m')
+    with get_db() as conn:
+        payments = conn.execute(
+            'SELECT description,amount,category,date FROM payments WHERE month=? AND archived=FALSE AND family_id=? ORDER BY date DESC',
+            (cm, fid)).fetchall()
+    output = io.StringIO()
+    output.write('\ufeff')
+    output.write('תיאור,סכום,קטגוריה,תאריך\n')
+    for p in payments:
+        output.write(f'{p["description"]},{p["amount"]},{p["category"]},{p["date"]}\n')
+    return send_file(io.BytesIO(output.getvalue().encode('utf-8-sig')),
+                     mimetype='text/csv', as_attachment=True, download_name=f'ourhome_{cm}.csv')
 
 
 init_db()
