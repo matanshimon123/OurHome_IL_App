@@ -225,57 +225,52 @@
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
+        if (window.AndroidPageReady) window.AndroidPageReady.onReady();
     </script>
 
-<!-- Push Notifications (Capacitor) -->
+    <!-- Push Notifications – רושם FCM token מ-Java ישירות (אמין יותר) -->
     <script>
     (function() {
-        if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
+        // רץ רק באפליקציה Native
+        if (!window.AndroidFCM) return;
 
-        const PushNotifications = window.Capacitor.Plugins.PushNotifications;
-        if (!PushNotifications) return;
-
-        async function registerPush() {
+        async function registerFcmToken() {
             try {
-                const perm = await PushNotifications.requestPermissions();
-                if (perm.receive !== 'granted') return;
+                // קבל טוקן מה-Java (כבר מוכן מ-onCreate)
+                const token = window.AndroidFCM.getToken();
+                if (!token) {
+                    // טוקן עוד לא מוכן – ננסה שוב עוד 3 שניות
+                    setTimeout(registerFcmToken, 3000);
+                    return;
+                }
 
-                await PushNotifications.register();
-
-                PushNotifications.addListener('registration', async (tokenData) => {
-                    console.log('Push token:', tokenData.value);
-                    try {
-                        await fetch('/api/push/register', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ token: tokenData.value, platform: 'android' })
-                        });
-                        console.log('Push token saved');
-                    } catch(e) {
-                        console.error('Push register failed:', e);
-                    }
+                const res = await fetch('/api/push/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ token, platform: 'android' })
                 });
-
-                PushNotifications.addListener('registrationError', (err) => {
-                    console.error('Push error:', err);
-                });
-
-                PushNotifications.addListener('pushNotificationReceived', (notification) => {
-                    if (typeof showToast === 'function') {
-                        showToast(notification.body || notification.title, 'info');
-                    }
-                });
-
-                PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-                    console.log('Push tapped:', action);
-                });
-
+                if (res.ok) {
+                    console.log('FCM token registered');
+                }
             } catch(e) {
-                console.error('Push setup:', e);
+                console.error('FCM register error:', e);
             }
         }
 
-        window.addEventListener('load', () => setTimeout(registerPush, 2000));
+        // הפעל אחרי שהדף נטען
+        window.addEventListener('load', () => setTimeout(registerFcmToken, 1000));
+
+        // הצג התראה שנכנסה כשהאפליקציה פתוחה (Capacitor plugin)
+        if (window.Capacitor && window.Capacitor.Plugins.PushNotifications) {
+            window.Capacitor.Plugins.PushNotifications.addListener(
+                'pushNotificationReceived',
+                (notification) => {
+                    if (typeof showToast === 'function') {
+                        showToast(notification.body || notification.title, 'info');
+                    }
+                }
+            );
+        }
     })();
     </script>
 </body>

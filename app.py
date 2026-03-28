@@ -399,6 +399,7 @@ def init_db():
             budget_daily INTEGER DEFAULT 0,
             budget_alert_80_sent TEXT DEFAULT '',
             budget_alert_100_sent TEXT DEFAULT '',
+            budget_alert_daily_sent TEXT DEFAULT '',
             FOREIGN KEY (family_id) REFERENCES families(id));
     """)
     for t, c, ct in [
@@ -422,6 +423,7 @@ def init_db():
         ('family_settings','budget_daily','INTEGER DEFAULT 0'),
         ('family_settings','budget_alert_80_sent','TEXT DEFAULT ""'),
         ('family_settings','budget_alert_100_sent','TEXT DEFAULT ""'),
+        ('family_settings', 'budget_alert_daily_sent', 'TEXT DEFAULT ""'),
     ]:
         try: conn.execute(f'ALTER TABLE {t} ADD COLUMN {c} {ct}')
         except sqlite3.OperationalError: pass
@@ -714,6 +716,9 @@ def join_family():
             return redirect(url_for('family_setup'))
         conn.execute('UPDATE users SET family_id=? WHERE id=?', (fam['id'], session['user_id']))
         session['family_id'] = fam['id']
+        send_push_to_family(fam['id'], '👨‍👩‍👧 חבר חדש במשפחה!',
+                            f'{session.get("display_name", "")} הצטרף/ה למשפחה',
+                            exclude_user_id=session['user_id'])
     flash(f'הצטרפת למשפחת {fam["name"]}!', 'success')
     return redirect(url_for('family_setup'))
 
@@ -931,6 +936,7 @@ def add_payment():
     with get_db() as conn:
         conn.execute('INSERT INTO payments (family_id,description,amount,category,month,year) VALUES (?,?,?,?,?,?)',
                      (fid, desc, amount, request.form.get('category', 'כללי'), cm, cy))
+        check_budget_alerts(fid)
     return redirect(url_for('dashboard'))
 
 
@@ -1971,12 +1977,17 @@ def api_join_family():
         conn.execute('UPDATE users SET family_id=? WHERE id=?', (fam['id'], uid))
     u = request.api_user
     token = create_jwt_token(uid, u['username'], u['display_name'], fam['id'], u['is_admin'])
+
+    # Notify family about new member
+    send_push_to_family(fam['id'], '👨‍👩‍👧 חבר חדש במשפחה!',
+        f'{u["display_name"]} הצטרף/ה למשפחה',
+        exclude_user_id=uid)
+
     return jsonify({
         'token': token,
         'family': {'id': fam['id'], 'name': fam['name'], 'invite_code': fam['invite_code']},
         'message': f'הצטרפת למשפחת {fam["name"]}!'
     })
-
 
 # --- SETTINGS: GET ---
 @app.route('/api/settings', methods=['GET'])
