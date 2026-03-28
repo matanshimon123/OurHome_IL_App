@@ -176,6 +176,7 @@
         {% endif %}
     </div>
 
+    {% if family %}
     <!-- ══════ NOTIFICATIONS SETTINGS ══════ -->
     <div class="s-card">
         <h3>🔔 התראות</h3>
@@ -204,6 +205,50 @@
     <div class="s-card">
         <h3>💰 תקציב</h3>
 
+        {% if is_family_admin %}
+        <div class="budget-row">
+            <div class="budget-label">
+                <div class="budget-label-text">📅 יום איפוס חודשי</div>
+                <div class="budget-label-desc">באיזה יום בחודש מתחיל מחזור הוצאות חדש</div>
+            </div>
+            <select class="s-select" id="cycleDay" onchange="markSettingsChanged(); updateCycleRange()" style="width:80px;text-align:center;">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+                <option value="7">7</option>
+                <option value="8">8</option>
+                <option value="9">9</option>
+                <option value="10">10</option>
+                <option value="11">11</option>
+                <option value="12">12</option>
+                <option value="13">13</option>
+                <option value="14">14</option>
+                <option value="15">15</option>
+                <option value="16">16</option>
+                <option value="17">17</option>
+                <option value="18">18</option>
+                <option value="19">19</option>
+                <option value="20">20</option>
+                <option value="21">21</option>
+                <option value="22">22</option>
+                <option value="23">23</option>
+                <option value="24">24</option>
+                <option value="25">25</option>
+                <option value="26">26</option>
+                <option value="27">27</option>
+                <option value="28">28</option>
+            </select>
+        </div>
+
+        <div id="cycleDateRange" style="font-size:0.78rem; color:#888; padding:4px 0 12px; display:none;"></div>
+        {% else %}
+        <div id="cycleDay" style="display:none;" data-value="1"></div>
+        <div id="cycleDateRange" style="display:none;"></div>
+        {% endif %}
+
         <div class="budget-row">
             <div class="budget-label">
                 <div class="budget-label-text">תקציב חודשי</div>
@@ -230,6 +275,7 @@
             <button class="save-btn" id="saveSettingsBtn" onclick="saveSettings()">💾 שמור הגדרות</button>
         </div>
     </div>
+{% endif %}
 
     <!-- Account Settings -->
     <div class="s-card">
@@ -345,6 +391,7 @@
 {% block scripts %}
 <script>
 let _settingsChanged = false;
+let _originalCycleDay = 1;
 
 function toggleEdit(id) {
     const el = document.getElementById(id);
@@ -390,9 +437,24 @@ async function loadCategories() {
             `<div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f0f0f0;">
                 <div style="width:16px;height:16px;border-radius:50%;background:${c.color};flex-shrink:0;"></div>
                 <span style="flex:1;font-size:0.85rem;">${c.name}</span>
+                ${c.is_default
+                    ? '<span style="font-size:0.7rem;color:#999;background:#f5f5f5;padding:2px 6px;border-radius:4px;">ברירת מחדל</span>'
+                    : `<button onclick="deleteCategory(${c.id},'${c.name.replace(/'/g, "\\'")}')" style="background:none;border:none;color:#dc3545;font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>`
+                }
             </div>`
         ).join('');
     } catch(e) { console.error(e); }
+}
+
+async function deleteCategory(id, name) {
+    if (!confirm('למחוק את הקטגוריה "' + name + '"?')) return;
+    const r = await fetch('/api/categories/' + id, { method: 'DELETE' });
+    if (r.ok) {
+        loadCategories();
+    } else {
+        const d = await r.json();
+        alert(d.error || 'שגיאה במחיקה');
+    }
 }
 
 async function addCategory() {
@@ -499,6 +561,36 @@ function updateFeedingStatus() {
     }
 }
 
+function updateCycleRange() {
+    const cycleDayEl = document.getElementById('cycleDay');
+    if (!cycleDayEl || cycleDayEl.tagName !== 'SELECT') return;
+    const day = parseInt(cycleDayEl.value) || 1;
+    const el = document.getElementById('cycleDateRange');
+    if (day === 1) {
+        el.style.display = 'none';
+        return;
+    }
+    const now = new Date();
+    let startMonth, startYear, endMonth, endYear;
+    if (now.getDate() >= day) {
+        startMonth = now.getMonth();
+        startYear = now.getFullYear();
+    } else {
+        startMonth = now.getMonth() - 1;
+        startYear = now.getFullYear();
+        if (startMonth < 0) { startMonth = 11; startYear--; }
+    }
+    endMonth = startMonth + 1;
+    endYear = startYear;
+    if (endMonth > 11) { endMonth = 0; endYear++; }
+
+    const heMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני',
+                      'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+    const endDay = day - 1 || 28;
+    el.textContent = `📅 מחזור נוכחי: ${heMonths[startMonth]} ${startYear} (${day}.${startMonth+1}–${endDay}.${endMonth+1})`;
+    el.style.display = 'block';
+}
+
 async function loadSettings() {
     try {
         const r = await fetch('/api/family/settings');
@@ -508,6 +600,12 @@ async function loadSettings() {
         document.getElementById('feedingReminder').value = data.feeding_reminder_hours || '0';
         document.getElementById('budgetMonthly').value = data.budget_monthly || '';
         document.getElementById('budgetDaily').value = data.budget_daily || '';
+        const cycleDayEl = document.getElementById('cycleDay');
+        if (cycleDayEl && cycleDayEl.tagName === 'SELECT') {
+            cycleDayEl.value = data.cycle_day || '1';
+            _originalCycleDay = parseInt(data.cycle_day) || 1;
+            updateCycleRange();
+        }
         updateFeedingStatus();
     } catch(e) {
         console.error('Load settings error:', e);
@@ -520,6 +618,28 @@ async function saveSettings() {
         budget_monthly: parseInt(document.getElementById('budgetMonthly').value) || 0,
         budget_daily: parseInt(document.getElementById('budgetDaily').value) || 0
     };
+    const cycleDayEl = document.getElementById('cycleDay');
+    if (cycleDayEl && cycleDayEl.tagName === 'SELECT') {
+        const newCycleDay = parseInt(cycleDayEl.value) || 1;
+        data.cycle_day = newCycleDay;
+
+        // Confirmation if cycle_day changed
+        if (newCycleDay !== _originalCycleDay) {
+            let msg = '';
+            if (newCycleDay === 1) {
+                msg = 'יום האיפוס ישתנה ל-1 לחודש (חודש קלנדרי רגיל).\n\n' +
+                      'המחזור הנוכחי ימשיך כרגיל עד ה-1 לחודש הבא.';
+            } else {
+                const endDay = newCycleDay - 1;
+                msg = 'יום האיפוס ישתנה ל-' + newCycleDay + ' לחודש.\n\n' +
+                      '• המחזור הנוכחי ימשיך כרגיל\n' +
+                      '• מחזור חדש יתחיל ב-' + newCycleDay + ' הקרוב\n' +
+                      '• כל מחזור ייספר מה-' + newCycleDay + ' עד ה-' + endDay + ' לחודש הבא\n\n' +
+                      'ייתכן מחזור מעבר קצר או ארוך מהרגיל.';
+            }
+            if (!confirm(msg + '\n\nלהמשיך?')) return;
+        }
+    }
 
     try {
         const r = await fetch('/api/family/settings', {
@@ -533,6 +653,7 @@ async function saveSettings() {
             btn.textContent = '✅ נשמר!';
             btn.classList.add('saved');
             _settingsChanged = false;
+            if (data.cycle_day) _originalCycleDay = data.cycle_day;
             updateFeedingStatus();
             if (typeof showToast === 'function') showToast('הגדרות נשמרו!', 'success');
             setTimeout(() => {

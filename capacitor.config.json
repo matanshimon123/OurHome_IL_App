@@ -3,7 +3,7 @@
   "appName": "OurHome IL",
   "webDir": "www",
   "server": {
-    "url": "http://192.168.1.45:5000",
+    "url": "http://192.168.1.51:5000",
     "cleartext": true
   },
   "plugins": {
@@ -14,3 +14,4 @@
     }
   }
 }
+

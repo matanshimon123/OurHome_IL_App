@@ -225,58 +225,78 @@
                 setTimeout(() => toast.remove(), 300);
             }, 3000);
         }
+        if (window.AndroidPageReady) window.AndroidPageReady.onReady();
     </script>
 
-<!-- Push Notifications (Capacitor) -->
-    <script>
-    (function() {
-        if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
+    <!-- Push Notifications – רושם FCM token מ-Java ישירות (אמין יותר) -->
+    <!-- Push Notifications (Capacitor) -->
+<script>
+(function() {
+    if (!window.Capacitor || !window.Capacitor.isNativePlatform()) return;
+    var PushNotifications = window.Capacitor.Plugins.PushNotifications;
+    if (!PushNotifications) return;
 
-        const PushNotifications = window.Capacitor.Plugins.PushNotifications;
-        if (!PushNotifications) return;
+    async function registerPush() {
+        try {
+            var perm = await PushNotifications.requestPermissions();
+            if (perm.receive !== 'granted') return;
 
-        async function registerPush() {
-            try {
-                const perm = await PushNotifications.requestPermissions();
-                if (perm.receive !== 'granted') return;
+            await PushNotifications.register();
 
-                await PushNotifications.register();
+            PushNotifications.addListener('registration', async function(tokenData) {
+                console.log('Push token:', tokenData.value);
+                try {
+                    await fetch('/api/push/register', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ token: tokenData.value, platform: 'android' })
+                    });
+                    console.log('Push token saved');
+                } catch(e) {
+                    console.error('Push register failed:', e);
+                }
+            });
 
-                PushNotifications.addListener('registration', async (tokenData) => {
-                    console.log('Push token:', tokenData.value);
-                    try {
-                        await fetch('/api/push/register', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ token: tokenData.value, platform: 'android' })
-                        });
-                        console.log('Push token saved');
-                    } catch(e) {
-                        console.error('Push register failed:', e);
-                    }
-                });
+            PushNotifications.addListener('registrationError', function(err) {
+                console.error('Push error:', err);
+            });
 
-                PushNotifications.addListener('registrationError', (err) => {
-                    console.error('Push error:', err);
-                });
+            PushNotifications.addListener('pushNotificationReceived', function(notification) {
+                if (typeof showToast === 'function') {
+                    showToast(notification.body || notification.title, 'info');
+                }
+            });
 
-                PushNotifications.addListener('pushNotificationReceived', (notification) => {
-                    if (typeof showToast === 'function') {
-                        showToast(notification.body || notification.title, 'info');
-                    }
-                });
+            PushNotifications.addListener('pushNotificationActionPerformed', function(action) {
+                console.log('Push tapped:', action);
+            });
 
-                PushNotifications.addListener('pushNotificationActionPerformed', (action) => {
-                    console.log('Push tapped:', action);
-                });
-
-            } catch(e) {
-                console.error('Push setup:', e);
-            }
+        } catch(e) {
+            console.error('Push setup:', e);
         }
+    }
 
-        window.addEventListener('load', () => setTimeout(registerPush, 2000));
-    })();
-    </script>
+    window.addEventListener('load', function() { setTimeout(registerPush, 2000); });
+})();
+</script>
+
+<!-- Debug Capacitor -->
+<script>
+(function() {
+    var info = {
+        hasCapacitor: !!window.Capacitor,
+        isNative: window.Capacitor ? window.Capacitor.isNativePlatform() : false,
+        hasPushPlugin: !!(window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.PushNotifications),
+        userAgent: navigator.userAgent
+    };
+    console.log('CAP DEBUG:', JSON.stringify(info));
+    // שולח ל-Flask כדי שתראה בטרמינל
+    fetch('/api/debug-cap', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(info)
+    }).catch(function(){});
+})();
+</script>
 </body>
 </html>

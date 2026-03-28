@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python test_files/test_flows.py)",
+      "Bash(python -c ':*)",
+      "Bash(PYTHONIOENCODING=utf-8 python test_files/test_deep_audit.py)"
+    ]
+  }
+}

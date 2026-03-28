@@ -19,7 +19,7 @@ FAMILY = f"s2fam_{RND}"
 PW = "TestPass123"
 
 # Cleanup old test data
-DB = os.environ.get('DATABASE_PATH', 'finance_tracker.db')
+DB = os.environ.get('DATABASE_PATH', '../finance_tracker.db')
 if os.path.exists(DB):
     try:
         c = sqlite3.connect(DB)

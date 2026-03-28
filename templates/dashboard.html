@@ -25,53 +25,70 @@
 /* ── HEADER ── */
 .pg-header{
   background:linear-gradient(150deg,#06122a 0%,#0d2248 50%,#112d5e 100%);
-  padding:20px 20px 32px;margin:-10px -10px 0;
+  padding:22px 20px 38px;margin:-10px -10px 0;
   position:relative;overflow:hidden;
 }
 .pg-header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:26px;background:var(--surface);border-radius:26px 26px 0 0;}
 .hdr-glow1{position:absolute;top:-70px;right:-50px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.22) 0%,transparent 65%);pointer-events:none;}
 .hdr-glow2{position:absolute;bottom:-30px;left:-30px;width:180px;height:180px;border-radius:50%;background:radial-gradient(circle,rgba(16,185,129,.1) 0%,transparent 65%);pointer-events:none;}
 
-/* Top row: label + title + month pill inline */
-.hdr-top{position:relative;z-index:1;margin-bottom:14px;}
-.hdr-label{font-size:.62rem;color:rgba(255,255,255,.35);font-weight:300;letter-spacing:.07em;margin-bottom:5px;}
-.hdr-title-row{display:flex;align-items:center;gap:10px;}
-.hdr-title{font-size:1.5rem;font-weight:900;letter-spacing:-.5px;line-height:1;color:#fff;}
-.hdr-title span{color:#60a5fa;}
-.hdr-month-pill{display:inline-flex;align-items:center;gap:4px;background:rgba(96,165,250,.12);border:1px solid rgba(96,165,250,.2);border-radius:99px;padding:3px 10px;margin-right:auto;}
-.hdr-month-pill .mp{font-size:.6rem;color:rgba(255,255,255,.4);font-weight:400;}
-.hdr-month-pill .mm{font-size:.7rem;font-weight:800;color:#93c5fd;}
+/* ── CYCLE BANNER ── */
+.cycle-banner{
+  position:relative;z-index:1;
+  background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.2);
+  border-radius:16px;padding:12px 16px;margin-bottom:16px;
+  text-align:center;
+}
+.cycle-label{font-size:1.1rem;font-weight:900;color:#fff;line-height:1.2;}
+.cycle-dates{font-size:.75rem;color:rgba(255,255,255,.5);margin-top:2px;}
+.cycle-badge{
+  background:rgba(96,165,250,.2);border:1px solid rgba(96,165,250,.3);
+  border-radius:12px;padding:6px 14px;text-align:center;
+}
+.cycle-badge .cb-val{font-size:1rem;font-weight:900;color:#93c5fd;line-height:1;}
+.cycle-badge .cb-lbl{font-size:.55rem;color:rgba(255,255,255,.4);margin-top:2px;}
 
 /* Amount row */
-.hdr-amount-row{position:relative;z-index:1;margin-bottom:16px;}
-.hdr-amount{display:flex;align-items:baseline;gap:4px;}
-.hdr-amount .sym{font-size:1.2rem;font-weight:500;color:rgba(255,255,255,.5);}
-.hdr-amount .val{font-size:2.6rem;font-weight:900;color:#fff;letter-spacing:-2px;line-height:1;}
-.hdr-diff{display:inline-flex;align-items:center;gap:5px;margin-top:7px;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:700;}
+.hdr-amount-row{position:relative;z-index:1;margin-bottom:18px;text-align:center;}
+.hdr-amount{display:flex;align-items:baseline;gap:4px;justify-content:center;}
+.hdr-amount .sym{font-size:1.4rem;font-weight:500;color:rgba(255,255,255,.5);}
+.hdr-amount .val{font-size:3rem;font-weight:900;color:#fff;letter-spacing:-2px;line-height:1;}
+.hdr-diff{display:inline-flex;align-items:center;gap:5px;margin-top:8px;padding:4px 12px;border-radius:99px;font-size:.75rem;font-weight:700;}
 .hdr-diff.up{background:rgba(239,68,68,.2);color:#fca5a5;}
 .hdr-diff.dn{background:rgba(16,185,129,.2);color:#6ee7b7;}
 
-/* Mini stats */
-.hdr-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;position:relative;z-index:1;}
-.hdr-stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 8px;text-align:center;backdrop-filter:blur(8px);}
-.hdr-stat .sv{font-size:1.1rem;font-weight:900;color:#fff;line-height:1;}
-.hdr-stat .sl{font-size:.58rem;color:rgba(255,255,255,.4);margin-top:3px;}
+/* Stats grid */
+.hdr-stats-top{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;position:relative;z-index:1;}
+.hdr-stat{
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:18px;padding:14px 10px;text-align:center;
+  backdrop-filter:blur(8px);position:relative;overflow:hidden;
+}
+.hdr-stat::before{content:'';position:absolute;top:0;left:50%;transform:translateX(-50%);width:40%;height:2px;border-radius:0 0 4px 4px;}
+.hdr-stat .sv{font-size:1.3rem;font-weight:900;color:#fff;line-height:1;letter-spacing:-.5px;}
+.hdr-stat .sl{font-size:.62rem;color:rgba(255,255,255,.45);margin-top:5px;font-weight:500;}
+.hdr-stat.today{background:rgba(96,165,250,.12);border-color:rgba(96,165,250,.25);}
+.hdr-stat.today::before{background:linear-gradient(90deg,transparent,#60a5fa,transparent);}
+.hdr-stat.week{background:rgba(16,185,129,.1);border-color:rgba(16,185,129,.2);}
+.hdr-stat.week::before{background:linear-gradient(90deg,transparent,#34d399,transparent);}
+.hdr-stat.week .sv{color:#6ee7b7;}
+.hdr-stat.today .sv{color:#93c5fd;}
 
 /* ── CONTENT ── */
 .content{padding:14px 14px 0;}
 
 /* ── QUICK ACTIONS ── */
-.qa-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;}
+.qa-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
 .qa-btn{
-  display:flex;flex-direction:column;align-items:center;gap:5px;
-  background:var(--card);border-radius:16px;padding:12px 6px;
-  text-decoration:none;color:var(--text2);font-size:.68rem;font-weight:700;
-  box-shadow:0 1px 8px rgba(0,0,0,.06);border:1.5px solid var(--border);
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  background:var(--card);border-radius:16px;padding:14px 10px;
+  text-decoration:none;color:var(--text1);font-size:.82rem;font-weight:700;
+  box-shadow:0 2px 12px rgba(0,0,0,.06);border:1.5px solid var(--border);
   transition:transform .15s,box-shadow .15s;cursor:pointer;font-family:inherit;
 }
-.qa-btn:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1);color:var(--text1);}
+.qa-btn:hover{transform:translateY(-2px);box-shadow:0 4px 16px rgba(0,0,0,.1);}
 .qa-btn:active{transform:scale(.97);}
-.qa-icon{font-size:1.1rem;}
+.qa-icon{font-size:1rem;}
 
 /* ── ADD CARD ── */
 .add-card{background:var(--card);border-radius:var(--r);box-shadow:0 2px 20px rgba(0,0,0,.07);border:1.5px solid var(--border);margin-bottom:14px;overflow:hidden;}
@@ -113,8 +130,25 @@
 /* ── PAYMENTS LIST ── */
 .list-card{background:var(--card);border-radius:var(--r);box-shadow:0 2px 20px rgba(0,0,0,.07);border:1.5px solid var(--border);margin-bottom:14px;padding:16px;}
 .list-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+.list-hdr-right{display:flex;align-items:center;gap:6px;}
 .list-hdr-title{font-size:.9rem;font-weight:800;color:var(--text1);}
 .list-cnt{background:var(--blue);color:#fff;padding:3px 10px;border-radius:99px;font-size:.72rem;font-weight:700;}
+.sort-btn{
+  background:none;border:1.5px solid var(--border);border-radius:10px;
+  padding:4px 10px;font-size:.65rem;font-weight:700;color:var(--text3);
+  cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:4px;
+}
+.sort-btn:hover,.sort-btn.active{background:#eff6ff;border-color:var(--blue);color:var(--blue);}
+/* Category group header */
+.cat-group-hdr{
+  display:flex;align-items:center;gap:8px;padding:10px 12px;margin-top:10px;
+  border-radius:12px;border-right:3px solid var(--blue);
+  background:linear-gradient(90deg,#f0f4ff,transparent);
+}
+.cat-group-hdr:first-child{margin-top:0;}
+.cat-group-name{font-size:.88rem;font-weight:900;color:var(--text1);}
+.cat-group-cnt{font-size:.6rem;color:var(--text3);font-weight:600;}
+.cat-group-total{font-size:.82rem;font-weight:800;color:var(--blue);margin-right:auto;}
 
 /* Scrollable area */
 #paymentsList{max-height:400px;overflow-y:auto;padding-left:2px;}
@@ -170,6 +204,35 @@
 .sheet-save{width:100%;padding:13px;background:linear-gradient(135deg,var(--blue),var(--blue2));color:#fff;border:none;border-radius:13px;font-size:.9rem;font-weight:800;font-family:inherit;cursor:pointer;margin-bottom:8px;}
 .sheet-cancel{width:100%;padding:10px;background:none;border:none;color:var(--text3);font-size:.82rem;font-family:inherit;cursor:pointer;}
 
+/* ── ONBOARDING ── */
+.onboard-ov{display:none;position:fixed;z-index:3000;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(6px);justify-content:center;align-items:center;flex-direction:column;}
+.onboard-ov.open{display:flex;}
+.onboard-card{
+  background:var(--card);border-radius:24px;padding:28px 24px 24px;
+  width:90%;max-width:420px;direction:rtl;
+  animation:sup .35s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 20px 60px rgba(0,0,0,.3);
+}
+.onboard-title{font-size:1.2rem;font-weight:900;color:var(--text1);text-align:center;margin-bottom:6px;}
+.onboard-sub{font-size:.78rem;color:var(--text3);text-align:center;margin-bottom:20px;line-height:1.5;}
+.onboard-field{margin-bottom:16px;}
+.onboard-field label{display:block;font-size:.78rem;font-weight:700;color:var(--text1);margin-bottom:6px;}
+.onboard-field .of-hint{font-size:.65rem;color:var(--text3);margin-top:4px;}
+.onboard-field input,.onboard-field select{
+  width:100%;padding:12px 14px;border:1.5px solid var(--border);border-radius:12px;
+  font-size:.92rem;font-family:inherit;background:#fafbff;color:var(--text1);outline:none;
+}
+.onboard-field input:focus,.onboard-field select:focus{border-color:var(--blue);}
+.onboard-field .of-required{color:var(--red);font-weight:900;}
+.onboard-save{
+  width:100%;padding:14px;
+  background:linear-gradient(135deg,var(--blue),var(--blue2));
+  color:#fff;border:none;border-radius:14px;
+  font-size:.95rem;font-weight:800;font-family:inherit;cursor:pointer;
+  margin-top:4px;
+}
+.onboard-save:active{opacity:.88;}
+
 /* Animations */
 .fu{opacity:0;transform:translateY(14px);animation:fu .4s ease forwards;}
 @keyframes fu{to{opacity:1;transform:translateY(0)}}
@@ -182,17 +245,12 @@
   <div class="pg-header fu d1">
     <div class="hdr-glow1"></div><div class="hdr-glow2"></div>
 
-    <div class="hdr-top">
-      <div class="hdr-label">OurHome IL</div>
-      <div class="hdr-title-row">
-        <div class="hdr-title">💳 <span>הוצאות</span></div>
-        <div class="hdr-month-pill">
-          <span class="mp">חודש</span>
-          <span class="mm">{{ current_month }}</span>
-        </div>
-      </div>
+    <!-- Cycle Banner -->
+    <div class="cycle-banner">
+      <div class="cycle-label">{{ cycle_label }}</div>
     </div>
 
+    <!-- Total amount -->
     <div class="hdr-amount-row">
       <div class="hdr-amount">
         <span class="sym">₪</span>
@@ -201,22 +259,23 @@
       <div class="hdr-diff {% if monthly_total > prev_month_total %}up{% else %}dn{% endif %}" id="heroDiff">
         {% set diff = monthly_total - prev_month_total %}
         <i class="fas fa-{% if diff > 0 %}arrow-up{% else %}arrow-down{% endif %}" style="font-size:.6rem;"></i>
-        {% if diff > 0 %}+{% endif %}₪{{ "%.0f"|format(diff) }} מול חודש שעבר
+        {% if diff > 0 %}+{% endif %}₪{{ "%.0f"|format(diff) }} מול מחזור קודם
       </div>
     </div>
 
-    <div class="hdr-stats">
+    <!-- Stats: today, this week, count -->
+    <div class="hdr-stats-top">
+      <div class="hdr-stat today">
+        <div class="sv" id="heroToday">₪{{ "%.0f"|format(today_total) }}</div>
+        <div class="sl">היום</div>
+      </div>
+      <div class="hdr-stat week">
+        <div class="sv" id="heroWeek">₪{{ "%.0f"|format(week_total) }}</div>
+        <div class="sl">השבוע</div>
+      </div>
       <div class="hdr-stat">
         <div class="sv" id="heroCount">{{ payments|length }}</div>
         <div class="sl">תשלומים</div>
-      </div>
-      <div class="hdr-stat">
-        <div class="sv" id="heroDaily">₪{{ "%.0f"|format(daily_average) }}</div>
-        <div class="sl">ממוצע יומי</div>
-      </div>
-      <div class="hdr-stat">
-        <div class="sv" id="heroWeekly">₪{{ "%.0f"|format(weekly_average) }}</div>
-        <div class="sl">ממוצע שבועי</div>
       </div>
     </div>
   </div>
@@ -229,10 +288,6 @@
         <span class="qa-icon">📅</span>
         <span>היסטוריה</span>
       </a>
-      <button class="qa-btn" onclick="archiveMonth()">
-        <span class="qa-icon">📦</span>
-        <span>איפוס חודש</span>
-      </button>
       <a href="{{ url_for('export_csv') }}" class="qa-btn">
         <span class="qa-icon">📥</span>
         <span>ייצוא CSV</span>
@@ -242,7 +297,7 @@
     <!-- ADD PAYMENT -->
     <div class="add-card fu d3">
       <div class="add-tabs">
-        <button class="add-tab active" onclick="switchTab('manual',this)">➕ הוספה ידנית</button>
+        <button class="add-tab active" onclick="switchTab('manual',this)">+ הוספה ידנית</button>
         <button class="add-tab" onclick="switchTab('recurring',this)">🔄 קבועים</button>
       </div>
 
@@ -257,7 +312,7 @@
 
       <div class="add-panel" id="tab-recurring">
         <div id="recList"></div>
-        <button class="rec-addall" id="addAllRecBtn" onclick="addAllRecurring()" style="display:none;">⚡ הוסף את כל הקבועים לחודש</button>
+        <button class="rec-addall" id="addAllRecBtn" onclick="addAllRecurring()" style="display:none;">הוסף את כל הקבועים למחזור</button>
         <div class="rec-new-wrap">
           <div class="rec-new-label">הוסף תשלום קבוע חדש:</div>
           <div class="rec-new">
@@ -273,8 +328,11 @@
     <!-- PAYMENTS LIST -->
     <div class="list-card fu d4">
       <div class="list-hdr">
-        <span class="list-hdr-title">תשלומים החודש</span>
-        <span class="list-cnt" id="paymentsCount">0</span>
+        <span class="list-hdr-title">תשלומים במחזור</span>
+        <div class="list-hdr-right">
+          <button class="sort-btn" id="sortToggle" onclick="toggleSort()"><i class="fas fa-layer-group"></i> קטגוריה</button>
+          <span class="list-cnt" id="paymentsCount">0</span>
+        </div>
       </div>
       <div id="paymentsList">
         <div class="p-empty"><div class="ei">📭</div><div class="et">טוען...</div></div>
@@ -289,7 +347,7 @@
 
     <!-- DAILY CHART -->
     <div class="chart-card fu d5">
-      <div class="chart-hdr"><span class="ch-dot"></span> הוצאות יומיות</div>
+      <div class="chart-hdr"><span class="ch-dot"></span> הוצאות יומיות <span style="font-weight:400;font-size:.72rem;color:var(--text3);margin-right:4px;">{{ cycle_start[8:] }}.{{ cycle_start[5:7] }} – {{ cycle_end[8:] }}.{{ cycle_end[5:7] }}</span></div>
       <div class="ch-box"><canvas id="dailyChart"></canvas></div>
     </div>
 
@@ -300,7 +358,7 @@
 <div class="sheet-ov" id="eov" onclick="if(event.target===this)closeE()">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">✏️ עריכת תשלום</div>
+    <div class="sheet-title">עריכת תשלום</div>
     <input type="hidden" id="eId">
     <input type="text" id="eDesc" placeholder="תיאור" dir="rtl">
     <input type="number" id="eAmt" step="0.01" placeholder="סכום">
@@ -314,7 +372,7 @@
 <div class="sheet-ov" id="erOv" onclick="if(event.target===this)closeER()">
   <div class="sheet">
     <div class="sheet-handle"></div>
-    <div class="sheet-title">✏️ עריכת תשלום קבוע</div>
+    <div class="sheet-title">עריכת תשלום קבוע</div>
     <input type="text" id="erDesc" placeholder="תיאור" dir="rtl">
     <input type="number" id="erAmt" step="0.01" placeholder="סכום">
     <select id="erCat">{% for c in categories %}<option value="{{ c.name }}">{{ c.name }}</option>{% endfor %}</select>
@@ -323,10 +381,108 @@
   </div>
 </div>
 
+<!-- ONBOARDING POPUP -->
+<div class="onboard-ov" id="onboardOv">
+  <div class="onboard-card">
+    <div class="onboard-title">הגדרות ראשוניות</div>
+    <div class="onboard-sub">לפני שנתחיל, נגדיר את מחזור החיוב המשפחתי שלך</div>
+
+    <div class="onboard-field">
+      <label>יום תחילת מחזור <span class="of-required">*</span></label>
+      <select id="obCycleDay">
+        <option value="">בחר יום...</option>
+        {% for d in range(1, 29) %}
+        <option value="{{ d }}">{{ d }} לחודש{% if d == 1 %} (חודש רגיל){% elif d == 10 %} (לדוגמה: 10 בכל חודש){% endif %}</option>
+        {% endfor %}
+      </select>
+      <div class="of-hint">היום בחודש שבו מתחיל מחזור החיוב (1-28). לדוגמה: אם הבנק מחייב ב-10 לחודש, בחר 10.</div>
+    </div>
+
+    <div class="onboard-field">
+      <label>תקציב חודשי (אופציונלי)</label>
+      <input type="number" id="obBudgetMonthly" placeholder="לדוגמה: 8000" min="0">
+    </div>
+
+    <div class="onboard-field">
+      <label>תקציב יומי (אופציונלי)</label>
+      <input type="number" id="obBudgetDaily" placeholder="לדוגמה: 250" min="0">
+    </div>
+
+    <button class="onboard-save" onclick="saveOnboarding()">שמור והתחל</button>
+  </div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script>
+const CYCLE_START='{{ cycle_start }}';
+let sortByCategory=false;
+let lastPayments=[];
 function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+
+function toggleSort(){
+  sortByCategory=!sortByCategory;
+  const btn=document.getElementById('sortToggle');
+  if(sortByCategory){
+    btn.classList.add('active');
+    btn.innerHTML='<i class="fas fa-clock"></i> תאריך';
+  }else{
+    btn.classList.remove('active');
+    btn.innerHTML='<i class="fas fa-layer-group"></i> קטגוריה';
+  }
+  renderPaymentsList(lastPayments);
+}
+
+function renderPaymentsList(payments){
+  const list=document.getElementById('paymentsList');
+  if(payments.length===0){
+    list.innerHTML='<div class="p-empty"><div class="ei">📭</div><div class="et">אין תשלומים במחזור</div></div>';
+    return;
+  }
+  if(!sortByCategory){
+    list.innerHTML=payments.map(p=>`
+      <div class="p-item">
+        <div class="p-dot" style="background:${esc(p.color)||'#94a3b8'};"></div>
+        <div class="p-info">
+          <div class="p-desc">${esc(p.description)}</div>
+          <div class="p-meta"><span class="p-cat">${esc(p.category)}</span><span class="p-date">${esc(p.date)}</span></div>
+        </div>
+        <div class="p-amt">₪${p.amount.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+        <div class="p-acts">
+          <button class="eb" onclick="editPay(${p.id},'${p.description.replace(/'/g,"\\'")}',${p.amount},'${p.category}')"><i class="fas fa-pen"></i></button>
+          <button class="db" onclick="delPay(${p.id})"><i class="fas fa-trash"></i></button>
+        </div>
+      </div>`).join('');
+  }else{
+    // Group by category
+    const groups={};
+    payments.forEach(p=>{
+      if(!groups[p.category])groups[p.category]={color:p.color||'#94a3b8',total:0,items:[]};
+      groups[p.category].total+=p.amount;
+      groups[p.category].items.push(p);
+    });
+    let html='';
+    Object.keys(groups).sort().forEach(cat=>{
+      const g=groups[cat];
+      html+=`<div class="cat-group-hdr" style="border-right-color:${esc(g.color)};"><span class="cat-group-name">${esc(cat)}</span><span class="cat-group-cnt">${g.items.length} תשלומים</span><span class="cat-group-total">₪${Math.round(g.total).toLocaleString('he-IL')}</span></div>`;
+      g.items.forEach(p=>{
+        html+=`<div class="p-item">
+          <div class="p-dot" style="background:${esc(p.color)||'#94a3b8'};"></div>
+          <div class="p-info">
+            <div class="p-desc">${esc(p.description)}</div>
+            <div class="p-meta"><span class="p-date">${esc(p.date)}</span></div>
+          </div>
+          <div class="p-amt">₪${p.amount.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
+          <div class="p-acts">
+            <button class="eb" onclick="editPay(${p.id},'${p.description.replace(/'/g,"\\'")}',${p.amount},'${p.category}')"><i class="fas fa-pen"></i></button>
+            <button class="db" onclick="delPay(${p.id})"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>`;
+      });
+    });
+    list.innerHTML=html;
+  }
+}
 
 function switchTab(tab,btn){
   document.querySelectorAll('.add-tab').forEach(b=>b.classList.remove('active'));
@@ -374,30 +530,35 @@ async function loadPayments(){
     const payments=await r.json();
     document.getElementById('paymentsCount').textContent=payments.length;
     const total=payments.reduce((s,p)=>s+p.amount,0);
-    const day=new Date().getDate();
-    const da=day>0?total/day:0;
+
+    // Calculate days elapsed from cycle start
+    const startDate=new Date(CYCLE_START);
+    const now=new Date();
+    const daysElapsed=Math.max(1,Math.floor((now-startDate)/(1000*60*60*24))+1);
+    const da=daysElapsed>0?total/daysElapsed:0;
+
+    // Today + this week totals
+    const todayStr=now.toISOString().split('T')[0];
+    const dayOfWeek=now.getDay();
+    const sundayOffset=dayOfWeek===0?0:dayOfWeek;
+    const weekStart=new Date(now);
+    weekStart.setDate(now.getDate()-sundayOffset);
+    const weekStartStr=weekStart.toISOString().split('T')[0];
+
+    let todayTotal=0,weekTotal=0;
+    payments.forEach(p=>{
+      const pd=p.date?p.date.split(' ')[0]:'';
+      if(pd===todayStr)todayTotal+=p.amount;
+      if(pd>=weekStartStr)weekTotal+=p.amount;
+    });
+
     document.getElementById('heroTotal').textContent=Math.round(total).toLocaleString('he-IL');
     document.getElementById('heroCount').textContent=payments.length;
-    document.getElementById('heroDaily').textContent='₪'+Math.round(da);
-    document.getElementById('heroWeekly').textContent='₪'+Math.round(da*7);
-    const list=document.getElementById('paymentsList');
-    if(payments.length===0){
-      list.innerHTML='<div class="p-empty"><div class="ei">📭</div><div class="et">אין תשלומים החודש</div></div>';
-      return;
-    }
-    list.innerHTML=payments.map(p=>`
-      <div class="p-item">
-        <div class="p-dot" style="background:${esc(p.color)||'#94a3b8'};"></div>
-        <div class="p-info">
-          <div class="p-desc">${esc(p.description)}</div>
-          <div class="p-meta"><span class="p-cat">${esc(p.category)}</span><span class="p-date">${esc(p.date)}</span></div>
-        </div>
-        <div class="p-amt">₪${p.amount.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
-        <div class="p-acts">
-          <button class="eb" onclick="editPay(${p.id},'${p.description.replace(/'/g,"\\'")}',${p.amount},'${p.category}')"><i class="fas fa-pen"></i></button>
-          <button class="db" onclick="delPay(${p.id})"><i class="fas fa-trash"></i></button>
-        </div>
-      </div>`).join('');
+    document.getElementById('heroToday').textContent='₪'+Math.round(todayTotal).toLocaleString('he-IL');
+    document.getElementById('heroWeek').textContent='₪'+Math.round(weekTotal).toLocaleString('he-IL');
+
+    lastPayments=payments;
+    renderPaymentsList(payments);
   }catch(e){console.error(e);}
 }
 
@@ -465,9 +626,9 @@ async function saveER(){
   closeER();loadRecurring();
 }
 async function addAllRecurring(){
-  if(!confirm('להוסיף את כל התשלומים הקבועים לחודש הנוכחי?'))return;
+  if(!confirm('להוסיף את כל התשלומים הקבועים למחזור הנוכחי?'))return;
   await fetch('/api/recurring/add-all',{method:'POST'});
-  document.querySelectorAll('.rec-add-btn').forEach(b=>{b.innerHTML='✓ נוסף!';b.disabled=true;});
+  document.querySelectorAll('.rec-add-btn').forEach(b=>{b.innerHTML='נוסף!';b.disabled=true;});
   loadPayments();loadCharts();setTimeout(()=>loadRecurring(),1500);
 }
 
@@ -506,7 +667,7 @@ function loadCharts(){
         type:'bar',
         data:{labels:data.daily.labels,datasets:[{
           data:data.daily.data,
-          backgroundColor:data.daily.data.map((_,i)=>i===new Date().getDate()-1?'rgba(37,99,235,1)':'rgba(37,99,235,0.35)'),
+          backgroundColor:data.daily.data.map((_,i)=>i===data.daily.today_index?'rgba(37,99,235,1)':'rgba(37,99,235,0.35)'),
           borderRadius:6,borderSkipped:false
         }]},
         options:{
@@ -520,6 +681,35 @@ function loadCharts(){
       });
     }
   });
+}
+
+// Onboarding
+{% if needs_onboarding %}
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('onboardOv').classList.add('open');
+});
+{% endif %}
+
+async function saveOnboarding(){
+  const cd=document.getElementById('obCycleDay').value;
+  if(!cd){showToast('יש לבחור יום תחילת מחזור','error');return;}
+  const bm=parseInt(document.getElementById('obBudgetMonthly').value)||0;
+  const bd=parseInt(document.getElementById('obBudgetDaily').value)||0;
+  try{
+    const r=await fetch('/api/family/settings',{
+      method:'PUT',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({cycle_day:parseInt(cd),budget_monthly:bm,budget_daily:bd})
+    });
+    if(r.ok){
+      document.getElementById('onboardOv').classList.remove('open');
+      showToast('ההגדרות נשמרו!','success');
+      setTimeout(()=>window.location.reload(),800);
+    }else{
+      const d=await r.json();
+      showToast(d.error||'שגיאה בשמירה','error');
+    }
+  }catch(e){showToast('שגיאה בשמירה','error');}
 }
 
 loadCharts();
