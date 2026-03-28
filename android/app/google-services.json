@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "36045839334",
+    "project_id": "ourhome-il-dc566",
+    "storage_bucket": "ourhome-il-dc566.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:36045839334:android:deff03ea274872043a9427",
+        "android_client_info": {
+          "package_name": "com.ourhome.il"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBkT8-Lt8OCCeg5jKdO_UvD-NvYJzZHL7w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
