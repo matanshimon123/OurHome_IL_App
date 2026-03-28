@@ -1,6 +1,8 @@
 import os
 import re
+import json
 import sqlite3
+import threading
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.chart import BarChart, PieChart, Reference
@@ -37,10 +39,13 @@ JWT_EXPIRY_DAYS = 30
 
 
 def is_admin():
+    if hasattr(request, 'api_user'):
+        return bool(request.api_user.get('is_admin'))
     return bool(session.get('is_admin'))
 
 
 csrf = CSRFProtect(app)
+app.config['WTF_CSRF_CHECK_DEFAULT'] = False  # We handle CSRF manually below
 # Mail config
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
@@ -95,6 +100,57 @@ def make_session_permanent():
     session.permanent = True
 
 
+@app.before_request
+def check_csrf():
+    """Skip CSRF for all API routes, enforce for web forms"""
+    if request.method not in ('POST', 'PUT', 'PATCH', 'DELETE'):
+        return
+    if request.path.startswith('/api/'):
+        return  # API routes protected by JWT, not CSRF
+    csrf.protect()
+
+
+@app.before_request
+def auto_jwt_auth():
+    """Auto-authenticate JWT for API routes and populate session for backward compat"""
+    if not request.path.startswith('/api/'):
+        return
+
+    token = get_token_from_request()
+    if not token:
+        return
+
+    payload = decode_jwt_token(token)
+    if not payload:
+        return
+
+    # Load fresh user data from DB
+    try:
+        with get_db() as conn:
+            user = conn.execute('SELECT * FROM users WHERE id=?', (payload['user_id'],)).fetchone()
+            if not user:
+                return
+
+        # Set api_user on request
+        request.api_user = {
+            'user_id': user['id'],
+            'username': user['username'],
+            'display_name': user['display_name'] or user['username'],
+            'family_id': user['family_id'],
+            'is_admin': bool(user['is_admin']),
+            'email': user['email']
+        }
+
+        # Populate session so existing routes work without changes
+        session['user_id'] = user['id']
+        session['username'] = user['username']
+        session['display_name'] = user['display_name'] or user['username']
+        session['family_id'] = user['family_id']
+        session['is_admin'] = bool(user['is_admin'])
+    except Exception:
+        pass
+
+
 def get_db():
     conn = sqlite3.connect(DATABASE, timeout=10)
     conn.row_factory = sqlite3.Row
@@ -116,6 +172,8 @@ def generate_invite_code():
 
 
 def get_family_id():
+    if hasattr(request, 'api_user'):
+        return request.api_user.get('family_id')
     return session.get('family_id')
 
 
@@ -325,6 +383,23 @@ def init_db():
             description TEXT NOT NULL, amount REAL NOT NULL,
             category TEXT DEFAULT 'כללי',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS push_tokens (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER NOT NULL,
+            token TEXT NOT NULL UNIQUE,
+            platform TEXT DEFAULT 'android',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS family_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            family_id INTEGER NOT NULL UNIQUE,
+            feeding_reminder_hours REAL DEFAULT 0,
+            last_feeding_alert TIMESTAMP,
+            budget_monthly INTEGER DEFAULT 0,
+            budget_daily INTEGER DEFAULT 0,
+            budget_alert_80_sent TEXT DEFAULT '',
+            budget_alert_100_sent TEXT DEFAULT '',
+            FOREIGN KEY (family_id) REFERENCES families(id));
     """)
     for t, c, ct in [
         ('users','email','TEXT DEFAULT ""'),
@@ -341,6 +416,12 @@ def init_db():
         ('feedings','family_id','INTEGER'),
         ('recurring_payments','family_id','INTEGER'),
         ('archived_cycles','family_id','INTEGER'),
+        ('family_settings','feeding_reminder_hours','REAL DEFAULT 0'),
+        ('family_settings','last_feeding_alert','TIMESTAMP'),
+        ('family_settings','budget_monthly','INTEGER DEFAULT 0'),
+        ('family_settings','budget_daily','INTEGER DEFAULT 0'),
+        ('family_settings','budget_alert_80_sent','TEXT DEFAULT ""'),
+        ('family_settings','budget_alert_100_sent','TEXT DEFAULT ""'),
     ]:
         try: conn.execute(f'ALTER TABLE {t} ADD COLUMN {c} {ct}')
         except sqlite3.OperationalError: pass
@@ -356,10 +437,32 @@ def init_db():
 def require_auth(f):
     @wraps(f)
     def decorated(*args, **kwargs):
-        if 'user_id' not in session: return redirect(url_for('login'))
+        is_api = request.path.startswith('/api/')
+
+        if 'user_id' not in session:
+            if is_api:
+                return jsonify({'error': 'נדרשת הזדהות', 'code': 'AUTH_REQUIRED'}), 401
+            return redirect(url_for('login'))
+
+        # Sync family_id from DB (handles removed members)
+        with get_db() as conn:
+            user = conn.execute('SELECT family_id FROM users WHERE id=?', (session['user_id'],)).fetchone()
+            if user:
+                session['family_id'] = user['family_id']
+            else:
+                session.clear()
+                if is_api:
+                    return jsonify({'error': 'משתמש לא נמצא', 'code': 'USER_NOT_FOUND'}), 401
+                return redirect(url_for('login'))
+
         if not session.get('family_id') and request.endpoint not in (
-                'family_setup', 'create_family', 'join_family', 'logout', 'service_worker'):
+                'family_setup', 'create_family', 'join_family', 'logout', 'service_worker',
+                'settings', 'api_family_info', 'api_create_family', 'api_join_family',
+                'api_get_family_settings', 'api_update_family_settings'):
+            if is_api:
+                return jsonify({'error': 'יש להצטרף למשפחה קודם', 'code': 'NO_FAMILY'}), 403
             return redirect(url_for('family_setup'))
+
         return f(*args, **kwargs)
 
     return decorated
@@ -369,6 +472,8 @@ def require_admin(f):
     @wraps(f)
     def decorated(*args, **kwargs):
         if not is_admin():
+            if request.path.startswith('/api/'):
+                return jsonify({'error': 'נדרשות הרשאות מנהל', 'code': 'ADMIN_REQUIRED'}), 403
             return redirect(url_for('home'))
         return f(*args, **kwargs)
 
@@ -843,6 +948,18 @@ def add_payment_api():
     with get_db() as conn:
         conn.execute('INSERT INTO payments (family_id,description,amount,category,month,year) VALUES (?,?,?,?,?,?)',
                      (fid, data['description'], data['amount'], data.get('category', 'כללי'), cm, cy))
+
+    # Push notification to family
+    user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+    user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
+    send_push_to_family(fid,
+        '💰 הוצאה חדשה',
+        f'{user_name} הוסיף/ה: {desc} — ₪{float(amount):.0f}',
+        exclude_user_id=user_id)
+
+    # Check budget thresholds
+    check_budget_alerts(fid)
+
     return jsonify({'success': True}), 201
 
 
@@ -1240,6 +1357,15 @@ def add_shopping_item():
         cur = conn.execute(
             'INSERT INTO shopping_items (family_id,name,quantity,checked,category) VALUES (?,?,?,FALSE,?)',
             (fid, name, data.get('quantity', 1), cat))
+
+    # Push notification to family
+    user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+    user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
+    send_push_to_family(fid,
+        '🛒 פריט חדש ברשימה',
+        f'{user_name} הוסיף/ה: {name}',
+        exclude_user_id=user_id)
+
     return jsonify({'id': cur.lastrowid}), 201
 
 
@@ -1285,6 +1411,7 @@ def add_favorites():
         favs = conn.execute('SELECT name,quantity,category FROM shopping_favorites WHERE family_id=?',
                             (fid,)).fetchall()
         added = 0
+        names = []
         for f in favs:
             existing = conn.execute('SELECT id FROM shopping_items WHERE family_id=? AND name=? AND checked=FALSE',
                                     (fid, f['name'])).fetchone()
@@ -1293,6 +1420,18 @@ def add_favorites():
                     'INSERT INTO shopping_items (family_id,name,quantity,checked,favorite,category) VALUES (?,?,?,FALSE,TRUE,?)',
                     (fid, f['name'], f['quantity'], f['category']))
                 added += 1
+                names.append(f['name'])
+
+    if added > 0:
+        user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+        user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
+        items_text = ', '.join(names[:3])
+        if len(names) > 3:
+            items_text += f' ועוד {len(names)-3}'
+        send_push_to_family(fid, '🛒 מועדפים נוספו לרשימה',
+            f'{user_name} הוסיף/ה {added} פריטים: {items_text}',
+            exclude_user_id=user_id)
+
     return jsonify({'success': True, 'added': added})
 
 
@@ -1404,6 +1543,16 @@ def add_recurring_to_month(rid):
         if r: conn.execute(
             'INSERT INTO payments (family_id,description,amount,category,month,year) VALUES (?,?,?,?,?,?)',
             (fid, r['description'], r['amount'], r['category'], cm, cy))
+
+    # Push + budget check
+    if r:
+        user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+        user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
+        send_push_to_family(fid, '💰 תשלום קבוע נוסף',
+            f'{user_name} הוסיף/ה: {r["description"]} — ₪{float(r["amount"]):.0f}',
+            exclude_user_id=user_id)
+        check_budget_alerts(fid)
+
     return jsonify({'success': True})
 
 
@@ -1415,9 +1564,21 @@ def add_all_recurring():
     cy = now_israel().year
     with get_db() as conn:
         items = conn.execute('SELECT * FROM recurring_payments WHERE family_id=?', (fid,)).fetchall()
-        for r in items: conn.execute(
-            'INSERT INTO payments (family_id,description,amount,category,month,year) VALUES (?,?,?,?,?,?)',
-            (fid, r['description'], r['amount'], r['category'], cm, cy))
+        total_amount = 0
+        for r in items:
+            conn.execute(
+                'INSERT INTO payments (family_id,description,amount,category,month,year) VALUES (?,?,?,?,?,?)',
+                (fid, r['description'], r['amount'], r['category'], cm, cy))
+            total_amount += r['amount']
+
+    if items:
+        user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+        user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
+        send_push_to_family(fid, '💰 תשלומים קבועים נוספו',
+            f'{user_name} הוסיף/ה {len(items)} תשלומים קבועים — סה"כ ₪{total_amount:.0f}',
+            exclude_user_id=user_id)
+        check_budget_alerts(fid)
+
     return jsonify({'success': True, 'count': len(items)})
 
 
@@ -1438,6 +1599,23 @@ def add_feeding():
         cur = conn.execute(
             'INSERT INTO feedings (family_id,feeding_type,amount,duration,notes,date) VALUES (?,?,?,?,?,?)',
             (fid, ft, data.get('amount', 0), data.get('duration', 0), data.get('notes', ''), ds))
+
+    # Push notification to family
+    feeding_names = {
+        'bottle': '🍼 בקבוק', 'breastfeeding': '🤱 הנקה', 'solid': '🥣 מוצק',
+        'diaper': '🚼 חיתול', 'sleep': '😴 שינה', 'medication': '💊 תרופה'
+    }
+    feed_label = feeding_names.get(ft, ft)
+    amount_val = data.get('amount', 0)
+    detail = f' — {int(amount_val)} מ"ל' if ft == 'bottle' and amount_val else ''
+
+    user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+    user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
+    send_push_to_family(fid,
+        f'👶 {feed_label}',
+        f'{user_name} הוסיף/ה {feed_label}{detail}',
+        exclude_user_id=user_id)
+
     return jsonify({'success': True, 'id': cur.lastrowid}), 201
 
 
@@ -1896,6 +2074,358 @@ def api_export_csv():
         output.write(f'{p["description"]},{p["amount"]},{p["category"]},{p["date"]}\n')
     return send_file(io.BytesIO(output.getvalue().encode('utf-8-sig')),
                      mimetype='text/csv', as_attachment=True, download_name=f'ourhome_{cm}.csv')
+
+
+# ──────────────────────────────────────────────
+# PUSH NOTIFICATIONS API
+# ──────────────────────────────────────────────
+
+# --- REGISTER PUSH TOKEN ---
+@app.route('/api/push/register', methods=['POST'])
+@csrf.exempt
+@require_auth
+def api_register_push_token():
+    """Register a device push token for notifications"""
+    data = request.get_json(silent=True) or {}
+    token = data.get('token', '').strip()
+    platform = data.get('platform', 'android')
+
+    if not token:
+        return jsonify({'error': 'טוקן נדרש'}), 400
+
+    user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session['user_id']
+    with get_db() as conn:
+        existing = conn.execute('SELECT id, user_id FROM push_tokens WHERE token=?', (token,)).fetchone()
+        if existing:
+            conn.execute('UPDATE push_tokens SET user_id=?, platform=? WHERE token=?',
+                         (user_id, platform, token))
+        else:
+            conn.execute('INSERT INTO push_tokens (user_id, token, platform) VALUES (?,?,?)',
+                         (user_id, token, platform))
+
+    return jsonify({'message': 'טוקן נרשם בהצלחה'})
+
+
+# --- UNREGISTER PUSH TOKEN ---
+@app.route('/api/push/unregister', methods=['POST'])
+@csrf.exempt
+@require_api_auth
+def api_unregister_push_token():
+    """Remove a push token (e.g. on logout)"""
+    data = request.get_json(silent=True) or {}
+    token = data.get('token', '').strip()
+
+    if not token:
+        return jsonify({'error': 'טוקן נדרש'}), 400
+
+    with get_db() as conn:
+        conn.execute('DELETE FROM push_tokens WHERE token=?', (token,))
+
+    return jsonify({'message': 'טוקן הוסר'})
+
+
+# --- SEND PUSH TO FAMILY (utility function — FCM V1 API) ---
+FCM_SERVICE_ACCOUNT_PATH = os.environ.get(
+    'FCM_SERVICE_ACCOUNT',
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), 'firebase-service-account.json')
+)
+_fcm_credentials = None
+
+
+def get_fcm_access_token():
+    """Get OAuth2 access token for FCM V1 API"""
+    global _fcm_credentials
+    try:
+        from google.oauth2 import service_account
+        import google.auth.transport.requests
+
+        if not os.path.exists(FCM_SERVICE_ACCOUNT_PATH):
+            print(f'FCM service account not found: {FCM_SERVICE_ACCOUNT_PATH}')
+            return None
+
+        if _fcm_credentials is None or not _fcm_credentials.valid:
+            _fcm_credentials = service_account.Credentials.from_service_account_file(
+                FCM_SERVICE_ACCOUNT_PATH,
+                scopes=['https://www.googleapis.com/auth/firebase.messaging']
+            )
+
+        if not _fcm_credentials.valid:
+            _fcm_credentials.refresh(google.auth.transport.requests.Request())
+
+        return _fcm_credentials.token
+    except Exception as e:
+        print(f'FCM auth error: {e}')
+        return None
+
+
+def get_fcm_project_id():
+    """Get Firebase project ID from service account file"""
+    try:
+        with open(FCM_SERVICE_ACCOUNT_PATH) as f:
+            data = json.load(f)
+            return data.get('project_id', '')
+    except:
+        return ''
+
+
+def _send_push_worker(tokens_list, title, body, access_token, project_id):
+    """Background worker that actually sends push notifications"""
+    import urllib.request as urlreq
+    url = f'https://fcm.googleapis.com/v1/projects/{project_id}/messages:send'
+
+    for token_val in tokens_list:
+        payload = json.dumps({
+            'message': {
+                'token': token_val,
+                'notification': {'title': title, 'body': body},
+                'android': {'notification': {'sound': 'default', 'icon': 'ic_notification'}},
+                'data': {'title': title, 'body': body}
+            }
+        }).encode()
+
+        req = urlreq.Request(url, data=payload, headers={
+            'Content-Type': 'application/json',
+            'Authorization': f'Bearer {access_token}'
+        })
+        try:
+            urlreq.urlopen(req, timeout=10)
+        except Exception as e:
+            print(f'Push send error: {e}')
+
+
+def send_push_to_family(family_id, title, body, exclude_user_id=None):
+    """Send push notification to all family members (non-blocking, runs in background)"""
+    try:
+        with get_db() as conn:
+            if exclude_user_id:
+                tokens = conn.execute(
+                    'SELECT token FROM push_tokens WHERE user_id IN '
+                    '(SELECT id FROM users WHERE family_id=? AND id != ?)',
+                    (family_id, exclude_user_id)
+                ).fetchall()
+            else:
+                tokens = conn.execute(
+                    'SELECT token FROM push_tokens WHERE user_id IN '
+                    '(SELECT id FROM users WHERE family_id=?)',
+                    (family_id,)
+                ).fetchall()
+
+        if not tokens:
+            return
+
+        access_token = get_fcm_access_token()
+        if not access_token:
+            print('FCM: No access token — push skipped')
+            return
+
+        project_id = get_fcm_project_id()
+        if not project_id:
+            print('FCM: No project ID — push skipped')
+            return
+
+        # Send in background thread so API response isn't delayed
+        token_list = [t['token'] for t in tokens]
+        t = threading.Thread(target=_send_push_worker,
+                             args=(token_list, title, body, access_token, project_id),
+                             daemon=True)
+        t.start()
+
+    except Exception as e:
+        print(f'Push error: {e}')
+
+
+# ──────────────────────────────────────────────
+# FAMILY SETTINGS API
+# ──────────────────────────────────────────────
+
+@app.route('/api/family/settings', methods=['GET'])
+@csrf.exempt
+@require_auth
+def api_get_family_settings():
+    """Get family notification & budget settings"""
+    fid = get_family_id()
+    if not fid:
+        return jsonify({'error': 'אין משפחה'}), 403
+    with get_db() as conn:
+        s = conn.execute('SELECT * FROM family_settings WHERE family_id=?', (fid,)).fetchone()
+    if not s:
+        return jsonify({
+            'feeding_reminder_hours': 0,
+            'budget_monthly': 0,
+            'budget_daily': 0
+        })
+    return jsonify({
+        'feeding_reminder_hours': s['feeding_reminder_hours'],
+        'budget_monthly': s['budget_monthly'],
+        'budget_daily': s['budget_daily']
+    })
+
+
+@app.route('/api/family/settings', methods=['PUT'])
+@csrf.exempt
+@require_auth
+def api_update_family_settings():
+    """Update family notification & budget settings"""
+    fid = get_family_id()
+    if not fid:
+        return jsonify({'error': 'אין משפחה'}), 403
+    data = request.get_json(silent=True) or {}
+
+    with get_db() as conn:
+        existing = conn.execute('SELECT id FROM family_settings WHERE family_id=?', (fid,)).fetchone()
+        if existing:
+            if 'feeding_reminder_hours' in data:
+                conn.execute('UPDATE family_settings SET feeding_reminder_hours=? WHERE family_id=?',
+                             (data['feeding_reminder_hours'], fid))
+            if 'budget_monthly' in data:
+                conn.execute('UPDATE family_settings SET budget_monthly=? WHERE family_id=?',
+                             (data['budget_monthly'], fid))
+            if 'budget_daily' in data:
+                conn.execute('UPDATE family_settings SET budget_daily=? WHERE family_id=?',
+                             (data['budget_daily'], fid))
+        else:
+            conn.execute(
+                'INSERT INTO family_settings (family_id, feeding_reminder_hours, budget_monthly, budget_daily) '
+                'VALUES (?,?,?,?)',
+                (fid,
+                 data.get('feeding_reminder_hours', 0),
+                 data.get('budget_monthly', 0),
+                 data.get('budget_daily', 0)))
+
+    return jsonify({'message': 'הגדרות עודכנו!'})
+
+
+# ──────────────────────────────────────────────
+# BUDGET CHECK (called after adding payment)
+# ──────────────────────────────────────────────
+def check_budget_alerts(family_id):
+    """Check if budget thresholds crossed and send alerts"""
+    try:
+        now = now_israel()
+        cm = now.strftime('%Y-%m')
+        today = now.strftime('%Y-%m-%d')
+
+        with get_db() as conn:
+            settings = conn.execute('SELECT * FROM family_settings WHERE family_id=?', (family_id,)).fetchone()
+            if not settings:
+                print(f'Budget check: no settings for family {family_id}')
+                return
+
+            # Monthly budget check
+            budget_monthly = settings['budget_monthly'] or 0
+            if budget_monthly > 0:
+                total = conn.execute(
+                    'SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE month=? AND archived=FALSE AND family_id=?',
+                    (cm, family_id)).fetchone()['total']
+                pct = (total / budget_monthly) * 100
+                alert_100 = settings['budget_alert_100_sent'] or ''
+                alert_80 = settings['budget_alert_80_sent'] or ''
+
+                print(f'Budget check: family={family_id}, total={total}, budget={budget_monthly}, pct={pct:.0f}%, alert_80={alert_80}, alert_100={alert_100}')
+
+                if pct >= 100 and alert_100 != cm:
+                    send_push_to_family(family_id,
+                        '🚨 חריגה מהתקציב החודשי!',
+                        f'הוצאתם ₪{total:,.0f} מתוך ₪{budget_monthly:,} — חריגה!')
+                    conn.execute('UPDATE family_settings SET budget_alert_100_sent=? WHERE family_id=?', (cm, family_id))
+                    print(f'Budget alert 100% sent for family {family_id}')
+                elif pct >= 80 and alert_80 != cm:
+                    send_push_to_family(family_id,
+                        '⚠️ התקציב החודשי עומד להיגמר',
+                        f'הוצאתם ₪{total:,.0f} מתוך ₪{budget_monthly:,} ({pct:.0f}%)')
+                    conn.execute('UPDATE family_settings SET budget_alert_80_sent=? WHERE family_id=?', (cm, family_id))
+                    print(f'Budget alert 80% sent for family {family_id}')
+
+            # Daily budget check
+            budget_daily = settings['budget_daily'] or 0
+            if budget_daily > 0:
+                daily_total = conn.execute(
+                    'SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE date(date)=? AND archived=FALSE AND family_id=?',
+                    (today, family_id)).fetchone()['total']
+                if daily_total > budget_daily:
+                    send_push_to_family(family_id,
+                        '💸 חריגה מהתקציב היומי!',
+                        f'הוצאתם היום ₪{daily_total:,.0f} מתוך ₪{budget_daily:,}')
+                    print(f'Daily budget alert sent for family {family_id}')
+
+    except Exception as e:
+        print(f'Budget check error: {e}')
+        import traceback
+        traceback.print_exc()
+
+
+# ──────────────────────────────────────────────
+# FEEDING REMINDER SCHEDULER
+# ──────────────────────────────────────────────
+def check_feeding_reminders():
+    """Check all families for feeding reminders — runs every 5 minutes"""
+    while True:
+        try:
+            import time
+            time.sleep(300)  # Check every 5 minutes
+
+            now = now_israel()
+            today = now.strftime('%Y-%m-%d')
+
+            with get_db() as conn:
+                families = conn.execute(
+                    'SELECT fs.*, f.name as family_name FROM family_settings fs '
+                    'JOIN families f ON fs.family_id = f.id '
+                    'WHERE fs.feeding_reminder_hours > 0'
+                ).fetchall()
+
+                for fam in families:
+                    fid = fam['family_id']
+                    hours = fam['feeding_reminder_hours']
+
+                    # Find last feeding (bottle, breastfeeding, or solid)
+                    last = conn.execute(
+                        'SELECT date FROM feedings WHERE family_id=? AND feeding_type IN (?,?,?) '
+                        'ORDER BY date DESC LIMIT 1',
+                        (fid, 'bottle', 'breastfeeding', 'solid')
+                    ).fetchone()
+
+                    if not last:
+                        continue
+
+                    try:
+                        last_dt = datetime.strptime(last['date'].split('.')[0], '%Y-%m-%d %H:%M:%S')
+                        diff_minutes = (now - last_dt).total_seconds() / 60
+                        threshold_minutes = hours * 60
+
+                        # Check if we should alert (within 5 min window to avoid duplicates)
+                        if diff_minutes >= threshold_minutes:
+                            # Don't alert again if we already did for this feeding
+                            last_alert = fam['last_feeding_alert']
+                            if last_alert:
+                                try:
+                                    alert_dt = datetime.strptime(last_alert.split('.')[0], '%Y-%m-%d %H:%M:%S')
+                                    # Skip if last alert was after the last feeding
+                                    if alert_dt > last_dt:
+                                        continue
+                                except:
+                                    pass
+
+                            hours_passed = diff_minutes / 60
+                            send_push_to_family(fid,
+                                '🍼 תזכורת האכלה',
+                                f'עברו {hours_passed:.1f} שעות מהאכלה אחרונה')
+                            conn.execute(
+                                'UPDATE family_settings SET last_feeding_alert=? WHERE family_id=?',
+                                (now.strftime('%Y-%m-%d %H:%M:%S'), fid))
+
+                    except Exception as e:
+                        print(f'Feeding reminder parse error: {e}')
+
+        except Exception as e:
+            print(f'Feeding reminder error: {e}')
+            import time
+            time.sleep(60)  # Wait a bit on error
+
+
+# Start feeding reminder in background
+_reminder_thread = threading.Thread(target=check_feeding_reminders, daemon=True)
+_reminder_thread.start()
 
 
 init_db()

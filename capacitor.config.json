@@ -1,0 +1,16 @@
+﻿{
+  "appId": "com.ourhome.il",
+  "appName": "OurHome IL",
+  "webDir": "www",
+  "server": {
+    "url": "http://192.168.1.45:5000",
+    "cleartext": true
+  },
+  "plugins": {
+    "StatusBar": {
+      "overlay": true,
+      "style": "LIGHT",
+      "backgroundColor": "#2563eb"
+    }
+  }
+}

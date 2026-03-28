@@ -48,6 +48,50 @@
 
     /* Version */
     .version { text-align: center; color: #ccc; font-size: 0.75rem; padding: 10px 0; }
+
+    /* Toggle switch */
+    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #f5f5f5; }
+    .toggle-row:last-child { border-bottom: none; }
+
+    /* Select dropdown */
+    .s-select {
+        padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px;
+        font-size: 0.85rem; font-weight: 600; color: #333; background: white;
+        cursor: pointer; min-width: 120px; direction: rtl;
+    }
+    .s-select:focus { outline: none; border-color: #2563eb; }
+
+    /* Budget inputs */
+    .budget-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
+    .budget-row:last-child { border-bottom: none; }
+    .budget-label { flex: 1; }
+    .budget-label-text { font-weight: 600; font-size: 0.9rem; color: #333; }
+    .budget-label-desc { font-size: 0.75rem; color: #888; margin-top: 2px; }
+    .budget-input {
+        width: 130px; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px;
+        font-size: 0.95rem; font-weight: 700; color: #333; text-align: center;
+        direction: ltr;
+    }
+    .budget-input:focus { outline: none; border-color: #2563eb; }
+    .budget-input::placeholder { color: #ccc; font-weight: 400; }
+    .budget-currency { font-size: 0.85rem; color: #888; font-weight: 600; }
+
+    /* Status indicator */
+    .setting-status {
+        font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 600;
+    }
+    .setting-status.active { background: #dcfce7; color: #16a34a; }
+    .setting-status.off { background: #f3f4f6; color: #9ca3af; }
+
+    /* Save button */
+    .save-row { padding-top: 15px; }
+    .save-btn {
+        width: 100%; padding: 12px; background: linear-gradient(135deg, #2563eb, #3b82f6);
+        color: white; border: none; border-radius: 10px; font-size: 0.95rem;
+        font-weight: 700; cursor: pointer; transition: all 0.2s;
+    }
+    .save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
+    .save-btn.saved { background: #10b981; }
 </style>
 
 <div class="settings-container">
@@ -105,13 +149,86 @@
             {% endif %}
         </div>
         {% else %}
-        <div style="text-align:center; padding:15px;">
-            <p style="color:#888; margin-bottom:15px;">לא שייך למשפחה</p>
-            <a href="{{ url_for('family_setup') }}" class="s-btn primary" style="text-decoration:none; display:inline-block;">
-                <i class="fas fa-users"></i> הגדר משפחה
-            </a>
+        <div style="padding:10px 0;">
+            <p style="color:#888; margin-bottom:15px; text-align:center;">לא שייך למשפחה</p>
+
+            <!-- Join existing family -->
+            <div style="background:#f0f4ff; border-radius:12px; padding:15px; margin-bottom:12px;">
+                <div style="font-weight:700; font-size:0.9rem; margin-bottom:10px; color:#2563eb;">🔗 הצטרף למשפחה קיימת</div>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="joinCode" placeholder="הכנס קוד הזמנה" dir="ltr"
+                           style="flex:1; padding:10px; border:2px solid #bfdbfe; border-radius:8px; font-size:1.1rem;
+                                  text-align:center; letter-spacing:3px; text-transform:uppercase; font-weight:700;">
+                    <button class="s-btn primary" onclick="joinFamily()" style="padding:10px 20px;">הצטרף</button>
+                </div>
+            </div>
+
+            <!-- Create new family -->
+            <div style="background:#f0fdf4; border-radius:12px; padding:15px;">
+                <div style="font-weight:700; font-size:0.9rem; margin-bottom:10px; color:#16a34a;">➕ צור משפחה חדשה</div>
+                <div style="display:flex; gap:8px;">
+                    <input type="text" id="newFamilyName" placeholder="שם המשפחה" dir="rtl"
+                           style="flex:1; padding:10px; border:2px solid #bbf7d0; border-radius:8px; font-size:0.9rem;">
+                    <button class="s-btn primary" onclick="createFamily()" style="padding:10px 20px; background:#16a34a;">צור</button>
+                </div>
+            </div>
         </div>
         {% endif %}
+    </div>
+
+    <!-- ══════ NOTIFICATIONS SETTINGS ══════ -->
+    <div class="s-card">
+        <h3>🔔 התראות</h3>
+
+        <!-- Feeding Reminder -->
+        <div class="toggle-row">
+            <div class="s-row-info">
+                <div class="s-row-label">🍼 תזכורת האכלה</div>
+                <div class="s-row-desc">התראה כשעובר זמן מהאכלה אחרונה</div>
+            </div>
+            <select class="s-select" id="feedingReminder" onchange="markSettingsChanged()">
+                <option value="0">כבוי</option>
+                <option value="2">כל 2 שעות</option>
+                <option value="3">כל 3 שעות</option>
+                <option value="4">כל 4 שעות</option>
+                <option value="5">כל 5 שעות</option>
+            </select>
+        </div>
+
+        <div style="padding:8px 0;">
+            <span class="setting-status" id="feedingStatus">טוען...</span>
+        </div>
+    </div>
+
+    <!-- ══════ BUDGET SETTINGS ══════ -->
+    <div class="s-card">
+        <h3>💰 תקציב</h3>
+
+        <div class="budget-row">
+            <div class="budget-label">
+                <div class="budget-label-text">תקציב חודשי</div>
+                <div class="budget-label-desc">התראה ב-80% וב-100% מהתקציב</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span class="budget-currency">₪</span>
+                <input type="number" class="budget-input" id="budgetMonthly" placeholder="0" min="0" step="100" onchange="markSettingsChanged()">
+            </div>
+        </div>
+
+        <div class="budget-row">
+            <div class="budget-label">
+                <div class="budget-label-text">תקציב יומי</div>
+                <div class="budget-label-desc">התראה כשחורגים מהתקציב היומי</div>
+            </div>
+            <div style="display:flex; align-items:center; gap:6px;">
+                <span class="budget-currency">₪</span>
+                <input type="number" class="budget-input" id="budgetDaily" placeholder="0" min="0" step="10" onchange="markSettingsChanged()">
+            </div>
+        </div>
+
+        <div class="save-row">
+            <button class="save-btn" id="saveSettingsBtn" onclick="saveSettings()">💾 שמור הגדרות</button>
+        </div>
     </div>
 
     <!-- Account Settings -->
@@ -227,6 +344,8 @@
 
 {% block scripts %}
 <script>
+let _settingsChanged = false;
+
 function toggleEdit(id) {
     const el = document.getElementById(id);
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
@@ -234,12 +353,32 @@ function toggleEdit(id) {
 }
 
 function copyCode() {
-    const code = document.getElementById('inviteCode').textContent;
-    navigator.clipboard.writeText(code).then(() => {
+    const code = document.getElementById('inviteCode').textContent.trim();
+    copyToClipboard(code).then(() => {
         const btn = document.querySelector('.invite-copy');
         btn.textContent = '✓ הועתק!';
         btn.classList.add('copied');
         setTimeout(() => { btn.textContent = '📋 העתק קוד'; btn.classList.remove('copied'); }, 2000);
+    });
+}
+
+// Clipboard fallback for WebView
+function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+    }
+    return fallbackCopy(text);
+}
+function fallbackCopy(text) {
+    return new Promise((resolve) => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.cssText = 'position:fixed;opacity:0;left:-9999px;';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        resolve();
     });
 }
 
@@ -276,25 +415,143 @@ async function removeMember(id, name) {
     else { alert('שגיאה בהסרת חבר'); }
 }
 
+async function joinFamily() {
+    const code = document.getElementById('joinCode').value.trim().toUpperCase();
+    if (!code) { if (typeof showToast === 'function') showToast('הכנס קוד הזמנה', 'error'); return; }
+    try {
+        const r = await fetch('/family/join', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'invite_code=' + encodeURIComponent(code)
+        });
+        if (r.redirected || r.ok) {
+            window.location.href = '/settings';
+        } else {
+            if (typeof showToast === 'function') showToast('קוד הזמנה לא נמצא', 'error');
+        }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('שגיאה בהצטרפות', 'error');
+    }
+}
+
+async function createFamily() {
+    const name = document.getElementById('newFamilyName').value.trim();
+    if (!name) { if (typeof showToast === 'function') showToast('הכנס שם משפחה', 'error'); return; }
+    try {
+        const r = await fetch('/family/create', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: 'family_name=' + encodeURIComponent(name)
+        });
+        if (r.redirected || r.ok) {
+            window.location.href = '/settings';
+        }
+    } catch(e) {
+        if (typeof showToast === 'function') showToast('שגיאה ביצירת משפחה', 'error');
+    }
+}
+
 function shareInvite() {
     const code = document.getElementById('inviteCode').textContent.trim();
     const text = `הצטרף/י למשפחה שלי ב-OurHome IL!\nקוד הזמנה: ${code}`;
+
+    // Try Capacitor Share plugin first
+    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) {
+        window.Capacitor.Plugins.Share.share({ title: 'OurHome IL', text: text }).catch(() => {});
+        return;
+    }
+    // Try native Web Share API
     if (navigator.share) {
         navigator.share({ title: 'OurHome IL - הזמנה למשפחה', text: text }).catch(() => {});
-    } else {
-        navigator.clipboard.writeText(text).then(() => {
-            const btn = event.target.closest('button');
-            btn.innerHTML = '<i class="fas fa-check"></i> הועתק!';
-            setTimeout(() => { btn.innerHTML = '<i class="fas fa-share-alt"></i> שתף קוד הזמנה'; }, 2000);
-        });
+        return;
     }
+    // Fallback: copy to clipboard
+    copyToClipboard(text).then(() => {
+        if (typeof showToast === 'function') showToast('הקוד הועתק!', 'success');
+    });
 }
 
 async function leaveFamily() {
     if (!confirm('בטוח שאתה רוצה לעזוב את המשפחה? תאבד גישה לכל הנתונים המשותפים.')) return;
     const r = await fetch('/api/family/leave', { method: 'POST' });
-    if (r.ok) { window.location.href = '/family'; }
+    if (r.ok) { window.location.href = '/settings'; }
     else { alert('שגיאה'); }
 }
+
+// ══════ Family Settings (Notifications + Budget) ══════
+
+function markSettingsChanged() {
+    _settingsChanged = true;
+    const btn = document.getElementById('saveSettingsBtn');
+    btn.textContent = '💾 שמור הגדרות';
+    btn.classList.remove('saved');
+}
+
+function updateFeedingStatus() {
+    const val = document.getElementById('feedingReminder').value;
+    const el = document.getElementById('feedingStatus');
+    if (val === '0') {
+        el.textContent = 'כבוי — לא תקבלו תזכורות';
+        el.className = 'setting-status off';
+    } else {
+        el.textContent = `פעיל — תזכורת כל ${val} שעות`;
+        el.className = 'setting-status active';
+    }
+}
+
+async function loadSettings() {
+    try {
+        const r = await fetch('/api/family/settings');
+        if (!r.ok) return;
+        const data = await r.json();
+
+        document.getElementById('feedingReminder').value = data.feeding_reminder_hours || '0';
+        document.getElementById('budgetMonthly').value = data.budget_monthly || '';
+        document.getElementById('budgetDaily').value = data.budget_daily || '';
+        updateFeedingStatus();
+    } catch(e) {
+        console.error('Load settings error:', e);
+    }
+}
+
+async function saveSettings() {
+    const data = {
+        feeding_reminder_hours: parseFloat(document.getElementById('feedingReminder').value) || 0,
+        budget_monthly: parseInt(document.getElementById('budgetMonthly').value) || 0,
+        budget_daily: parseInt(document.getElementById('budgetDaily').value) || 0
+    };
+
+    try {
+        const r = await fetch('/api/family/settings', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+
+        if (r.ok) {
+            const btn = document.getElementById('saveSettingsBtn');
+            btn.textContent = '✅ נשמר!';
+            btn.classList.add('saved');
+            _settingsChanged = false;
+            updateFeedingStatus();
+            if (typeof showToast === 'function') showToast('הגדרות נשמרו!', 'success');
+            setTimeout(() => {
+                btn.textContent = '💾 שמור הגדרות';
+                btn.classList.remove('saved');
+            }, 3000);
+        } else {
+            if (typeof showToast === 'function') showToast('שגיאה בשמירת הגדרות', 'error');
+        }
+    } catch(e) {
+        console.error('Save settings error:', e);
+        if (typeof showToast === 'function') showToast('שגיאה בשמירת הגדרות', 'error');
+    }
+}
+
+// Add change listener for feeding reminder select
+document.getElementById('feedingReminder').addEventListener('change', updateFeedingStatus);
+
+// Load settings on page load
+loadSettings();
 </script>
 {% endblock %}

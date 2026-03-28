@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OurHome IL</string>
+    <string name="title_activity_main">OurHome IL</string>
+    <string name="package_name">com.ourhome.il</string>
+    <string name="custom_url_scheme">com.ourhome.il</string>
+</resources>
