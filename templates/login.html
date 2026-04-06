@@ -19,15 +19,14 @@
     <p>ניהול משק בית חכם למשפחה</p>
     <form method="POST">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="text" name="username" placeholder="שם משתמש" required>
+        <input type="email" name="email" placeholder="אימייל" required dir="rtl">
         <input type="password" name="password" placeholder="סיסמה" required>
         <button type="submit" class="btn-auth">התחבר</button>
     </form>
-        <div class="link">אין לך חשבון? <a href="{{ url_for('register') }}">הרשם עכשיו</a></div>
+    <div class="link">אין לך חשבון? <a href="{{ url_for('register') }}">הרשם עכשיו</a></div>
     <div class="link" style="margin-top:8px;"><a href="{{ url_for('forgot_password') }}">שכחתי סיסמה</a></div>
 </div>
 <script>
-    // Prevent back button from staying on login after redirect
     if (window.history && window.history.replaceState) {
         window.history.replaceState(null, '', window.location.href);
     }

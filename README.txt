@@ -1,0 +1,1 @@
+// npx cap sync android -in powerShell if ip changed + new APK
