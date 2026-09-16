@@ -232,7 +232,7 @@ let popSortByCategory=false;
 let lastPopupPayments=[];
 const monthNames=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function closePopup(){document.getElementById('histPopup').classList.remove('open');popSortByCategory=false;updatePopSortBtn();}
 
 function togglePopSort(){

@@ -306,6 +306,9 @@
     const days   = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
     const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
     const n = new Date();
+
+    function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+
     document.getElementById('dateLine').textContent =
         `יום ${days[n.getDay()]}, ${n.getDate()} ב${months[n.getMonth()]} ${n.getFullYear()}`;
 
@@ -335,7 +338,7 @@
 
             const finLast = document.getElementById('finLast');
             if (d.finance.last) {
-                finLast.innerHTML = `<i class="fas fa-receipt"></i> <span>אחרון: ${d.finance.last.desc} — ₪${d.finance.last.amount.toFixed(0)}</span>`;
+                finLast.innerHTML = `<i class="fas fa-receipt"></i> <span>אחרון: ${esc(d.finance.last.desc)} — ₪${d.finance.last.amount.toFixed(0)}</span>`;
             } else {
                 finLast.innerHTML = '<i class="fas fa-info-circle"></i> <span>אין עדיין תשלומים החודש</span>';
             }

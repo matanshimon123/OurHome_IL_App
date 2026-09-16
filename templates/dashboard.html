@@ -418,7 +418,8 @@
 const CYCLE_START='{{ cycle_start }}';
 let sortByCategory=false;
 let lastPayments=[];
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+let lastRecurring=[];
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 function toggleSort(){
   sortByCategory=!sortByCategory;
@@ -449,7 +450,7 @@ function renderPaymentsList(payments){
         </div>
         <div class="p-amt">₪${p.amount.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
         <div class="p-acts">
-          <button class="eb" onclick="editPay(${p.id},'${p.description.replace(/'/g,"\\'")}',${p.amount},'${p.category}')"><i class="fas fa-pen"></i></button>
+          <button class="eb" data-pay-edit="${p.id}"><i class="fas fa-pen"></i></button>
           <button class="db" onclick="delPay(${p.id})"><i class="fas fa-trash"></i></button>
         </div>
       </div>`).join('');
@@ -474,7 +475,7 @@ function renderPaymentsList(payments){
           </div>
           <div class="p-amt">₪${p.amount.toLocaleString('he-IL',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>
           <div class="p-acts">
-            <button class="eb" onclick="editPay(${p.id},'${p.description.replace(/'/g,"\\'")}',${p.amount},'${p.category}')"><i class="fas fa-pen"></i></button>
+            <button class="eb" data-pay-edit="${p.id}"><i class="fas fa-pen"></i></button>
             <button class="db" onclick="delPay(${p.id})"><i class="fas fa-trash"></i></button>
           </div>
         </div>`;
@@ -507,7 +508,7 @@ async function saveE(){
 }
 async function delPay(id){
   if(!confirm('למחוק את התשלום?'))return;
-  await fetch('/delete_payment/'+id+'?api=1');
+  await fetch('/delete_payment/'+id+'?api=1',{method:'POST'});
   loadPayments();loadCharts();
 }
 
@@ -566,6 +567,7 @@ async function loadRecurring(){
   try{
     const r=await fetch('/api/recurring');
     const items=await r.json();
+    lastRecurring=items;
     const list=document.getElementById('recList');
     const btn=document.getElementById('addAllRecBtn');
     if(items.length===0){list.innerHTML='<div class="rec-empty">אין תשלומים קבועים</div>';btn.style.display='none';return;}
@@ -576,7 +578,7 @@ async function loadRecurring(){
         <div class="rec-info"><div class="rec-desc">${esc(i.description)}</div><div class="rec-cat">${esc(i.category)}</div></div>
         <div class="rec-amt">₪${i.amount.toFixed(2)}</div>
         <div class="rec-actions">
-          <button class="rec-edit-btn" onclick="editRecurring(${i.id},'${i.description.replace(/'/g,"\\'")}',${i.amount},'${i.category}')"><i class="fas fa-pen"></i></button>
+          <button class="rec-edit-btn" data-rec-edit="${i.id}"><i class="fas fa-pen"></i></button>
           <button class="rec-del-btn" onclick="delRecurring(${i.id})"><i class="fas fa-trash"></i></button>
         </div>
       </div>`).join('');
@@ -651,10 +653,10 @@ function loadCharts(){
         const barW=maxVal>0?Math.max(4,(amt/maxVal)*100):0;
         return `<div class="cat-item">
           <div class="cat-hdr">
-            <div class="cat-lbl"><div class="cat-dot" style="background:${color}"></div><span class="cat-name">${esc(lbl)}</span></div>
+            <div class="cat-lbl"><div class="cat-dot" style="background:${esc(color)}"></div><span class="cat-name">${esc(lbl)}</span></div>
             <div class="cat-stats"><span class="cat-val">₪${Math.round(amt).toLocaleString()}</span><span class="cat-pct">${pct}%</span></div>
           </div>
-          <div class="cat-bar"><div class="cat-bar-fill" style="width:${barW.toFixed(1)}%;background:${color};"></div></div>
+          <div class="cat-bar"><div class="cat-bar-fill" style="width:${barW.toFixed(1)}%;background:${esc(color)};"></div></div>
         </div>`;
       }).join('');
     } else {
@@ -711,6 +713,22 @@ async function saveOnboarding(){
     }
   }catch(e){showToast('שגיאה בשמירה','error');}
 }
+
+// Edit actions (delegated — both lists are re-rendered on every refresh)
+document.getElementById('paymentsList').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-pay-edit]');
+  if(!b)return;
+  const p=lastPayments.find(x=>String(x.id)===b.dataset.payEdit);
+  if(!p)return;
+  editPay(p.id,p.description,p.amount,p.category);
+});
+document.getElementById('recList').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-rec-edit]');
+  if(!b)return;
+  const i=lastRecurring.find(x=>String(x.id)===b.dataset.recEdit);
+  if(!i)return;
+  editRecurring(i.id,i.description,i.amount,i.category);
+});
 
 loadCharts();
 loadPayments();

@@ -331,6 +331,9 @@ const TYPES={
 
 let weekOffset=0,currentChart='bottle',dayChartType='bottle';
 let addType=null,chartInstance=null,dayChartInstance=null,editId=null;
+let todayFeedings=[];
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 // Date
 const days=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
@@ -433,7 +436,7 @@ function renderDayTimeline(feedings){
   const now=new Date();const nowPct=((now.getHours()*60+now.getMinutes())/1440*100).toFixed(1);
   rows.innerHTML=active.map(type=>{
     const t=TYPES[type];
-    const dots=byType[type].map(f=>{if(!f.time)return'';const p=f.time.split(':');const mins=parseInt(p[0])*60+parseInt(p[1]);const pct=(mins/1440*100).toFixed(1);let tip=f.time;if(f.amount>0&&t.unit)tip+=` • ${f.amount} ${t.unit}`;if(f.notes)tip+=` • ${f.notes}`;return`<div class="day-tl-dot ${type}" style="left:calc(${pct}% - 8px);"><span class="day-tl-tooltip">${tip}</span></div>`;}).join('');
+    const dots=byType[type].map(f=>{if(!f.time)return'';const p=f.time.split(':');const mins=parseInt(p[0])*60+parseInt(p[1]);const pct=(mins/1440*100).toFixed(1);let tip=f.time;if(f.amount>0&&t.unit)tip+=` • ${f.amount} ${t.unit}`;if(f.notes)tip+=` • ${f.notes}`;return`<div class="day-tl-dot ${esc(type)}" style="left:calc(${pct}% - 8px);"><span class="day-tl-tooltip">${esc(tip)}</span></div>`;}).join('');
     return`<div class="day-tl-row"><div class="day-tl-label">${t.emoji}</div><div class="day-tl-track"><div class="day-tl-now" style="left:${nowPct}%"></div>${dots}</div></div>`;
   }).join('');
   legend.innerHTML=active.map(type=>{const t=TYPES[type];return`<span><span class="ldot" style="background:${t.color}"></span>${t.name} (${byType[type].length})</span>`;}).join('')+`<span style="color:#ef4444;">| קו אדום = עכשיו</span>`;
@@ -451,7 +454,7 @@ async function showDayPopup(date){
       <div class="pop-chip"><span class="cv">🧷 ${s.diapers}</span><span class="cl">חיתולים</span></div>
       <div class="pop-chip"><span class="cv">😴 ${Math.round(s.sleep_mins)}</span><span class="cl">דק' שינה</span></div>`;
     document.getElementById('dayPopupContent').innerHTML=d.today_feedings.length>0?
-      d.today_feedings.map(f=>{const t=TYPES[f.feeding_type]||{name:f.feeding_type,emoji:'❓',unit:''};let detail=f.notes||'';if(f.amount>0&&t.unit)detail=f.amount+' '+t.unit+(detail?' • '+detail:'');return`<div class="pop-event"><span class="pe-icon">${t.emoji}</span><div style="flex:1"><div class="pe-name">${t.name}</div><div class="pe-detail">${detail}</div></div><span class="pe-time">${f.time}</span></div>`;}).join(''):
+      d.today_feedings.map(f=>{const t=TYPES[f.feeding_type]||{name:f.feeding_type,emoji:'❓',unit:''};let detail=f.notes||'';if(f.amount>0&&t.unit)detail=f.amount+' '+t.unit+(detail?' • '+detail:'');return`<div class="pop-event"><span class="pe-icon">${t.emoji}</span><div style="flex:1"><div class="pe-name">${esc(t.name)}</div><div class="pe-detail">${esc(detail)}</div></div><span class="pe-time">${esc(f.time)}</span></div>`;}).join(''):
       '<p style="text-align:center;color:var(--text3);padding:20px;">אין אירועים</p>';
     document.getElementById('dayPopup').classList.add('open');
   }catch(e){console.error(e);}
@@ -493,6 +496,7 @@ const chipsData=[
     renderDayAmountChart(d.today_feedings);
 
     // Event log
+    todayFeedings=d.today_feedings;
     const tl=document.getElementById('timeline');
     if(d.today_feedings.length===0){tl.innerHTML='<div class="tl-empty"><div class="te-icon">👶</div><div class="te-txt">אין אירועים היום</div></div>';}
     else{
@@ -500,12 +504,12 @@ const chipsData=[
         const t=TYPES[f.feeding_type]||{name:f.feeding_type,emoji:'❓',unit:''};
         let detail=f.notes||'';if(f.amount>0&&t.unit)detail=f.amount+' '+t.unit+(detail?' • '+detail:'');
         return`<div class="tl-item">
-          <div class="tl-icon ${f.feeding_type}">${t.emoji}</div>
-          <div class="tl-info"><div class="tl-name">${t.name}</div><div class="tl-detail">${detail}</div></div>
-          <span class="tl-time">${f.time}</span>
+          <div class="tl-icon ${esc(f.feeding_type)}">${t.emoji}</div>
+          <div class="tl-info"><div class="tl-name">${esc(t.name)}</div><div class="tl-detail">${esc(detail)}</div></div>
+          <span class="tl-time">${esc(f.time)}</span>
           <div class="tl-acts">
-            <button class="te" onclick="editEvent(${f.id},'${f.feeding_type}',${f.amount},'${(f.notes||'').replace(/'/g,"\\'")}','${f.time}')"><i class="fas fa-pen"></i></button>
-            <button class="td" onclick="deleteEvent(${f.id})"><i class="fas fa-trash"></i></button>
+            <button class="te" data-act="edit" data-id="${f.id}"><i class="fas fa-pen"></i></button>
+            <button class="td" data-act="del" data-id="${f.id}"><i class="fas fa-trash"></i></button>
           </div>
         </div>`;
       }).join('');
@@ -514,6 +518,16 @@ const chipsData=[
     document.getElementById('weekRangeLabel').textContent=getWeekLabel(d.weekly);
   }catch(e){console.error(e);}
 }
+
+// Event-log actions (delegated — the list is re-rendered on every loadData)
+document.getElementById('timeline').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-act]');
+  if(!b)return;
+  const f=todayFeedings.find(x=>String(x.id)===b.dataset.id);
+  if(!f)return;
+  if(b.dataset.act==='edit')editEvent(f.id,f.feeding_type,f.amount,f.notes||'',f.time);
+  else deleteEvent(f.id);
+});
 
 loadData();
 setInterval(loadData,30000);

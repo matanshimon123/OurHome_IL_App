@@ -321,9 +321,10 @@
 {% block scripts %}
 <script>
 let items=[];
+let lastFavs=[];
 let editImageData=null;
 
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML;}
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 async function loadItems(){
   try{
@@ -358,9 +359,9 @@ function renderItems(){
     }
     html+=`<div class="item ${i.checked?'done':''}">
       <div class="cb"><input type="checkbox" ${i.checked?'checked':''} onchange="toggleItem(${i.id},this.checked)"><div class="mark"></div></div>
-      ${i.image?`<img src="${i.image}" class="item-thumb" onclick="showImg('${i.image.replace(/'/g,"\\'")}')">` :''}
+      ${i.image?`<img src="${esc(i.image)}" class="item-thumb" data-img-id="${i.id}">` :''}
       <div class="item-body"><span class="item-name">${esc(i.name)}</span></div>
-      ${i.quantity>1?`<span class="qty-badge">×${i.quantity}</span>`:''}
+      ${i.quantity>1?`<span class="qty-badge">×${esc(i.quantity)}</span>`:''}
       <div class="item-acts">
         <button class="i-fav ${i.favorite?'active':''}" onclick="toggleFav(${i.id},${!i.favorite})"><i class="fas fa-star"></i></button>
         <button class="i-edit" onclick="openEdit(${i.id})"><i class="fas fa-pen"></i></button>
@@ -403,26 +404,27 @@ async function loadFavCount(){
 
 function renderFavList(favs){
   const list=document.getElementById('favList'),addAllBtn=document.getElementById('favAddAllBtn');
+  lastFavs=favs;
   if(favs.length===0){list.innerHTML='<div class="fav-empty">אין מועדפים עדיין. הוסף למטה או סמן ⭐ על פריטים.</div>';addAllBtn.style.display='none';return;}
   addAllBtn.style.display='block';
-list.innerHTML=favs.map(f=>{
+  list.innerHTML=favs.map((f,idx)=>{
     const alreadyIn=items.some(i=>i.name===f.name&&!i.checked);
     return`<div class="fav-item">
-      <button class="fadd ${alreadyIn?'added':''}" onclick="addOneFav('${f.name.replace(/'/g,"\\'")}',${f.quantity},'${(f.category||'').replace(/'/g,"\\'")}')">
+      <button class="fadd ${alreadyIn?'added':''}" data-fav-act="add" data-fav-idx="${idx}">
         ${alreadyIn?'<i class="fas fa-basket-shopping"></i>':'<i class="fas fa-plus"></i>'}
       </button>
       <span class="fname">${esc(f.name)}</span>
       ${f.category?`<span class="fcat">${esc(f.category)}</span>`:''}
-      <span class="fqty">×${f.quantity}</span>
-      <button class="fedit" onclick="editFav('${f.name.replace(/'/g,"\\'")}',${f.quantity},'${(f.category||'').replace(/'/g,"\\'")}')"><i class="fas fa-pen"></i></button>
-      <button class="fdel" onclick="delFav('${f.name.replace(/'/g,"\\'")}')"><i class="fas fa-trash"></i></button>
+      <span class="fqty">×${esc(f.quantity)}</span>
+      <button class="fedit" data-fav-act="edit" data-fav-idx="${idx}"><i class="fas fa-pen"></i></button>
+      <button class="fdel" data-fav-act="del" data-fav-idx="${idx}"><i class="fas fa-trash"></i></button>
     </div>`;
   }).join('');
 }
 
-async function addOneFav(name,qty,cat){
+async function addOneFav(name,qty,cat,btnEl){
   const existing=items.find(i=>i.name===name&&!i.checked);
-  const btn=event.target.closest('button');
+  const btn=btnEl||event.target.closest('button');
   if(existing){btn.textContent='כבר ברשימה';setTimeout(()=>{btn.textContent='+ הוסף';},1500);return;}
   await fetch('/api/shopping-items',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,quantity:qty,category:cat})});
   btn.textContent='✓ נוסף!';btn.style.background='#bbf7d0';
@@ -480,7 +482,7 @@ function openEdit(id){
   document.getElementById('editCat').value=item.category||'';
   editImageData=item.image||null;
   const preview=document.getElementById('editPreview');
-  preview.innerHTML=item.image?`<img src="${item.image}"><button onclick="editImageData=null;document.getElementById('editPreview').innerHTML=''">הסר תמונה</button>`:'';
+  preview.innerHTML=item.image?`<img src="${esc(item.image)}"><button onclick="editImageData=null;document.getElementById('editPreview').innerHTML=''">הסר תמונה</button>`:'';
   document.getElementById('editImg').value='';
   document.getElementById('editModal').classList.add('open');
   document.getElementById('editImg').onchange=function(e){
@@ -494,7 +496,7 @@ function openEdit(id){
         if(w>h){h=h*max/w;w=max;}else{w=w*max/h;h=max;}
         c.width=w;c.height=h;c.getContext('2d').drawImage(img,0,0,w,h);
         editImageData=c.toDataURL('image/jpeg',.7);
-        preview.innerHTML=`<img src="${editImageData}"><button onclick="editImageData=null;document.getElementById('editPreview').innerHTML=''">הסר תמונה</button>`;
+        preview.innerHTML=`<img src="${esc(editImageData)}"><button onclick="editImageData=null;document.getElementById('editPreview').innerHTML=''">הסר תמונה</button>`;
       };img.src=ev.target.result;
     };reader.readAsDataURL(file);
   };
@@ -517,6 +519,24 @@ function showImg(src){document.getElementById('imgPopupSrc').src=src;document.ge
 
 document.getElementById('itemInput').addEventListener('keypress',e=>{if(e.key==='Enter')addItem();});
 document.getElementById('newFavName').addEventListener('keypress',e=>{if(e.key==='Enter')addNewFav();});
+
+// Item thumbnail + favourite actions (delegated — both lists are re-rendered on every refresh)
+document.getElementById('itemsList').addEventListener('click',e=>{
+  const img=e.target.closest('img[data-img-id]');
+  if(!img)return;
+  const it=items.find(x=>String(x.id)===img.dataset.imgId);
+  if(!it||!it.image)return;
+  showImg(it.image);
+});
+document.getElementById('favList').addEventListener('click',e=>{
+  const b=e.target.closest('button[data-fav-act]');
+  if(!b)return;
+  const f=lastFavs[parseInt(b.dataset.favIdx,10)];
+  if(!f)return;
+  if(b.dataset.favAct==='add')addOneFav(f.name,f.quantity,f.category||'',b);
+  else if(b.dataset.favAct==='edit')editFav(f.name,f.quantity,f.category||'');
+  else delFav(f.name);
+});
 
 loadItems();
 setInterval(loadItems,15000);

@@ -130,7 +130,7 @@
             </span>
             {% if session.user_id == family.created_by and member.id != family.created_by %}
             <button class="s-btn danger" style="padding:4px 10px; font-size:0.7rem; margin-right:5px;"
-                    onclick="removeMember({{ member.id }}, '{{ member.display_name or member.username }}')">
+                    data-remove-member="{{ member.id }}" data-member-name="{{ member.display_name or member.username }}">
                 <i class="fas fa-user-minus"></i>
             </button>
             {% endif %}
@@ -392,6 +392,9 @@
 <script>
 let _settingsChanged = false;
 let _originalCycleDay = 1;
+let _categories = [];
+
+function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 
 function toggleEdit(id) {
     const el = document.getElementById(id);
@@ -433,18 +436,28 @@ async function loadCategories() {
     try {
         const r = await fetch('/api/categories');
         const cats = await r.json();
+        _categories = cats;
         document.getElementById('catList').innerHTML = cats.map(c =>
             `<div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f0f0f0;">
-                <div style="width:16px;height:16px;border-radius:50%;background:${c.color};flex-shrink:0;"></div>
-                <span style="flex:1;font-size:0.85rem;">${c.name}</span>
+                <div style="width:16px;height:16px;border-radius:50%;background:${esc(c.color)};flex-shrink:0;"></div>
+                <span style="flex:1;font-size:0.85rem;">${esc(c.name)}</span>
                 ${c.is_default
                     ? '<span style="font-size:0.7rem;color:#999;background:#f5f5f5;padding:2px 6px;border-radius:4px;">ברירת מחדל</span>'
-                    : `<button onclick="deleteCategory(${c.id},'${c.name.replace(/'/g, "\\'")}')" style="background:none;border:none;color:#dc3545;font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>`
+                    : `<button data-cat-del="${c.id}" style="background:none;border:none;color:#dc3545;font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>`
                 }
             </div>`
         ).join('');
     } catch(e) { console.error(e); }
 }
+
+// Category delete (delegated — the list is re-rendered after every change)
+document.getElementById('catList').addEventListener('click', e => {
+    const b = e.target.closest('button[data-cat-del]');
+    if (!b) return;
+    const c = _categories.find(x => String(x.id) === b.dataset.catDel);
+    if (!c) return;
+    deleteCategory(c.id, c.name);
+});
 
 async function deleteCategory(id, name) {
     if (!confirm('למחוק את הקטגוריה "' + name + '"?')) return;
@@ -466,6 +479,13 @@ async function addCategory() {
     document.getElementById('newCatName').value = '';
     loadCategories();
 }
+
+// Remove-member (delegated — keeps the member name out of an inline onclick string)
+document.addEventListener('click', e => {
+    const b = e.target.closest('button[data-remove-member]');
+    if (!b) return;
+    removeMember(parseInt(b.dataset.removeMember, 10), b.dataset.memberName);
+});
 
 async function removeMember(id, name) {
     if (!confirm(`להסיר את ${name} מהמשפחה?`)) return;

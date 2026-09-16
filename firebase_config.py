@@ -30,6 +30,25 @@ FIREBASE_REST_URL = 'https://identitytoolkit.googleapis.com/v1'
 # INITIALIZATION
 # ──────────────────────────────────────────────
 
+_REPO_ROOT = os.path.dirname(os.path.abspath(__file__))
+
+
+def _warn_if_credential_in_repo(cred_path):
+    """Nudge if the service account file sits inside the repo working tree.
+    Never raises, never prints the credential's contents — startup must not break.
+    """
+    try:
+        repo = os.path.realpath(_REPO_ROOT)
+        resolved = os.path.realpath(os.path.abspath(cred_path))
+        if os.path.commonpath([resolved, repo]) != repo:
+            return  # outside the repo — nothing to warn about
+        print(f"⚠️ Firebase credential file lives inside the repo: {os.path.relpath(resolved, repo)}")
+        print("   Move it outside the working tree and point FIREBASE_CREDENTIALS_PATH at it,")
+        print("   or supply the JSON inline via FIREBASE_CREDENTIALS. See .env.example.")
+    except Exception:
+        pass  # path comparison is best-effort only
+
+
 def _init_firebase():
     if firebase_admin._apps:
         return
@@ -38,6 +57,7 @@ def _init_firebase():
     if cred_json:
         cred = credentials.Certificate(json.loads(cred_json))
     elif os.path.exists(cred_path):
+        _warn_if_credential_in_repo(cred_path)
         cred = credentials.Certificate(cred_path)
     else:
         print("⚠️ Firebase credentials not found — Auth disabled")

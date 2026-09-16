@@ -40,6 +40,43 @@ DATABASE = os.environ.get('DATABASE_PATH', 'finance_tracker.db')
 JWT_SECRET = os.environ.get('JWT_SECRET', app.secret_key)
 JWT_EXPIRY_DAYS = 30
 
+# Secrets guard: JWTs are signed with JWT_SECRET (HS256), so a guessable value lets
+# anyone forge a token for any user, admins included. Refuse to start in production;
+# warn loudly (but keep running) anywhere else so local dev needs no env vars.
+APP_ENV = os.environ.get('APP_ENV', 'development').strip().lower()
+WEAK_SECRETS = {
+    'dev-key-change-in-production',
+    'ourhome-il-secret-key-2026-change-me',
+    'ourhome-il-jwt-secret-2026-change-me',
+    'matan-finance-app-secret-key-2026',
+}
+
+
+def _is_weak_secret(value):
+    """True when a secret is missing, a known default, or still a placeholder."""
+    v = (value or '').strip().lower()
+    return (not v) or v in WEAK_SECRETS or 'change-me' in v or 'change-in-production' in v
+
+
+# JWT_SECRET deliberately falls back to SECRET_KEY (see .env.example), so both checks
+# run against the values that actually end up signing sessions and tokens.
+_weak_secret_names = [name for name, value in (('SECRET_KEY', app.secret_key),
+                                               ('JWT_SECRET', JWT_SECRET))
+                      if _is_weak_secret(value)]
+if _weak_secret_names and APP_ENV == 'production':
+    raise RuntimeError(
+        'Refusing to start: missing or known-weak ' + ' and '.join(_weak_secret_names) + '. '
+        'Session cookies and JWTs would be forgeable by anyone who knows the default. Generate '
+        'a strong value with:  python -c "import secrets; print(secrets.token_hex(32))"  and '
+        'set it in the environment (see .env.example).'
+    )
+elif _weak_secret_names:
+    print('⚠️ Weak/default ' + ' and '.join(_weak_secret_names) + ' in use — tokens are forgeable.')
+    print('   OK for local dev; APP_ENV=production refuses to start until real values are set.')
+    print('   Generate one:  python -c "import secrets; print(secrets.token_hex(32))"  (see .env.example)')
+else:
+    print('✅ SECRET_KEY / JWT_SECRET set from the environment')
+
 
 def is_admin():
     if hasattr(request, 'api_user'):
@@ -486,6 +523,8 @@ def init_db():
         ('family_settings','last_cycle_archived','TEXT DEFAULT ""'),
         ('categories','family_id','INTEGER DEFAULT NULL'),
         ('users','firebase_uid','TEXT DEFAULT ""'),
+        ('family_settings','last_alert_feeding_id','INTEGER DEFAULT NULL'),
+        ('family_settings','last_alert_hours','REAL DEFAULT NULL'),
     ]:
         try: conn.execute(f'ALTER TABLE {t} ADD COLUMN {c} {ct}')
         except sqlite3.OperationalError: pass
@@ -1184,7 +1223,10 @@ def update_payment(pid):
     return jsonify({'success': True})
 
 
-@app.route('/delete_payment/<int:pid>', methods=['POST', 'GET'])
+# POST only — never re-add GET. check_csrf() deliberately skips GET (a GET must not
+# mutate), so a GET-deletable route is a one-click CSRF: <img src="/delete_payment/1">
+# on any third-party page deletes a logged-in victim's payment with zero interaction.
+@app.route('/delete_payment/<int:pid>', methods=['POST'])
 @require_auth
 def delete_payment(pid):
     fid = get_family_id()
@@ -2524,20 +2566,33 @@ def get_fcm_project_id():
 
 
 def _send_push_worker(tokens_list, title, body, access_token, project_id):
-    """Background worker that actually sends push notifications"""
+    """Background worker that actually sends push notifications.
+    
+    Uses notification payload (not data) so Android shows the notification
+    in the system tray even when the app is closed/backgrounded.
+    """
     import urllib.request as urlreq
     url = f'https://fcm.googleapis.com/v1/projects/{project_id}/messages:send'
-
     for token_val in tokens_list:
         payload = json.dumps({
             'message': {
                 'token': token_val,
-                'notification': {'title': title, 'body': body},
-                'android': {'notification': {'sound': 'default', 'icon': 'ic_notification'}},
-                'data': {'title': title, 'body': body}
+                'notification': {
+                    'title': title,
+                    'body': body
+                },
+                'android': {
+                    'priority': 'HIGH',
+                    'notification': {
+                        'sound': 'default',
+                        'channel_id': 'ourhome_default',
+                        'default_sound': True,
+                        'default_vibrate_timings': True,
+                        'notification_priority': 'PRIORITY_HIGH'
+                    }
+                }
             }
         }).encode()
-
         req = urlreq.Request(url, data=payload, headers={
             'Content-Type': 'application/json',
             'Authorization': f'Bearer {access_token}'
@@ -2546,7 +2601,6 @@ def _send_push_worker(tokens_list, title, body, access_token, project_id):
             urlreq.urlopen(req, timeout=10)
         except Exception as e:
             print(f'Push send error: {e}')
-
 
 def send_push_to_family(family_id, title, body, exclude_user_id=None):
     """Send push notification to all family members (non-blocking, runs in background)"""
@@ -2861,69 +2915,97 @@ _archive_thread.start()
 # FEEDING REMINDER SCHEDULER
 # ──────────────────────────────────────────────
 def check_feeding_reminders():
-    """Check all families for feeding reminders — runs every 60 seconds"""
+    """Check all families for feeding reminders — runs every 60 seconds.
+    
+    Logic:
+    - Find latest feeding (by date, takes edits/insertions into account)
+    - If time_since_last_feeding >= threshold:
+      - If we haven't alerted on this exact (feeding_id + threshold) combination → SEND
+      - Otherwise → SKIP (already sent for this state)
+    
+    This handles:
+    - New feeding within threshold → alerts when time comes
+    - Retroactive feeding within threshold → alerts immediately
+    - Retroactive feeding past threshold → does NOT alert (parent forgot to log)
+    - Editing feeding time → recalculates from new time
+    - Changing reminder hours → re-evaluates with new threshold
+    - Prevents spam: same (feeding, threshold) state never alerts twice
+    """
+    import time
     while True:
         try:
             now = now_israel()
-            today = now.strftime('%Y-%m-%d')
-
             with get_db() as conn:
                 families = conn.execute(
                     'SELECT fs.*, f.name as family_name FROM family_settings fs '
                     'JOIN families f ON fs.family_id = f.id '
                     'WHERE fs.feeding_reminder_hours > 0'
                 ).fetchall()
-
+                
                 for fam in families:
                     fid = fam['family_id']
                     hours = fam['feeding_reminder_hours']
-
-                    # Find last feeding (bottle, breastfeeding, or solid)
+                    
+                    # Find latest feeding (by ACTUAL date, not insertion order)
                     last = conn.execute(
-                        'SELECT date FROM feedings WHERE family_id=? AND feeding_type IN (?,?,?) '
+                        'SELECT id, date FROM feedings WHERE family_id=? '
+                        "AND feeding_type IN ('bottle','breastfeeding','solid') "
                         'ORDER BY date DESC LIMIT 1',
-                        (fid, 'bottle', 'breastfeeding', 'solid')
+                        (fid,)
                     ).fetchone()
-
+                    
                     if not last:
                         continue
-
+                    
                     try:
                         last_dt = datetime.strptime(last['date'].split('.')[0], '%Y-%m-%d %H:%M:%S')
-                        diff_minutes = (now - last_dt).total_seconds() / 60
-                        threshold_minutes = hours * 60
-
-                        # Check if we should alert
-                        if diff_minutes >= threshold_minutes:
-                            # Don't alert again if we already did for this feeding
-                            last_alert = fam['last_feeding_alert']
-                            if last_alert:
-                                try:
-                                    alert_dt = datetime.strptime(last_alert.split('.')[0], '%Y-%m-%d %H:%M:%S')
-                                    # Skip if last alert was after the last feeding
-                                    if alert_dt > last_dt:
-                                        continue
-                                except:
-                                    pass
-
-                            hours_passed = diff_minutes / 60
-                            send_push_to_family(fid,
-                                '🍼 תזכורת האכלה',
-                                f'עברו {hours_passed:.1f} שעות מהאכלה אחרונה')
-                            conn.execute(
-                                'UPDATE family_settings SET last_feeding_alert=? WHERE family_id=?',
-                                (now.strftime('%Y-%m-%d %H:%M:%S'), fid))
-
+                        seconds_since_feeding = (now - last_dt).total_seconds()
+                        threshold_seconds = hours * 3600
+                        
+                        # Not yet time
+                        if seconds_since_feeding < threshold_seconds:
+                            continue
+                        
+                        # Threshold passed. Check if we already alerted on THIS state
+                        # State = (feeding_id, hours_setting)
+                        last_alert_fid = fam['last_alert_feeding_id']
+                        last_alert_hrs = fam['last_alert_hours']
+                        
+                        if last_alert_fid == last['id'] and last_alert_hrs == hours:
+                            # Already alerted on this exact state → skip
+                            continue
+                        
+                        # New state → send alert
+                        hours_passed = seconds_since_feeding / 3600
+                        
+                        # Format: integer if whole, decimal otherwise
+                        if abs(hours_passed - round(hours_passed)) < 0.05:
+                            hours_text = f'{int(round(hours_passed))}'
+                        else:
+                            hours_text = f'{hours_passed:.1f}'
+                        
+                        send_push_to_family(fid,
+                            '🍼 תזכורת האכלה',
+                            f'עברו {hours_text} שעות מהאכלה אחרונה')
+                        
+                        # Mark this state as alerted
+                        conn.execute(
+                            'UPDATE family_settings SET '
+                            'last_feeding_alert=?, last_alert_feeding_id=?, last_alert_hours=? '
+                            'WHERE family_id=?',
+                            (now.strftime('%Y-%m-%d %H:%M:%S'), last['id'], hours, fid))
+                        
+                        print(f'[Feeding Reminder] Sent to family {fid}: {hours_text}h, feeding_id={last["id"]}, threshold={hours}h')
+                        
                     except Exception as e:
                         print(f'Feeding reminder parse error: {e}')
-
+                        
         except Exception as e:
             print(f'Feeding reminder error: {e}')
-
-        import time
-        time.sleep(60)  # Check every 60 seconds for precision
-
-
+        
+        time.sleep(60)
+        
+        
 # Start feeding reminder in background
 _reminder_thread = threading.Thread(target=check_feeding_reminders, daemon=True)
 _reminder_thread.start()
