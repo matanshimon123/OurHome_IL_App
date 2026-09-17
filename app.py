@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import math
 import sqlite3
 import threading
 from openpyxl import Workbook
@@ -39,6 +40,9 @@ app.config['TEMPLATES_AUTO_RELOAD'] = True
 DATABASE = os.environ.get('DATABASE_PATH', 'finance_tracker.db')
 JWT_SECRET = os.environ.get('JWT_SECRET', app.secret_key)
 JWT_EXPIRY_DAYS = 30
+# Brute-force guard for the local (non-Firebase) password fallback in api_login
+LOGIN_MAX_FAILURES = 5
+LOGIN_WINDOW_MINUTES = 15
 
 # Secrets guard: JWTs are signed with JWT_SECRET (HS256), so a guessable value lets
 # anyone forge a token for any user, admins included. Refuse to start in production;
@@ -330,12 +334,61 @@ def decode_jwt_token(token):
         return None
 
 
+def _login_cutoff():
+    return (now_israel() - timedelta(minutes=LOGIN_WINDOW_MINUTES)).strftime('%Y-%m-%d %H:%M:%S')
+
+
+def login_locked(conn, key):
+    """True if key has too many recent failed local logins"""
+    row = conn.execute('SELECT COUNT(*) AS c FROM login_attempts WHERE attempt_key=? AND attempted_at>=?',
+                       (key, _login_cutoff())).fetchone()
+    return row['c'] >= LOGIN_MAX_FAILURES
+
+
+def record_login_failure(conn, key):
+    """Record a failed local login and prune this key's expired rows"""
+    conn.execute('DELETE FROM login_attempts WHERE attempt_key=? AND attempted_at<?', (key, _login_cutoff()))
+    conn.execute('INSERT INTO login_attempts (attempt_key, attempted_at) VALUES (?,?)',
+                 (key, now_israel().strftime('%Y-%m-%d %H:%M:%S')))
+    conn.commit()
+
+
+def local_login_fallback(email, password, fb_error):
+    """Local password check for accounts never linked to Firebase (firebase_uid empty),
+    used only after firebase_verify_login returned fb_error.
+    Returns (user, error, status): user row on success, else (None, error, 401|429).
+    Linked/unknown/ambiguous emails get fb_error back unchanged with nothing recorded."""
+    # USER_DISABLED proves a Firebase account exists and was disabled on purpose: never bypass it
+    if not email or fb_error == 'החשבון הושבת':
+        return None, fb_error, 401
+    with get_db() as conn:
+        rows = conn.execute('SELECT * FROM users WHERE email=?', (email,)).fetchall()
+        if len(rows) != 1 or rows[0]['firebase_uid']:
+            return None, fb_error, 401
+        user = rows[0]
+        key = (user['username'] or '').strip().lower()  # same key as api_login's username fallback
+        if login_locked(conn, key):
+            return None, 'יותר מדי ניסיונות. נסה שוב מאוחר יותר', 429
+        if not check_password_hash(user['password_hash'], password):
+            record_login_failure(conn, key)
+            return None, fb_error, 401
+        conn.execute('DELETE FROM login_attempts WHERE attempt_key=?', (key,))
+        conn.commit()
+        return user, None, 200
+
+
 def get_token_from_request():
     """Extract JWT token from Authorization header"""
     auth_header = request.headers.get('Authorization', '')
     if auth_header.startswith('Bearer '):
         return auth_header[7:]
     return None
+
+
+def get_json_object():
+    """Return the request's JSON body if it is a JSON object (dict), else None"""
+    data = request.get_json(silent=True)
+    return data if isinstance(data, dict) else None
 
 
 def require_api_auth(f):
@@ -398,37 +451,6 @@ def forgot_password():
         flash('אם האימייל קיים במערכת — נשלחה הודעה עם קישור לאיפוס', 'info')
         return redirect(url_for('login'))
     return render_template('forgot_password.html')
-
-
-@app.route('/reset-password/<token>', methods=['GET', 'POST'])
-def reset_password(token):
-    with get_db() as conn:
-        user = conn.execute(
-            'SELECT * FROM users WHERE reset_token=? AND reset_token_exp > ?',
-            (token, now_israel().strftime('%Y-%m-%d %H:%M:%S'))
-        ).fetchone()
-    if not user:
-        flash('הקישור לא תקין או פג תוקף', 'error')
-        return redirect(url_for('login'))
-    if request.method == 'POST':
-        pw = request.form.get('password', '')
-        pw2 = request.form.get('password2', '')
-        if len(pw) < 6:
-            flash('סיסמה חייבת להיות לפחות 6 תווים', 'error')
-            return render_template('reset_password.html', token=token)
-        if pw != pw2:
-            flash('הסיסמאות לא תואמות', 'error')
-            return render_template('reset_password.html', token=token)
-        with get_db() as conn:
-            conn.execute(
-                'UPDATE users SET password_hash=?, reset_token="", reset_token_exp=NULL WHERE id=?',
-                (generate_password_hash(pw), user['id'])
-            )
-        # Sync to Firebase Auth
-        firebase_update_password(user['email'] or user['username'], pw)
-        flash('סיסמה שונתה בהצלחה!', 'success')
-        return redirect(url_for('login'))
-    return render_template('reset_password.html', token=token)
 
 
 def init_db():
@@ -495,7 +517,12 @@ def init_db():
             budget_daily INTEGER DEFAULT 0,
             budget_alert_80_sent TEXT DEFAULT '',
             budget_alert_100_sent TEXT DEFAULT '',
+            budget_alert_daily_sent TEXT DEFAULT '',
             FOREIGN KEY (family_id) REFERENCES families(id));
+        CREATE TABLE IF NOT EXISTS login_attempts (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            attempt_key TEXT NOT NULL,
+            attempted_at TEXT NOT NULL);
     """)
     for t, c, ct in [
         ('users','email','TEXT DEFAULT ""'),
@@ -519,6 +546,7 @@ def init_db():
         ('family_settings','budget_daily','INTEGER DEFAULT 0'),
         ('family_settings','budget_alert_80_sent','TEXT DEFAULT ""'),
         ('family_settings','budget_alert_100_sent','TEXT DEFAULT ""'),
+        ('family_settings','budget_alert_daily_sent','TEXT DEFAULT ""'),
         ('family_settings','cycle_day','INTEGER DEFAULT 1'),
         ('family_settings','last_cycle_archived','TEXT DEFAULT ""'),
         ('categories','family_id','INTEGER DEFAULT NULL'),
@@ -541,6 +569,7 @@ def init_db():
         'CREATE INDEX IF NOT EXISTS idx_recurring_family ON recurring_payments(family_id)',
         'CREATE INDEX IF NOT EXISTS idx_archived_family ON archived_cycles(family_id)',
         'CREATE INDEX IF NOT EXISTS idx_categories_family ON categories(family_id)',
+        'CREATE INDEX IF NOT EXISTS idx_login_attempts_key ON login_attempts(attempt_key, attempted_at)',
     ]:
         try: conn.execute(idx)
         except: pass
@@ -697,14 +726,19 @@ def login():
 
         # Verify with Firebase Auth
         fb_uid, error = firebase_verify_login(email, password)
+        user = None
+        if error:
+            # Accounts whose Firebase user was never created can still log in locally
+            user, error, _ = local_login_fallback(email, password, error)
         if error:
             flash(error, 'error')
             return render_template('login.html')
 
         with get_db() as conn:
-            # Find user by email or firebase_uid
-            user = conn.execute('SELECT * FROM users WHERE email=? OR firebase_uid=?',
-                                (email, fb_uid or '')).fetchone()
+            # Find user by email or firebase_uid (already known if the local fallback succeeded)
+            if user is None:
+                user = conn.execute('SELECT * FROM users WHERE email=? OR firebase_uid=?',
+                                    (email, fb_uid or '')).fetchone()
             if not user:
                 flash('משתמש לא נמצא. יש להירשם קודם', 'error')
                 return render_template('login.html')
@@ -1002,7 +1036,9 @@ def get_categories():
 @app.route('/api/categories', methods=['POST'])
 @require_auth
 def add_category():
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     name = data.get('name', '').strip()
     color = data.get('color', '#6c757d')
     if not name: return jsonify({'error': 'Missing name'}), 400
@@ -1038,7 +1074,9 @@ def delete_category(cat_id):
 @require_auth
 def remove_family_member():
     fid = get_family_id()
-    data = request.get_json() or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'user_id נדרש'}), 400
     target_id = data.get('user_id')
     current_user_id = int(request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id'))
     with get_db() as conn:
@@ -1158,7 +1196,9 @@ def add_payment():
 @require_auth
 def add_payment_api():
     fid = get_family_id()
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     cm = get_cycle_month(fid)
     cy = int(cm.split('-')[0])
     desc = data.get('description', '').strip()
@@ -1202,7 +1242,9 @@ def get_payments():
 @require_auth
 def update_payment(pid):
     fid = get_family_id()
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     allowed = ['description', 'amount', 'category']
     with get_db() as conn:
         for f in allowed:
@@ -1687,7 +1729,9 @@ def get_shopping_items():
 @require_auth
 def add_shopping_item():
     fid = get_family_id()
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     name = data.get('name', '').strip()
     if not name: return jsonify({'error': 'Name required'}), 400
     cat = data.get('category', '')
@@ -1711,7 +1755,9 @@ def add_shopping_item():
 @require_auth
 def update_shopping_item(iid):
     fid = get_family_id()
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     allowed = ['checked', 'name', 'quantity', 'image', 'favorite', 'category']
     with get_db() as conn:
         for f in allowed:
@@ -1778,7 +1824,9 @@ def add_favorites():
 @require_auth
 def delete_favorite():
     fid = get_family_id()
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     name = data.get('name', '')
     with get_db() as conn:
         conn.execute('DELETE FROM shopping_favorites WHERE family_id=? AND name=?', (fid, name))
@@ -1790,7 +1838,9 @@ def delete_favorite():
 @require_auth
 def add_new_favorite():
     fid = get_family_id()
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     name = data.get('name', '').strip()
     qty = data.get('quantity', 1)
     cat = data.get('category', '')
@@ -1805,7 +1855,9 @@ def add_new_favorite():
 @require_auth
 def edit_favorite():
     fid = get_family_id()
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     old_name = data.get('old_name', '')
     name = data.get('name', '').strip()
     qty = data.get('quantity', 1)
@@ -1854,14 +1906,42 @@ def get_recurring():
     return jsonify([dict(i) for i in items])
 
 
+def _validate_recurring():
+    """Validate a recurring-payment JSON body. Returns (fields, None) or (None, error_response)."""
+    invalid = (None, (jsonify({'error': 'Invalid data'}), 400))
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return invalid
+    desc = data.get('description')
+    if not isinstance(desc, str) or not desc.strip():
+        return invalid
+    amount = data.get('amount')
+    if isinstance(amount, bool):
+        return invalid
+    try:
+        amount = float(amount)
+    except (TypeError, ValueError, OverflowError):
+        return invalid
+    if not math.isfinite(amount) or amount <= 0:
+        return invalid
+    category = data.get('category')
+    if category is None or (isinstance(category, str) and not category.strip()):
+        category = 'כללי'
+    elif not isinstance(category, str):
+        return invalid
+    return (desc.strip(), amount, category), None
+
+
 @app.route('/api/recurring', methods=['POST'])
 @require_auth
 def add_recurring():
     fid = get_family_id()
-    data = request.get_json()
+    fields, err = _validate_recurring()
+    if err: return err
+    desc, amount, category = fields
     with get_db() as conn: conn.execute(
         'INSERT INTO recurring_payments (family_id,description,amount,category) VALUES (?,?,?,?)',
-        (fid, data['description'], data['amount'], data.get('category', 'כללי')))
+        (fid, desc, amount, category))
     return jsonify({'success': True}), 201
 
 
@@ -1875,10 +1955,13 @@ def delete_recurring(rid):
 @app.route('/api/recurring/<int:rid>', methods=['PUT'])
 @require_auth
 def update_recurring(rid):
-    fid=get_family_id(); data=request.get_json()
+    fid=get_family_id()
+    fields, err = _validate_recurring()
+    if err: return err
+    desc, amount, category = fields
     with get_db() as conn:
         conn.execute('UPDATE recurring_payments SET description=?,amount=?,category=? WHERE id=? AND family_id=?',
-                     (data['description'],data['amount'],data.get('category','כללי'),rid,fid))
+                     (desc,amount,category,rid,fid))
     return jsonify({'success':True})
 
 @app.route('/api/recurring/<int:rid>/add', methods=['POST'])
@@ -1938,34 +2021,65 @@ def add_all_recurring():
 def baby_tracker(): return render_template('baby_tracker.html')
 
 
+FEEDING_TYPES = ('bottle', 'breastfeeding', 'solid', 'diaper', 'sleep', 'medication')
+FEEDING_NUMBER_MAX = 1_000_000
+
+
+def _parse_feeding_number(value):
+    """Missing/None/'' -> 0.0; finite number with abs <= FEEDING_NUMBER_MAX -> float; anything else -> None."""
+    if value is None or value == '':
+        return 0.0
+    if isinstance(value, bool):
+        return None
+    try:
+        num = float(value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if not math.isfinite(num) or abs(num) > FEEDING_NUMBER_MAX:
+        return None
+    return num
+
+
 @app.route('/api/feedings', methods=['POST'])
 @require_auth
 def add_feeding():
     fid = get_family_id()
-    data = request.get_json()
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return jsonify({'error': 'Invalid data'}), 400
     ft = data.get('feeding_type', '')
     ct = data.get('custom_time', '')
+    amount_num = _parse_feeding_number(data.get('amount', 0))
+    duration_num = _parse_feeding_number(data.get('duration', 0))
+    if ft not in FEEDING_TYPES or amount_num is None or duration_num is None:
+        return jsonify({'error': 'Invalid data'}), 400
+    if ct:
+        if not isinstance(ct, str) or not re.fullmatch(r'([01][0-9]|2[0-3]):[0-5][0-9]', ct):
+            return jsonify({'error': 'Invalid data'}), 400
     ds = f'{now_israel().strftime("%Y-%m-%d")} {ct}:00' if ct else now_israel().strftime('%Y-%m-%d %H:%M:%S')
     with get_db() as conn:
         cur = conn.execute(
             'INSERT INTO feedings (family_id,feeding_type,amount,duration,notes,date) VALUES (?,?,?,?,?,?)',
-            (fid, ft, data.get('amount', 0), data.get('duration', 0), data.get('notes', ''), ds))
+            (fid, ft, amount_num, duration_num, data.get('notes', ''), ds))
 
-    # Push notification to family
-    feeding_names = {
-        'bottle': '🍼 בקבוק', 'breastfeeding': '🤱 הנקה', 'solid': '🥣 מוצק',
-        'diaper': '🚼 חיתול', 'sleep': '😴 שינה', 'medication': '💊 תרופה'
-    }
-    feed_label = feeding_names.get(ft, ft)
-    amount_val = data.get('amount', 0)
-    detail = f' — {int(amount_val)} מ"ל' if ft == 'bottle' and amount_val else ''
+    # Push notification to family (the row is already committed, so never fail the request here)
+    try:
+        feeding_names = {
+            'bottle': '🍼 בקבוק', 'breastfeeding': '🤱 הנקה', 'solid': '🥣 מוצק',
+            'diaper': '🚼 חיתול', 'sleep': '😴 שינה', 'medication': '💊 תרופה'
+        }
+        feed_label = feeding_names.get(ft, ft)
+        amount_val = amount_num
+        detail = f' — {int(amount_val)} מ"ל' if ft == 'bottle' and amount_val else ''
 
-    user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
-    user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
-    send_push_to_family(fid,
-        f'👶 {feed_label}',
-        f'{user_name} הוסיף/ה {feed_label}{detail}',
-        exclude_user_id=user_id)
+        user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+        user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
+        send_push_to_family(fid,
+            f'👶 {feed_label}',
+            f'{user_name} הוסיף/ה {feed_label}{detail}',
+            exclude_user_id=user_id)
+    except Exception as e:
+        print(f'add_feeding push error: {ascii(e)}')
 
     return jsonify({'success': True, 'id': cur.lastrowid}), 201
 
@@ -1982,7 +2096,9 @@ def delete_feeding(feed_id):
 @require_auth
 def update_feeding(feed_id):
     fid = get_family_id()
-    data = request.get_json()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
     with get_db() as conn:
         if 'amount' in data:
             conn.execute('UPDATE feedings SET amount=? WHERE id=? AND family_id=?', (data['amount'], feed_id, fid))
@@ -2089,7 +2205,9 @@ def feedings_data():
 @app.route('/api/auth/login', methods=['POST'])
 @csrf.exempt
 def api_login():
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'אימייל/שם משתמש וסיסמה נדרשים'}), 400
     email = data.get('email', '').strip()
     password = data.get('password', '')
     # Backward compat: support username login too
@@ -2104,8 +2222,13 @@ def api_login():
             u = conn.execute('SELECT email, password_hash FROM users WHERE username=?', (username,)).fetchone()
             if u and u['email']:
                 email = u['email']
+            elif login_locked(conn, username):
+                # Checked before the password (and for unknown usernames too, so 429 is no existence oracle)
+                return jsonify({'error': 'יותר מדי ניסיונות. נסה שוב מאוחר יותר'}), 429
             elif u and check_password_hash(u['password_hash'], password):
                 # Fallback: local auth for users without email in Firebase
+                conn.execute('DELETE FROM login_attempts WHERE attempt_key=?', (username,))
+                conn.commit()
                 user = conn.execute('SELECT * FROM users WHERE username=?', (username,)).fetchone()
                 token = create_jwt_token(user['id'], user['username'],
                                           user['display_name'] or user['username'],
@@ -2118,16 +2241,22 @@ def api_login():
                              'is_admin': bool(user['is_admin'])}
                 })
             else:
+                record_login_failure(conn, username)
                 return jsonify({'error': 'שם משתמש או סיסמה שגויים'}), 401
 
     # Firebase Auth verification
     fb_uid, error = firebase_verify_login(email, password)
+    user = None
     if error:
-        return jsonify({'error': error}), 401
+        # Accounts whose Firebase user was never created can still log in locally
+        user, error, status = local_login_fallback(email, password, error)
+        if error:
+            return jsonify({'error': error}), status
 
     with get_db() as conn:
-        user = conn.execute('SELECT * FROM users WHERE email=? OR firebase_uid=?',
-                            (email, fb_uid or '')).fetchone()
+        if user is None:
+            user = conn.execute('SELECT * FROM users WHERE email=? OR firebase_uid=?',
+                                (email, fb_uid or '')).fetchone()
         if not user:
             return jsonify({'error': 'משתמש לא נמצא. יש להירשם קודם'}), 401
         if fb_uid and not user['firebase_uid']:
@@ -2148,7 +2277,9 @@ def api_login():
 @app.route('/api/auth/register', methods=['POST'])
 @csrf.exempt
 def api_register():
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'שם תצוגה נדרש'}), 400
     display_name = data.get('display_name', '').strip()
     username = data.get('username', '').strip().lower()
     email = data.get('email', '').strip()
@@ -2218,7 +2349,9 @@ def api_refresh_token():
 @csrf.exempt
 @require_api_auth
 def api_change_password():
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'סיסמה חדשה חייבת להיות לפחות 6 תווים'}), 400
     current_pw = data.get('current_password', '')
     new_pw = data.get('new_password', '')
     if len(new_pw) < 6:
@@ -2257,38 +2390,14 @@ def api_change_password():
 @app.route('/api/auth/forgot-password', methods=['POST'])
 @csrf.exempt
 def api_forgot_password():
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'אימייל נדרש'}), 400
     email = data.get('email', '').strip()
     if not email:
         return jsonify({'error': 'אימייל נדרש'}), 400
     firebase_send_reset_email(email)
     return jsonify({'message': 'אם האימייל קיים במערכת, נשלחה הודעה עם קישור לאיפוס'})
-
-
-# --- AUTH: RESET PASSWORD ---
-@app.route('/api/auth/reset-password', methods=['POST'])
-@csrf.exempt
-def api_reset_password():
-    data = request.get_json(silent=True) or {}
-    token = data.get('token', '')
-    password = data.get('password', '')
-    password2 = data.get('password2', '')
-    if not token:
-        return jsonify({'error': 'טוקן נדרש'}), 400
-    if len(password) < 6:
-        return jsonify({'error': 'סיסמה חייבת להיות לפחות 6 תווים'}), 400
-    if password != password2:
-        return jsonify({'error': 'הסיסמאות לא תואמות'}), 400
-    with get_db() as conn:
-        user = conn.execute('SELECT * FROM users WHERE reset_token=? AND reset_token_exp > ?',
-                            (token, now_israel().strftime('%Y-%m-%d %H:%M:%S'))).fetchone()
-        if not user:
-            return jsonify({'error': 'הקישור לא תקין או פג תוקף'}), 400
-        conn.execute('UPDATE users SET password_hash=?, reset_token="", reset_token_exp=NULL WHERE id=?',
-                     (generate_password_hash(password), user['id']))
-    # Sync to Firebase Auth
-    firebase_update_password(user['email'] or user['username'], password)
-    return jsonify({'message': 'סיסמה שונתה בהצלחה'})
 
 
 # --- FAMILY: GET INFO ---
@@ -2314,7 +2423,9 @@ def api_family_info():
 @csrf.exempt
 @require_api_auth
 def api_create_family():
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'שם משפחה נדרש'}), 400
     name = data.get('family_name', '').strip()
     if not name:
         return jsonify({'error': 'שם משפחה נדרש'}), 400
@@ -2338,7 +2449,9 @@ def api_create_family():
 @csrf.exempt
 @require_api_auth
 def api_join_family():
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'קוד הזמנה נדרש'}), 400
     code = data.get('invite_code', '').strip().upper()
     if not code:
         return jsonify({'error': 'קוד הזמנה נדרש'}), 400
@@ -2390,7 +2503,9 @@ def api_get_settings():
 @csrf.exempt
 @require_api_auth
 def api_update_profile():
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'שם תצוגה נדרש'}), 400
     display_name = data.get('display_name', '').strip()
     if not display_name:
         return jsonify({'error': 'שם תצוגה נדרש'}), 400
@@ -2483,7 +2598,9 @@ def api_export_csv():
 @require_auth
 def api_register_push_token():
     """Register a device push token for notifications"""
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'טוקן נדרש'}), 400
     token = data.get('token', '').strip()
     platform = data.get('platform', 'android')
 
@@ -2509,7 +2626,9 @@ def api_register_push_token():
 @require_api_auth
 def api_unregister_push_token():
     """Remove a push token (e.g. on logout)"""
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'טוקן נדרש'}), 400
     token = data.get('token', '').strip()
 
     if not token:
@@ -2526,7 +2645,18 @@ FCM_SERVICE_ACCOUNT_PATH = os.environ.get(
     'FCM_SERVICE_ACCOUNT',
     os.path.join(os.path.dirname(os.path.abspath(__file__)), 'firebase-service-account.json')
 )
+try:
+    if not os.path.exists(FCM_SERVICE_ACCOUNT_PATH):
+        print('WARNING: FCM service account file not found - push notifications are disabled. '
+              'Set the FCM_SERVICE_ACCOUNT env var (or place firebase-service-account.json '
+              'next to app.py) to enable them.')
+except Exception:
+    pass
 _fcm_credentials = None
+# Guards the check -> create -> refresh -> read-token sequence on _fcm_credentials.
+# Without it, a concurrent caller could swap in a fresh, unrefreshed credential and
+# another caller would return its token (None), silently skipping the push.
+_fcm_credentials_lock = threading.Lock()
 
 
 def get_fcm_access_token():
@@ -2540,16 +2670,19 @@ def get_fcm_access_token():
             print(f'FCM service account not found: {FCM_SERVICE_ACCOUNT_PATH}')
             return None
 
-        if _fcm_credentials is None or not _fcm_credentials.valid:
-            _fcm_credentials = service_account.Credentials.from_service_account_file(
-                FCM_SERVICE_ACCOUNT_PATH,
-                scopes=['https://www.googleapis.com/auth/firebase.messaging']
-            )
+        with _fcm_credentials_lock:
+            creds = _fcm_credentials
+            if creds is None or not creds.valid:
+                creds = service_account.Credentials.from_service_account_file(
+                    FCM_SERVICE_ACCOUNT_PATH,
+                    scopes=['https://www.googleapis.com/auth/firebase.messaging']
+                )
+                _fcm_credentials = creds
 
-        if not _fcm_credentials.valid:
-            _fcm_credentials.refresh(google.auth.transport.requests.Request())
+            if not creds.valid:
+                creds.refresh(google.auth.transport.requests.Request())
 
-        return _fcm_credentials.token
+            return creds.token
     except Exception as e:
         print(f'FCM auth error: {e}')
         return None
@@ -2565,13 +2698,35 @@ def get_fcm_project_id():
         return ''
 
 
+def _is_unregistered_fcm_error(body_bytes):
+    """True only if an FCM v1 error body says the token is permanently dead.
+
+    Matches an FcmError detail with errorCode == 'UNREGISTERED'. Anything else
+    (other codes, non-JSON, unexpected shape) returns False. Never raises.
+    """
+    try:
+        details = json.loads(body_bytes.decode('utf-8'))['error']['details']
+        if not isinstance(details, list):
+            return False
+        for d in details:
+            if (isinstance(d, dict)
+                    and d.get('@type') == 'type.googleapis.com/google.firebase.fcm.v1.FcmError'
+                    and d.get('errorCode') == 'UNREGISTERED'):
+                return True
+    except Exception:
+        pass
+    return False
+
+
 def _send_push_worker(tokens_list, title, body, access_token, project_id):
     """Background worker that actually sends push notifications.
     
     Uses notification payload (not data) so Android shows the notification
     in the system tray even when the app is closed/backgrounded.
+    Tokens FCM reports as UNREGISTERED are deleted from push_tokens.
     """
     import urllib.request as urlreq
+    import urllib.error as urlerr
     url = f'https://fcm.googleapis.com/v1/projects/{project_id}/messages:send'
     for token_val in tokens_list:
         payload = json.dumps({
@@ -2599,11 +2754,33 @@ def _send_push_worker(tokens_list, title, body, access_token, project_id):
         })
         try:
             urlreq.urlopen(req, timeout=10)
+        except urlerr.HTTPError as e:
+            print(f'Push send error: {e}')
+            try:
+                err_body = e.read(65536)
+            except Exception:
+                err_body = b''
+            if _is_unregistered_fcm_error(err_body):
+                try:
+                    with get_db() as conn:
+                        conn.execute('DELETE FROM push_tokens WHERE token=?', (token_val,))
+                    print(f'Push token unregistered, removed: {str(token_val)[:12]}...')
+                except Exception as db_e:
+                    print(f'Push token cleanup failed: {type(db_e).__name__}')
         except Exception as e:
             print(f'Push send error: {e}')
 
 def send_push_to_family(family_id, title, body, exclude_user_id=None):
-    """Send push notification to all family members (non-blocking, runs in background)"""
+    """Send push notification to all family members (non-blocking, runs in background)
+
+    Returns a short status string (call sites may ignore it):
+      'no_tokens'      - no registered devices for the recipients; nothing sent
+      'no_credentials' - no FCM access token (e.g. service account file missing)
+      'no_project_id'  - project_id could not be read from the service account
+      'queued'         - background send thread was STARTED; this does not mean
+                         FCM accepted or delivered it (sending is asynchronous)
+      'error'          - unexpected exception (logged)
+    """
     try:
         with get_db() as conn:
             if exclude_user_id:
@@ -2620,17 +2797,17 @@ def send_push_to_family(family_id, title, body, exclude_user_id=None):
                 ).fetchall()
 
         if not tokens:
-            return
+            return 'no_tokens'
 
         access_token = get_fcm_access_token()
         if not access_token:
             print('FCM: No access token — push skipped')
-            return
+            return 'no_credentials'
 
         project_id = get_fcm_project_id()
         if not project_id:
             print('FCM: No project ID — push skipped')
-            return
+            return 'no_project_id'
 
         # Send in background thread so API response isn't delayed
         token_list = [t['token'] for t in tokens]
@@ -2638,9 +2815,11 @@ def send_push_to_family(family_id, title, body, exclude_user_id=None):
                              args=(token_list, title, body, access_token, project_id),
                              daemon=True)
         t.start()
+        return 'queued'
 
     except Exception as e:
         print(f'Push error: {e}')
+        return 'error'
 
 
 # ──────────────────────────────────────────────
@@ -2680,7 +2859,9 @@ def api_update_family_settings():
     fid = get_family_id()
     if not fid:
         return jsonify({'error': 'אין משפחה'}), 403
-    data = request.get_json(silent=True) or {}
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
 
     new_cd = None
     with get_db() as conn:
@@ -2810,10 +2991,12 @@ def check_budget_alerts(family_id):
                 daily_total = conn.execute(
                     'SELECT COALESCE(SUM(amount),0) as total FROM payments WHERE date(date)=? AND archived=FALSE AND family_id=?',
                     (today, family_id)).fetchone()['total']
-                if daily_total > budget_daily:
+                alert_daily = settings['budget_alert_daily_sent'] or ''
+                if daily_total > budget_daily and alert_daily != today:
                     send_push_to_family(family_id,
                         '💸 חריגה מהתקציב היומי!',
                         f'הוצאתם היום ₪{daily_total:,.0f} מתוך ₪{budget_daily:,}')
+                    conn.execute('UPDATE family_settings SET budget_alert_daily_sent=? WHERE family_id=?', (today, family_id))
                     print(f'Daily budget alert sent for family {family_id}')
 
     except Exception as e:
