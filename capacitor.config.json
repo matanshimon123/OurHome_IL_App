@@ -3,7 +3,7 @@
   "appName": "OurHome IL",
   "webDir": "www",
   "server": {
-    "url": "http://192.168.1.51:5000",
+    "url": "https://new.matanshimonwebapp.online",
     "cleartext": true
   },
   "plugins": {
