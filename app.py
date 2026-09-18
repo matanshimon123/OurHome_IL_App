@@ -4,6 +4,7 @@ import json
 import math
 import sqlite3
 import threading
+import uuid
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.chart import BarChart, PieChart, Reference
@@ -90,6 +91,13 @@ def is_admin():
 
 csrf = CSRFProtect(app)
 app.config['WTF_CSRF_CHECK_DEFAULT'] = False  # We handle CSRF manually below
+# Session cookie hardening. HttpOnly is already Flask's default but is set explicitly so
+# all three attributes read together. SameSite=Lax stops the session riding along on
+# cross-site POSTs while still allowing plain links into the app (Strict would break those).
+# Secure is gated on APP_ENV so local dev and the LAN-IP Capacitor setup keep working over http.
+app.config['SESSION_COOKIE_HTTPONLY'] = True
+app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+app.config['SESSION_COOKIE_SECURE'] = (APP_ENV == 'production')
 # Mail config
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
@@ -100,10 +108,36 @@ app.config['MAIL_DEFAULT_SENDER'] = ('OurHome IL', os.environ.get('MAIL_USERNAME
 mail = Mail(app)
 
 
+def send_mail_async(msg):
+    """Send a Flask-Mail Message on a background daemon thread.
+
+    Flask-Mail 0.10.0 builds its smtplib.SMTP connection with no timeout and exposes no
+    config key for one, so a slow or unreachable SMTP server would block the request
+    thread indefinitely. Dispatching the send the same way send_push_to_family dispatches
+    FCM keeps the request thread (and any DB connection it holds) free. Failures stay
+    non-fatal and invisible to the user, exactly as before.
+    """
+    def _worker():
+        try:
+            with app.app_context():
+                mail.send(msg)
+        except Exception as e:
+            print(f'Mail error: {e}')
+
+    try:
+        threading.Thread(target=_worker, daemon=True).start()
+    except Exception as e:
+        print(f'Mail error: {e}')
+
+
 # Exempt JSON API endpoints — protected by session auth
 @app.after_request
 def inject_csrf_token(response):
-    response.set_cookie('csrf_token', generate_csrf())
+    # httponly=False is deliberate and required: base.html's fetch shim reads this cookie
+    # from document.cookie to send the X-CSRFToken header. Making it HttpOnly would break
+    # every web POST/PUT/DELETE with a 400. Only Secure/SameSite are hardened here.
+    response.set_cookie('csrf_token', generate_csrf(), httponly=False,
+                        samesite='Lax', secure=(APP_ENV == 'production'))
     return response
 
 
@@ -523,6 +557,10 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             attempt_key TEXT NOT NULL,
             attempted_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS scheduler_leases (
+            job_name TEXT PRIMARY KEY,
+            owner TEXT NOT NULL,
+            expires_at TEXT NOT NULL);
     """)
     for t, c, ct in [
         ('users','email','TEXT DEFAULT ""'),
@@ -822,6 +860,8 @@ def change_password():
         flash('סיסמה חדשה חייבת להיות לפחות 6 תווים', 'error')
         return redirect(url_for('settings'))
 
+    changed = False
+    notify_email = None
     with get_db() as conn:
         user = conn.execute('SELECT * FROM users WHERE id=?', (session['user_id'],)).fetchone()
         if user and check_password_hash(user['password_hash'], current_pw):
@@ -829,13 +869,17 @@ def change_password():
                          (generate_password_hash(new_pw), session['user_id']))
             # Sync to Firebase Auth
             firebase_update_password(user['email'] or user['username'], new_pw)
-            # שליחת מייל בתוך ה-with כשה-conn עדיין פתוח
-            try:
-                if user['email']:
-                    msg = Message(
-                        subject='סיסמתך שונתה — OurHome IL',
-                        recipients=[user['email']],
-                        html=f'''
+            changed = True
+            notify_email = user['email']
+
+    if changed:
+        # המייל נשלח מחוץ ל-with — ה-conn כבר שוחרר, והשליחה עצמה רצה ב-thread רקע
+        try:
+            if notify_email:
+                msg = Message(
+                    subject='סיסמתך שונתה — OurHome IL',
+                    recipients=[notify_email],
+                    html=f'''
                         <div dir="rtl" style="font-family:Arial;max-width:500px;margin:0 auto;">
                             <h2>סיסמה שונתה</h2>
                             <p>הסיסמה לחשבון שלך באפליקציית OurHome IL שונתה זה עתה.</p>
@@ -844,12 +888,12 @@ def change_password():
                             </p>
                         </div>
                         '''
-                    )
-                    mail.send(msg)
-            except Exception as e:
-                print(f'Mail error: {e}')
-            flash('סיסמה שונתה בהצלחה!', 'success')
-            return redirect(url_for('home'))
+                )
+                send_mail_async(msg)
+        except Exception as e:
+            print(f'Mail error: {e}')
+        flash('סיסמה שונתה בהצלחה!', 'success')
+        return redirect(url_for('home'))
 
     flash('סיסמה נוכחית שגויה', 'error')
     return redirect(url_for('settings'))
@@ -1101,6 +1145,46 @@ def leave_family():
         if family and family['created_by'] == session['user_id']:
             return jsonify({'error': 'Admin cannot leave. Delete family or transfer ownership first.'}), 400
         conn.execute('UPDATE users SET family_id=NULL WHERE id=?', (session['user_id'],))
+    session['family_id'] = None
+    return jsonify({'success': True})
+
+
+# Every table scoped by family_id (verified against init_db()'s CREATE TABLE +
+# ALTER list). push_tokens is keyed by user_id, and app_settings/login_attempts
+# are global, so none of them belong here.
+FAMILY_SCOPED_TABLES = (
+    'payments', 'categories', 'archived_cycles', 'shopping_items',
+    'shopping_favorites', 'feedings', 'recurring_payments', 'family_settings',
+)
+
+
+@app.route('/api/family/delete', methods=['POST'])
+@csrf.exempt
+@require_auth
+def delete_family():
+    """Delete a family and all of its data.
+
+    Only the family creator may do this, and only while they are the sole
+    member - so no other user's data can ever be destroyed. Ownership transfer
+    is intentionally not implemented; a creator with other members still in the
+    family must remove them first.
+    """
+    fid = get_family_id()
+    current_user_id = int(request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id'))
+    with get_db() as conn:
+        family = conn.execute('SELECT created_by FROM families WHERE id=?', (fid,)).fetchone()
+        if not family:
+            return jsonify({'error': 'משפחה לא נמצאה'}), 404
+        if family['created_by'] is None or int(family['created_by']) != current_user_id:
+            return jsonify({'error': 'רק מנהל המשפחה יכול למחוק את המשפחה'}), 403
+        members = conn.execute('SELECT id FROM users WHERE family_id=?', (fid,)).fetchall()
+        if len(members) != 1 or int(members[0]['id']) != current_user_id:
+            return jsonify({'error': 'יש להסיר את שאר חברי המשפחה לפני מחיקת המשפחה'}), 400
+        # family_id=? never matches the default categories (family_id IS NULL)
+        for table in FAMILY_SCOPED_TABLES:
+            conn.execute('DELETE FROM %s WHERE family_id=?' % table, (fid,))
+        conn.execute('UPDATE users SET family_id=NULL WHERE id=?', (current_user_id,))
+        conn.execute('DELETE FROM families WHERE id=?', (fid,))
     session['family_id'] = None
     return jsonify({'success': True})
 
@@ -2364,13 +2448,14 @@ def api_change_password():
                      (generate_password_hash(new_pw), request.api_user['user_id']))
         # Sync to Firebase Auth
         firebase_update_password(user['email'] or user['username'], new_pw)
-        # שליחת מייל התראה על שינוי סיסמה
-        try:
-            if user['email']:
-                msg = Message(
-                    subject='סיסמתך שונתה — OurHome IL',
-                    recipients=[user['email']],
-                    html=f'''
+        notify_email = user['email']
+    # המייל נשלח מחוץ ל-with — ה-conn כבר שוחרר, והשליחה עצמה רצה ב-thread רקע
+    try:
+        if notify_email:
+            msg = Message(
+                subject='סיסמתך שונתה — OurHome IL',
+                recipients=[notify_email],
+                html=f'''
                     <div dir="rtl" style="font-family:Arial;max-width:500px;margin:0 auto;">
                         <h2>סיסמה שונתה</h2>
                         <p>הסיסמה לחשבון שלך באפליקציית OurHome IL שונתה זה עתה.</p>
@@ -2379,10 +2464,10 @@ def api_change_password():
                         </p>
                     </div>
                     '''
-                )
-                mail.send(msg)
-        except Exception as e:
-            print(f'Mail error: {e}')
+            )
+            send_mail_async(msg)
+    except Exception as e:
+        print(f'Mail error: {e}')
     return jsonify({'message': 'סיסמה שונתה בהצלחה'})
 
 
@@ -3006,6 +3091,67 @@ def check_budget_alerts(family_id):
 
 
 # ──────────────────────────────────────────────
+# SCHEDULER SINGLE-INSTANCE LEASE
+# ──────────────────────────────────────────────
+# The background loops below start at import time, so under gunicorn EVERY worker
+# process runs its own copy of them against the same SQLite file. These helpers let
+# exactly one process own each job at a time: the owner renews its lease on every
+# tick, everybody else skips that tick. If the owner dies the lease expires and the
+# next process to ask takes over. Works for any worker count, with no extra config.
+SCHEDULER_OWNER_ID = '%d-%s' % (os.getpid(), uuid.uuid4().hex[:8])
+_lease_lost_noted = set()
+_lease_lost_lock = threading.Lock()
+
+
+def _note_lease_lost(job_name):
+    """Print once per job the first time this process finds another instance owns it."""
+    try:
+        with _lease_lost_lock:
+            if job_name in _lease_lost_noted:
+                return
+            _lease_lost_noted.add(job_name)
+        print('Scheduler: another instance owns the "%s" lease; this process stands by.' % job_name)
+    except Exception:
+        pass
+
+
+def _acquire_scheduler_lease(job_name, ttl_seconds):
+    """Take (or renew) the single-instance lease for job_name.
+
+    Returns True only if THIS process owns the lease after the call. Atomic against
+    other processes: the UPSERT renews our own lease and steals an expired one, but
+    can never take a lease another process still holds. Never raises - any error
+    returns False, which means a tick is skipped (safer than doing duplicate work).
+    """
+    conn = None
+    try:
+        now = now_israel()
+        now_s = now.strftime('%Y-%m-%d %H:%M:%S')
+        expires_s = (now + timedelta(seconds=ttl_seconds)).strftime('%Y-%m-%d %H:%M:%S')
+        conn = get_db()
+        with conn:
+            conn.execute(
+                'INSERT INTO scheduler_leases (job_name, owner, expires_at) VALUES (?,?,?) '
+                'ON CONFLICT(job_name) DO UPDATE SET owner=excluded.owner, expires_at=excluded.expires_at '
+                'WHERE scheduler_leases.owner=excluded.owner OR scheduler_leases.expires_at < ?',
+                (job_name, SCHEDULER_OWNER_ID, expires_s, now_s))
+        row = conn.execute('SELECT owner FROM scheduler_leases WHERE job_name=?', (job_name,)).fetchone()
+        if row and row['owner'] == SCHEDULER_OWNER_ID:
+            return True
+        if row:
+            _note_lease_lost(job_name)
+        return False
+    except Exception:
+        return False
+    finally:
+        if conn is not None:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+
+# ──────────────────────────────────────────────
 # AUTO-ARCHIVE SCHEDULER
 # ──────────────────────────────────────────────
 def check_auto_archive():
@@ -3015,6 +3161,10 @@ def check_auto_archive():
         time.sleep(300)  # Check every 5 minutes
 
         try:
+            # Only one process may run this job; the rest skip this tick.
+            if not _acquire_scheduler_lease('auto_archive', 900):
+                continue
+
             now = now_israel()
             with get_db() as conn:
                 families = conn.execute(
@@ -3117,6 +3267,11 @@ def check_feeding_reminders():
     import time
     while True:
         try:
+            # Only one process may run this job; the rest skip this tick.
+            if not _acquire_scheduler_lease('feeding_reminder', 180):
+                time.sleep(60)
+                continue
+
             now = now_israel()
             with get_db() as conn:
                 families = conn.execute(

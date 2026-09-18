@@ -147,6 +147,11 @@
                 <i class="fas fa-door-open"></i> עזוב משפחה
             </button>
             {% endif %}
+            {% if session.user_id == family.created_by and members|length == 1 %}
+            <button class="s-btn danger" style="flex:1;" data-delete-family="1">
+                <i class="fas fa-trash"></i> מחק משפחה
+            </button>
+            {% endif %}
         </div>
         {% else %}
         <div style="padding:10px 0;">
@@ -558,6 +563,21 @@ async function leaveFamily() {
     const r = await fetch('/api/family/leave', { method: 'POST' });
     if (r.ok) { window.location.href = '/settings'; }
     else { alert('שגיאה'); }
+}
+
+// Delete-family (delegated — no inline onclick). The button only renders for a
+// creator who is the sole member; the server enforces both conditions again.
+document.addEventListener('click', e => {
+    const b = e.target.closest('button[data-delete-family]');
+    if (!b) return;
+    deleteFamily();
+});
+
+async function deleteFamily() {
+    if (!confirm('בטוח שאתה רוצה למחוק את המשפחה? כל הנתונים — תשלומים, קטגוריות, רשימת קניות, האכלות, ארכיון והגדרות — יימחקו לצמיתות ולא ניתן לשחזר אותם.')) return;
+    const r = await fetch('/api/family/delete', { method: 'POST' });
+    if (r.ok) { window.location.href = '/family'; }
+    else { alert('שגיאה במחיקת המשפחה'); }
 }
 
 // ══════ Family Settings (Notifications + Budget) ══════

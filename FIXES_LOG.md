@@ -596,8 +596,9 @@ this. The fix belongs with the cp1255 item under "Newly discovered" below — on
 ## Issue #11 — No way to delete a family or transfer ownership
 
 - **Severity**: Medium
-- **Status**: ⚠️ **Needs manual review — not auto-fixed**
-- **Why this was not handed to a fixer**: it isn't a bug with one correct fix — it needs product
+- **Status**: ✅ **Fixed** (2026-09-18, after the owner's product decision)
+- **Files changed**: `app.py` (+40/−0), `templates/settings.html` (+20/−0)
+- **Originally deferred** — it needed product
   decisions that a fixer would have to guess at:
   - **Deleting a family** permanently destroys every payment, archived cycle, category, shopping
     item, favorite, feeding, recurring payment and setting belonging to it. Should that be allowed?
@@ -611,9 +612,66 @@ this. The fix belongs with the cp1255 item under "Newly discovered" below — on
   creator with `'Admin cannot leave. Delete family or transfer ownership first.'`, but neither action
   exists; `remove_family_member` blocks self-removal. A creator who made a family by mistake is
   stuck without direct database intervention.
-- **Suggested smallest safe step, once decided**: allow a **sole-member** creator to delete their own
-  family (nobody else's data is affected), behind an explicit confirmation — then consider
-  ownership transfer as a separate feature.
+### Decision and implementation
+
+**Owner's decision (2026-09-18): sole-member delete only.** A creator who is the only member may
+delete their own family. **Ownership transfer was explicitly declined** as out of scope (it needs a
+new UI and acceptance rules), so a creator with other members still cannot leave — they must remove
+the other members first.
+
+- **What was added**:
+  - `FAMILY_SCOPED_TABLES` (8 tables) and `delete_family()` — `POST /api/family/delete`, decorated
+    `@csrf.exempt` + `@require_auth`, matching the sibling `/api/*` routes.
+  - `fid` comes **only** from `get_family_id()` (server-side state), never from the request body.
+  - Refusals: non-creator member → 403; creator with another member → 400; no family → 403;
+    unauthenticated → 401; `GET` → 405.
+  - On success, in one `with get_db() as conn:` block: delete the family's rows from all 8 scoped
+    tables, set the caller's `users.family_id = NULL`, delete the `families` row, and clear
+    `session['family_id']`.
+  - `templates/settings.html`: a delete button rendered only for a creator who is the sole member,
+    wired through the page's existing `data-*` + `document.addEventListener` delegation (no inline
+    `onclick`, per Issue #5), with a confirmation warning that the deletion is permanent.
+- **Note on process**: the fixer was **interrupted** before it could self-verify (the orchestrator
+  had started #11 out of order and stopped it), so this reviewer verified the change from scratch
+  with no fixer claims to check against, and looked specifically for half-finished work. None was
+  found.
+- **Verification** (reviewer; own DB copies, Firebase and push mocked, threads neutralized):
+  - **Authorization — 34 assertions, 0 failures.** Every forgery attempt ignored: a `family_id` in
+    the JSON body **and** in the query string, plus `"1"`, `1.0`, `true`, `null`, `[1]`, `{}`. A
+    **stale JWT** whose `family_id` claim pointed at another family still deleted only the caller's
+    real family, because `auto_jwt_auth` re-reads the user from the DB. A ghost-user token → 401.
+  - **Deletion scope**: `family_id` columns enumerated independently via `PRAGMA table_info` across
+    all 14 tables → 9 tables have one; the constant covers all 8, and `users` is handled by the
+    separate `UPDATE`. **No table missed, no orphan rows.** A second family's full dump was
+    byte-identical before and after. The 9 **default** categories (`family_id IS NULL`) survive —
+    `family_id=?` cannot match NULL. The caller's `users` row survives with NULL.
+  - **`push_tokens` survive by design** (user-scoped) and can never receive a push for the dead
+    family, because `send_push_to_family` selects `user_id IN (SELECT id FROM users WHERE
+    family_id=?)`.
+  - **Atomicity**: injecting a raise on `DELETE FROM feedings` and on `DELETE FROM families` produced
+    a **full rollback** (family byte-identical; a retry then succeeded) — `with get_db()` rolls back
+    on exception.
+  - **State after delete**: `session['family_id']` cleared, `GET /home` → 302 `/family`, `/settings`
+    200, a repeat delete → 403 on both session and JWT paths, `/api/payments` with the stale token →
+    403. No 500 anywhere.
+  - **Body handling**: no body, empty, `{}`, `null`, `[]`, `"x"`, `5`, malformed JSON, form-encoded
+    and a 100 KB payload → all 200, no 500. Issue #14's guard is genuinely unnecessary here (the body
+    is never read).
+  - **UI**: button renders only for creator + sole member; absent for creator + 2 members and for a
+    non-creator (whose leave button still renders). jsdom on the real rendered page — 26 assertions,
+    0 failures: clicking the button **and** its child `<i>` each fires exactly one confirm, one POST
+    and one navigation; declining the confirm fires zero fetches; a 403 shows one Hebrew alert and
+    does not navigate. `node --check` clean on all 5 script blocks.
+  - `py_compile` passes; `app.py` 3241 CRLF / 0 bare LF / no final newline; `settings.html` 717 CRLF /
+    0 bare LF; real DB sha256 `8229690d…499d57` identical at start and end; HEAD `f67fb88`.
+- **Flagged, not fixed** (pre-existing, codebase-wide): destructive `/api/` routes are CSRF-exempt via
+  the blanket `check_csrf` skip — identical for `leave_family` and `remove_family_member`, mitigated
+  by the browser-default `Lax` session cookie (and see Issue #18); `get_db()` connections are never
+  explicitly closed.
+- **Reviewer verdict**: **APPROVED** — "authorization is derived solely from server-side state and
+  survived every forgery attempt I could construct… deletion is correctly limited to the caller's own
+  sole-member family across all nine `family_id` tables with no orphans and no damage to another
+  family or to the shared NULL-scoped default categories."
 
 ---
 
@@ -1013,6 +1071,198 @@ this. The fix belongs with the cp1255 item under "Newly discovered" below — on
 
 ---
 
+## Issue #18 — Session and CSRF cookies had no `Secure`/`SameSite`
+
+- **Severity**: Medium
+- **Status**: ✅ **Fixed**
+- **Files changed**: `app.py` (+12/−1). `templates/settings.html` byte-identical.
+- **The gap**: no `SESSION_COOKIE_SECURE`/`SAMESITE`/`HTTPONLY` config existed, and
+  `inject_csrf_token()` set the `csrf_token` cookie with **no flags at all**. The app has genuinely
+  been served over plain HTTP (the Capacitor config used a LAN IP with `cleartext: true`), so neither
+  cookie was protected against interception.
+- **Two hard constraints, both honoured**:
+  1. **`csrf_token` must stay non-HttpOnly** — `base.html`'s fetch shim reads it from
+     `document.cookie` (Issue #6). Making it HttpOnly would 400 every web POST/PUT/DELETE. It is now
+     set with an **explicit** `httponly=False` plus a comment saying why, so nobody "hardens" it later
+     and breaks CSRF.
+  2. **`Secure` is gated on `APP_ENV == 'production'`** (the Issue #4 flag), so local HTTP development
+     keeps working.
+- **What changed**: `SESSION_COOKIE_HTTPONLY = True`, `SESSION_COOKIE_SAMESITE = 'Lax'`,
+  `SESSION_COOKIE_SECURE = (APP_ENV == 'production')` next to the existing CSRF/Mail config; and
+  `inject_csrf_token()` now passes `httponly=False, samesite='Lax', secure=(APP_ENV == 'production')`.
+  Cookie name, value and path unchanged. CSRF enforcement, `check_csrf`, the shim, auth and all routes
+  untouched.
+- **Verification** (reviewer; raw `Set-Cookie` headers **and** runtime `app.config`, DB copies,
+  Firebase stubbed, threads no-op'd):
+
+  | Mode | `csrf_token` | `session` |
+  |---|---|---|
+  | dev (`APP_ENV` unset, http) | `Path=/; SameSite=Lax` — **no HttpOnly, no Secure** | `HttpOnly; Path=/; SameSite=Lax` — no Secure |
+  | prod (`APP_ENV=production`, https) | `Secure; Path=/; SameSite=Lax` — still **no HttpOnly** | `Secure; HttpOnly; Path=/; SameSite=Lax` |
+
+  - **Shim still works**: token parsed with `base.html:173-174`'s own logic (91 chars, no `=` padding to
+    truncate), sent as `X-CSRFToken` → `/add_payment` 302 with `payments` 0→1 **in both modes**;
+    without the header → 400, 0 rows.
+  - **Dev HTTP login not broken**: `GET /login` → `POST /login` 302 `/home` → `GET /home` 200 → a
+    CSRF-protected POST wrote a row.
+  - **Capacitor `SameSite=Lax` is a no-op**, verified independently: `capacitor.config.json` points
+    `server.url` at the remote HTTPS host, so the WebView's document origin **is** the server;
+    `MainActivity` extends `BridgeActivity` with no custom `loadUrl` (only `getBridge().reload()`);
+    `www/index.html` (2418 B) has **zero** `fetch`/`XHR`/`axios`. Every cookie-bearing request is
+    same-origin. The `capacitor://localhost` CORS entry only covers `/api/*`, which is `@csrf.exempt` +
+    Bearer JWT and sends no cookies. (Android WebView is Chromium, which has defaulted to `Lax` since
+    Chrome 80, so this only makes existing behavior explicit.)
+  - **JWT/mobile unaffected**: empty cookie jar + Bearer → `GET /api/payments` 200 and
+    `POST /api/payments/add` 201 with a row written, in both modes.
+  - **`logout()`**: the flagless `delete_cookie('csrf_token')` still clears (deletion matches on
+    name/path); `inject_csrf_token` then appends a fresh cookie, which is byte-for-byte HEAD behavior.
+    A later `GET /home` 302s to `/login` in both modes.
+  - **Integrity**: git blob chain confirms `app.py 0f72e83 → 15c0c37` and
+    `settings.html 21762d1 → 893a1e8`, with the working `settings.html` `cmp`-identical to the pre-#18
+    reconstruction; `diff -u` shows only the 2 #18 hunks. Issue #11 intact (`FAMILY_SCOPED_TABLES`,
+    `delete_family`, both `data-delete-family` hooks). `py_compile` passes; 3252 CRLF, 0 bare LF, no
+    final newline. Real DB sha256 `8229690d…499d57` identical at start and end; HEAD `f67fb88`.
+  - The fixer reported `+14/−1` and two sha256 prefixes the reviewer couldn't reproduce; the actual diff
+    is **+12/−1** and the git-blob/`cmp` evidence supersedes the prefixes. Cosmetic reporting slip, not
+    a code issue.
+- **Existing tests**: no test file mentions cookies, and the suites POST only to `/api/*` over
+  `http://127.0.0.1` with `APP_ENV` unset, so `Secure` never applies. `locustfile.py` reads
+  `csrf_token` from the `requests` cookie jar — unaffected in dev.
+- **Reviewer verdict**: **APPROVED** — "`csrf_token` stays non-HttpOnly so the `base.html` shim keeps
+  working… `Secure` appears only when `APP_ENV == 'production'` so dev login and writes over plain HTTP
+  are unaffected."
+
+---
+
+## Issue #19 — `mail.send()` had no SMTP timeout (and ran inside a DB transaction)
+
+- **Severity**: Medium
+- **Status**: ✅ **Fixed**
+- **Files changed**: `app.py` (+105/−25 vs HEAD, 6 hunks). `templates/settings.html` byte-identical.
+- **Worse than ISSUES.md described.** ISSUES.md only noted the missing timeout. In fact the
+  `mail.send()` call sat **inside** `with get_db() as conn:` in **both** change-password routes (a
+  Hebrew comment at the old line 843 said so deliberately). `get_db()` returns a raw
+  `sqlite3.Connection`, and `with conn:` is a **transaction** context manager — so a hung SMTP call
+  held the RESERVED write lock from the `UPDATE users` for the entire hang, not just the request
+  thread.
+- **Why a background thread rather than a timeout** (verified in the installed source, not guessed):
+  **Flask-Mail 0.10.0**'s `Connection.configure_host()` calls `smtplib.SMTP(host, port)` with **no
+  `timeout` argument**, and `init_mail()` reads exactly 11 config keys with **no `MAIL_TIMEOUT`**. A
+  config timeout is impossible. `socket.setdefaulttimeout()` was deliberately **not** used — it is
+  process-global and would also affect Firebase, FCM and other sockets.
+- **What changed**: new `send_mail_async(msg)` next to `mail = Mail(app)` — a **daemon** thread
+  running `with app.app_context(): mail.send(msg)`, with `try/except → print('Mail error: …')` both
+  inside the worker and around `Thread.start()`, mirroring `send_push_to_family`. Both routes now
+  capture the row data they need inside the `with` block, then build and dispatch the mail **after**
+  it. Subject, recipients, sender and HTML are unchanged.
+- **Verification** (reviewer's own measurements; HEAD loaded as a separate module on its own DB copy,
+  sockets blocked, mail stubbed):
+
+  | | HEAD | Fixed |
+  |---|---|---|
+  | Request time during a blocked send (web / api) | 3.50 s / 3.52 s | **0.17 s / 0.16 s** |
+  | Concurrent second-connection `UPDATE users` during the hang | `OperationalError: database is locked` after ~2.3 s | **OK in 0.01 s** |
+
+  - **The email is provably unchanged**: `subject`, `recipients`, `sender`, `html`, `body`, `cc`,
+    `bcc`, `reply_to`, `extra_headers`, `charset` all compare equal between HEAD and the fix on both
+    routes (diff dict `{}`); raw `as_bytes()` differs only in random MIME boundaries and `Message-ID`.
+    html sha256: web `538b1e7c…`, api `44d4e312…`.
+  - **10/10 behavior cases identical to HEAD** across both routes: success (302→`/home` + the same
+    flash / 200 + the same Hebrew JSON, with the new password hash active), wrong current password
+    (302→`/settings` + error flash / 401), short password (400), `email IS NULL`, `email = ''` (change
+    succeeds, **0** mails sent). A mail failure still never fails the request.
+  - **Thread correctness**: `daemon=True` (verified by intercepting `threading.Thread`); a proper app
+    context confirmed by re-running the **real** Flask-Mail path with `suppress=True`; worker
+    exceptions and a failing `Thread.start()` are both caught; 50 always-failing sends → no crash, no
+    thread growth (5→5). **No request-bound state is read in the thread**: `Message.__init__` resolves
+    `sender` from `current_app` at construction time, the HTML is a plain f-string over already-copied
+    `sqlite3.Row` values, and `notify_email` is captured inside the `with`. The thread touches only the
+    module globals `app`/`mail` and the finished `msg`.
+  - Issues #4, #11 and #18 intact; `templates/settings.html` byte-identical to the pre-#19
+    reconstruction (`cmp` clean); recorded blob hashes reproduce exactly; `diff -u` shows only the 6
+    #19 hunks. `py_compile` passes; 3281 CRLF, 0 bare LF, no final newline, no BOM. Real DB sha256
+    `8229690d…499d57` identical at start and end; HEAD `f67fb88`.
+- **Existing tests**: `/api/auth/change-password` appears in `test_flows.py:175,190,196` and
+  `test_deep_audit.py:168,179`, all asserting only status codes and a subsequent login — all
+  unchanged. No test touches the web route or asserts on mail.
+- **Flagged, not fixed**: a permanently-hung SMTP now leaks one **daemon** thread per change-password
+  request instead of blocking a request thread — strictly better, but still unbounded. A `Mail`
+  subclass that passes a `timeout` to `smtplib`, or a bounded worker queue, would close it.
+- **Reviewer verdict**: **APPROVED** — "The email is provably unchanged… All ten behavior cases
+  across both routes are identical to HEAD… My own measurements reproduce the win (3.5 s → 0.17 s, and
+  `database is locked` → `OK in 0.01 s` for a concurrent write)."
+
+---
+
+## Issue #20 — Background scheduler threads weren't safe for multi-worker deployment
+
+- **Severity**: Medium
+- **Status**: ✅ **Fixed**
+- **Files changed**: `app.py` (+75/−0, 5 hunks). `templates/settings.html` untouched.
+- **The problem**: `check_auto_archive()` (300 s loop) and `check_feeding_reminders()` (60 s loop) start
+  as daemon threads at **import**, so under gunicorn every worker runs its own copy of both loops
+  against the same SQLite file.
+- **Why a code fix rather than a deployment setting**: `docker-compose-new.yml` builds the app from
+  `/docker/ourhome` **on the VPS**, so the Dockerfile and its gunicorn command are not in this repo —
+  the worker count is unknowable here. ISSUES.md suggested gating on `WEB_CONCURRENCY`, but that would
+  need configuration nobody can verify from the repo, and would silently disable the jobs if forgotten.
+  A **DB-backed lease** is automatic, configuration-free, and cannot regress a single-worker deployment.
+- **What changed**: `import uuid`; a `scheduler_leases (job_name TEXT PRIMARY KEY, owner TEXT NOT NULL,
+  expires_at TEXT NOT NULL)` table added to `init_db()`'s executescript like `login_attempts`;
+  `SCHEDULER_OWNER_ID` (pid + random hex, computed once at import); `_note_lease_lost()` (one ASCII
+  line, once per job); and `_acquire_scheduler_lease(job_name, ttl)` built on a single atomic SQLite
+  **UPSERT** — `ON CONFLICT(job_name) DO UPDATE … WHERE scheduler_leases.owner = excluded.owner OR
+  scheduler_leases.expires_at < ?` — so it can only **renew its own** lease or **steal a genuinely
+  expired** one, confirmed by reading the row back. It never raises (returns `False` on any error) and
+  always closes its connection. Each loop calls it first inside `while True:` (ttl 900 archive, 180
+  reminder) and skips that tick if it isn't the owner. Job logic and all dedup columns are untouched.
+  Runtime `sqlite3.sqlite_version` is **3.35.5**, so UPSERT is supported (no fallback needed).
+- **Verification** (reviewer's own tests, real OS processes — gunicorn forks, so threads would not be
+  valid evidence):
+  - **Barrier test**: 6 processes × 40 rounds → exactly 1 winner in 40/40 rounds, one lease row.
+  - **Expiry-boundary test** (all processes spin until the code's own string comparison says expired,
+    then fire at once): 6×30, 8×45 and 10×50 → **107 rounds, zero double-wins**, with all 8 processes
+    winning some round (proving real stealing, not starvation).
+  - **Negative control**: the identical harness against a naive SELECT-then-UPDATE produced multiple
+    simultaneous winners (5/30 and 2/12 rounds, up to 4 at once) — so the test would have caught a flaw.
+  - **Single-process parity**: both jobs, seeded for a due auto-archive and a due feeding reminder, run
+    against HEAD loaded as a separate module → **every table row-by-row identical**, identical push
+    payloads, identical dedup columns. The only delta was `archived_cycles.archived_at`, a SQL
+    `DEFAULT CURRENT_TIMESTAMP` differing by 2 s between runs.
+  - **Over time**: the owner won the lease on **every** tick (8 archive, 9 reminder) and did the work
+    each time — no self-lockout. A non-owner skipped all work, wrote nothing, still slept its full
+    interval (no hot spin), and printed its standby line once.
+  - **The bug this prevents, reproduced**: 6 procs × 10 rounds → HEAD sent duplicate feeding pushes in
+    1 round; 8 procs × 12 rounds → HEAD duplicated in **2 rounds (3 and 4 pushes)**. The fix sent
+    exactly 1 in all 22 rounds. (Auto-archive turned out to be safer on HEAD than expected — its
+    `archived=FALSE` re-query closes most of the window — so the reminder loop is where this really bit.)
+  - **14 failure modes, none raised**: missing table, unreachable path, path-is-a-directory, live
+    foreign lease, expired lease, garbage/empty/NULL `expires_at`, NULL `owner` (live and expired),
+    write-locked DB (False after the 5.6 s busy timeout), schema drift. No connection leak over 3000
+    calls including error paths. SQL injection via `job_name` (`x'); DROP TABLE users;--`) left `users`
+    intact.
+  - `init_db()` idempotent (3× on a real-DB copy and a fresh DB), existing data byte-identical.
+  - Integrity: pre-#20 blobs `d0443d87…`/`893a1e8e…` confirmed; `diff -u` shows only #20; Issues
+    #11/#18/#19 intact; `py_compile` passes; 3356 CRLF, 0 bare LF, no final newline; real DB sha256
+    `8229690d…499d57` unchanged; HEAD `f67fb88`. (The fixer reported +71/4 hunks; the real diff is
+    +75/5 — a cosmetic miscount.)
+- **Existing tests**: nothing in `test_files/` references the schedulers, `scheduler_leases` or the
+  dedup columns; `test_flows.py` uses the manual `/api/payments/archive` route, which is unchanged.
+- **Notes, not defects**:
+  - **Lexical time comparison verified** correct across midnight, month, year and hour rollovers. An
+    Israel DST shift can steal ~1 h early (spring) or delay a takeover ~1 h (autumn) but **cannot**
+    produce two owners — the same naive-local-time caveat as Issue #7.
+  - `SCHEDULER_OWNER_ID` captures `os.getpid()` at import, so under `gunicorn --preload` every fork
+    would inherit one ID. Harmless today because threads do not survive `fork()` (the loops simply
+    wouldn't run in the children), but it would break if the loops were ever started from a post-fork
+    hook.
+- **Reviewer verdict**: **APPROVED** — "I reproduced the race it fixes (HEAD sent up to 4 duplicate
+  feeding pushes in a round) and then failed to break the fix across 107 expiry-boundary rounds with up
+  to 10 real processes firing at the instant the lease died — while a naive SELECT-then-UPDATE broke
+  repeatedly under the identical harness."
+
+---
+
 ### Newly discovered — not in ISSUES.md, not yet fixed
 
 - **🔴 HIGH — takeover of unlinked accounts via Firebase's public sign-up (pre-existing at
@@ -1028,13 +1278,55 @@ this. The fix belongs with the cp1255 item under "Newly discovered" below — on
   victim's row (`if fb_uid and not user['firebase_uid']: UPDATE`). Result: full account takeover, and
   the attacker's Firebase account becomes the victim's permanent login. Issue #9's fix does not create
   or widen this, and the optional `get_user_by_email` hardening above would not close it.
-  **Possible fixes, for a deliberate decision**: (a) on a successful Firebase login for a row with an
-  empty `firebase_uid`, refuse to auto-link unless the Firebase account's email is verified
-  (`emailVerified`) **or** the local `password_hash` also matches the submitted password; and/or
-  (b) disable public account creation for the Firebase project (Identity Platform → "User actions":
-  disable "Enable create (sign-up)"), since registration already runs server-side through the Admin
-  SDK. Option (b) is a console setting and a human action. **Recommend treating this before the
-  remaining Medium issues.**
+  **DECISION (2026-09-18, by the repo owner): close it with the Firebase console setting only — no
+  code change.** The code guard (refusing to auto-link unless the local password also matches) was
+  considered and **declined**, so `login()`/`api_login()` still link a successful Firebase login to a
+  local row by email alone. That is acceptable **only while client-side sign-up stays disabled**.
+
+  ### 👉 Action required by the owner, in the Firebase console
+  1. Open the project → **Authentication** → **Settings** → **User actions**.
+  2. Uncheck / disable **"Enable create (sign-up)"**.
+  3. Verify afterwards that registration in the app still works: it runs server-side through the
+     Admin SDK (`firebase_create_user`), which is unaffected by that setting.
+  4. Sanity-check that a direct REST `accounts:signUp` call with the public Web API key is now
+     rejected (e.g. returns `ADMIN_ONLY_OPERATION`).
+
+  **If that setting is ever re-enabled, this exposure returns**, because nothing in the code prevents
+  the email-only auto-link. If you later want defence in depth, the code guard above is the fix, and
+  it pairs naturally with the Issue #9 follow-up (unlinked accounts still have no password-reset path).
+
+- **The scheduler threads start before `init_db()` runs.** Confirmed during Issue #20:
+  `_archive_thread.start()` is at `app.py:3244`, `_reminder_thread.start()` at `:3349`, but the
+  module-level `init_db()` call is at `:3352` — *after* both. On a brand-new database the first
+  reminder tick races table creation. Booted on an empty DB, the first tick acquired nothing, no crash,
+  threads stayed alive, and it self-healed 60 s later. At HEAD the same tick printed
+  `Feeding reminder error: no such table: family_settings`; with the lease it now fails silently, which
+  is a small **observability** loss. Moving the `init_db()` call above the two `Thread.start()` lines
+  would remove the window entirely — a one-line reorder, deliberately left out of #20's scope.
+
+- **🟠 `firebase_update_password()` is called inside the `with get_db()` transaction** in both
+  change-password routes (`app.py:866` web, `app.py:2445` api), right after the `UPDATE users`. It is
+  an outbound Firebase HTTPS call, so it holds the SQLite **RESERVED write lock** for its whole
+  duration — exactly the problem Issue #19 just fixed for mail, in a different subsystem. Confirmed
+  by the #19 reviewer **on the fixed tree**: hanging that call gave a 3.33 s request and a concurrent
+  `UPDATE` failing with `OperationalError: database is locked` after 2.29 s. Unlike mail, this one
+  can't simply be moved to a thread — the route needs its result to decide whether the change
+  succeeded — so the fix is to do the Firebase call **before** opening the DB block, or to close the
+  transaction before calling out. Note `firebase_update_password` does at least use `requests` with a
+  timeout, so it can't hang indefinitely.
+
+- **`WTF_CSRF_SSL_STRICT` is Flask-WTF's default `True`, and there is no `ProxyFix`.** Found during
+  Issue #18 and confirmed identical on HEAD, so it is pre-existing. Over HTTPS, `csrf.protect()`
+  additionally requires a `Referer` matching the host: a request without one gets
+  `400 "The referrer header is missing."`. **Not a risk today** — the app sets no `Referrer-Policy`
+  header and no `<meta name="referrer">`, so under Chromium's default
+  `strict-origin-when-cross-origin` both same-origin form posts and same-origin `fetch` send a
+  full-URL `Referer`, including in the Android WebView. Two reasons to document it anyway: (a) adding a
+  `no-referrer` policy or a stricter CSP later would **silently 400 every web write**; (b) with TLS
+  terminated upstream by Traefik and no `ProxyFix`, `request.is_secure` is `False`, so the referrer
+  check never fires in production at all, while the `Secure` cookie flag still applies because it is
+  config-driven. Worth an explicit decision on `WTF_CSRF_SSL_STRICT` plus `ProxyFix` so the behavior is
+  intentional rather than accidental.
 
 - **`node_modules/` is tracked in git — 2,347 files.** `git ls-files --ignored
   --exclude-standard -c` reports 2,369 tracked-but-ignored files total: `node_modules/`
@@ -1086,7 +1378,7 @@ this. The fix belongs with the cp1255 item under "Newly discovered" below — on
 
 Keep this section current: it is the single source of truth for where the run stands.
 
-## Progress: 17 of 31 issues addressed — 16 fixed & approved, 1 needs a human decision
+## Progress: 20 of 31 issues addressed — all 20 fixed & approved
 
 | # | Issue | Severity | Status |
 |---|---|---|---|
@@ -1100,18 +1392,23 @@ Keep this section current: it is the single source of truth for where the run st
 | 8 | `firebase-service-account.json` missing locally | Medium | ✅ Fixed & approved — **uncommitted** |
 | 9 | Users with no Firebase account can never log in | Medium | ✅ Fixed & approved — **uncommitted** |
 | 10 | Dead local password-reset flow | Medium | ✅ Fixed & approved (removed) — **uncommitted** |
-| 11 | No way to delete a family / transfer ownership | Medium | ⚠️ **Needs manual review** — product decision |
+| 11 | No way to delete a family / transfer ownership | Medium | ✅ Fixed & approved (sole-member delete) — **uncommitted** |
 | 12 | `/api/recurring` POST/PUT skip input validation | Medium | ✅ Fixed & approved (2nd review) — **uncommitted** |
 | 13 | `add_feeding` can 500 after the DB write committed | Medium | ✅ Fixed & approved (re-approved after follow-up) — **uncommitted** |
 | 14 | Inconsistent JSON body parsing between API layers | Medium | ✅ Fixed & approved — **uncommitted** |
 | 15 | Daily budget alert has no dedup | Medium | ✅ Fixed & approved — **uncommitted** |
 | 16 | FCM worker never prunes dead tokens | Medium | ✅ Fixed & approved — **uncommitted** |
 | 17 | `_fcm_credentials` cache mutated without a lock | Medium | ✅ Fixed & approved |
-| 18 | Session/CSRF cookies lack `Secure`/`SameSite` | Medium | ⬜ **next** |
-| 19–31 | Remaining | Medium→Low | ⬜ Not started |
+| 18 | Session/CSRF cookies lack `Secure`/`SameSite` | Medium | ✅ Fixed & approved — **uncommitted** |
+| 19 | `mail.send()` has no SMTP timeout | Medium | ✅ Fixed & approved |
+| 20 | Scheduler threads unsafe under multiple workers | Medium | ✅ Fixed & approved |
+| 21 | Missing security regression tests (JWT/CSRF) | Medium | ⬜ **next** |
+| 22–31 | Remaining | Medium→Low | ⬜ Not started |
 
-Issues #7–#10 and #12–#17 were committed together in the commit **"Fix 10 security and robustness
-issues (#7-#10, #12-#17)"**, directly on top of `bb0a195` (not pushed).
+Commit history for this run (all on `android_firebase_integration`, **nothing pushed**):
+1. `bb0a195` — Issues #1-6.
+2. `f67fb88` — Issues #7-#10, #12-#17.
+3. **"Fix 4 more issues (#11, #18, #19, #20)"** — the commit made at this pause.
 | NEW | 🔴 Takeover of unlinked accounts via Firebase public sign-up | High | ⚠️ **Needs a human decision** — see "Newly discovered" |
 
 **All Critical and High issues from ISSUES.md are cleared.** 1 rejection across 12 issues (Issue
@@ -1152,13 +1449,9 @@ rule above is now stricter.
 
 ## Working-tree state
 
-Branch `android_firebase_integration`, **two unpushed commits** on top of `e8f8310`:
-1. `bb0a195` — Issues #1-6.
-2. "Fix 10 security and robustness issues (#7-#10, #12-#17)" — `app.py` (+299/−116), deleted
-   `templates/reset_password.html`, and this log.
-
-At the pause the working tree should be clean apart from the pre-existing items below. Check with
-`git log --oneline -3` and `git status --porcelain` before resuming.
+Branch `android_firebase_integration`, **three unpushed commits** on top of `e8f8310` (see the list
+above). At this pause the working tree is clean apart from the pre-existing items below. Check with
+`git log --oneline -4` and `git status --porcelain` before resuming.
 
 Pre-existing and deliberately left out of commits — the user's own work or derived artifacts:
 ` M capacitor.config.json` (LAN-IP → production-domain switch), ` M android/.idea/misc.xml` (IDE
@@ -1184,37 +1477,42 @@ start and end (unless the user has run the app in between, which legitimately ch
    `n8n` from starting. Running containers are unaffected until re-up.
 6. **Decide on `node_modules/`** (2,347 tracked files) — untracking is a large, noisy commit.
 
-## ⏸️ Paused after Issue #17 — decisions waiting on the human
+## ⏸️ Paused after Issue #20
 
-1. **🔴 NEW HIGH — takeover of unlinked accounts via Firebase public sign-up** (see "Newly
-   discovered"). Close it in the Firebase console (disable client-side sign-up), in code (don't
-   auto-link a Firebase account to a local row unless the local password also matches or the email
-   is verified), or both. **Recommended before continuing the Medium issues.**
-2. **Issue #11** — whether and how deleting a family / transferring ownership should work.
+**No decisions are outstanding.** Both earlier questions were answered on 2026-09-18: the Firebase
+takeover is to be closed by the **console setting only** (no code guard — see the action steps under
+"Newly discovered"), and Issue #11 was built as **sole-member delete only**.
+
+### 👉 The one manual task still open
+Firebase console → **Authentication → Settings → User actions** → disable **"Enable create
+(sign-up)"**. Until that is done, the unlinked-account takeover is still open, and because the code
+guard was declined, that setting is the only thing closing it.
 
 ## Next step
 
-**Issue #18** — session and CSRF cookies are set without explicit `Secure` / `SameSite` flags
-(`app.py` has no `SESSION_COOKIE_SECURE`/`SESSION_COOKIE_SAMESITE`; `inject_csrf_token()` calls
-`set_cookie('csrf_token', ...)` with no flags). Things to settle before fixing:
-- `SESSION_COOKIE_SECURE=True` breaks login over plain HTTP. Local dev and the old LAN-IP Capacitor
-  setup (`cleartext: true`) use HTTP, so gate `Secure` on `APP_ENV == 'production'` (the Issue #4
-  flag) rather than setting it unconditionally.
-- The `csrf_token` cookie **must stay non-HttpOnly** — the `base.html` fetch shim reads it from JS
-  (verified in Issue #6). Add `Secure`/`SameSite` only.
-- Check that `SameSite=Lax` doesn't break the Capacitor WebView, which loads the app from the
-  server URL (same-site, so it should be fine — verify rather than assume).
+**Issue #21** — missing security regression tests: nothing in the suite forges a JWT with a wrong
+secret and asserts 401, and nothing asserts that CSRF actually blocks a token-less web POST. Notes
+before starting:
+- These are **new tests**, not app changes — the first issue of the run in that category. The suites
+  are standalone `requests` scripts against a live server on `http://127.0.0.1:5000` that talk to the
+  **real** `finance_tracker.db` by relative path. A fixer must not run them; decide how the new tests
+  get executed (and by whom) before writing them.
+- Useful material already exists in the scratchpad harnesses from #6, #7 and #18, which did exactly
+  these checks in-process against DB copies.
+- Consider whether these belong as in-process tests (safe, no live server, no real DB) rather than
+  appended to the existing live-server scripts.
 
-**High-value follow-ups found during review** (not in ISSUES.md; worth scheduling):
-- `update_payment` with `amount: "abc"` returns 500 **after committing** the bad value — same bug as
-  Issue #13, on payments (details under Issue #14).
-- `update_feeding` is unvalidated (details under Issue #13).
-- The baby tracker's `submitAdd` ignores the HTTP response, so any rejected save vanishes silently.
-- `sys.stdout.reconfigure(encoding='utf-8', errors='replace')` at the top of `app.py` would fix
-  every cp1255 emoji-print crash on Windows at once.
+**High-value follow-ups found during review** (not in ISSUES.md; each is written up under "Newly
+discovered"):
+- `update_payment` with `amount: "abc"` returns 500 **after committing** the bad value — the Issue #13
+  bug, on payments.
+- `firebase_update_password()` runs inside the DB transaction, holding the write lock during an
+  outbound HTTPS call (the Issue #19 bug, different subsystem).
+- The scheduler threads start **before** `init_db()` — a one-line reorder fixes it.
+- `update_feeding` is unvalidated; the baby tracker's `submitAdd` ignores the HTTP response, so
+  rejected saves vanish silently.
+- `sys.stdout.reconfigure(encoding='utf-8', errors='replace')` at the top of `app.py` would fix every
+  cp1255 emoji-print crash on Windows at once.
 
 Keep verifying ISSUES.md claims before fixing — it has been wrong or understated in Issues #4, #5,
-#6, #8, #9, #12, #14 and #17.
-
-Still expected to be **Needs manual review** rather than auto-fixed: #20 (background threads under
-multiple gunicorn workers — a deployment decision).
+#6, #8, #9, #12, #14, #17, #19 and #20.
