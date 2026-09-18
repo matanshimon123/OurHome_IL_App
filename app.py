@@ -258,6 +258,14 @@ def get_family_id():
 # ──────────────────────────────────────────────
 # BILLING CYCLE HELPERS
 # ──────────────────────────────────────────────
+
+# Hebrew month names: single source for every cycle/archive label and the
+# Excel export. Keys are 1-12 so callers index by calendar month directly.
+HEBREW_MONTHS = {1:'ינואר',2:'פברואר',3:'מרץ',4:'אפריל',5:'מאי',6:'יוני',
+                 7:'יולי',8:'אוגוסט',9:'ספטמבר',10:'אוקטובר',11:'נובמבר',12:'דצמבר'}
+HEBREW_MONTHS_REVERSE = {name: num for num, name in HEBREW_MONTHS.items()}
+
+
 def get_cycle_day(family_id):
     """Get the billing cycle day for a family (default: 1 = calendar month)"""
     if not family_id:
@@ -303,8 +311,7 @@ def get_cycle_range(family_id):
     now = now_israel()
     cycle_day = get_cycle_day(family_id)
 
-    hebrew_months = {1:'ינואר',2:'פברואר',3:'מרץ',4:'אפריל',5:'מאי',6:'יוני',
-                     7:'יולי',8:'אוגוסט',9:'ספטמבר',10:'אוקטובר',11:'נובמבר',12:'דצמבר'}
+    hebrew_months = HEBREW_MONTHS
 
     if cycle_day == 1:
         # Standard calendar month
@@ -1322,6 +1329,18 @@ def get_payments():
                      'date': p['date'].split(' ')[0] if p['date'] else ''} for p in ps])
 
 
+# One fully literal UPDATE statement per updatable column, keyed by the field
+# name accepted in the request body. Spelled out in full rather than built with
+# f'... SET {f}=? ...' so that no SQL text is ever composed from a variable:
+# switching the loop to the body's own keys would then be a visible change
+# instead of a silent SQL injection. Iteration order is the update order.
+PAYMENT_UPDATE_SQL = {
+    'description': 'UPDATE payments SET description=? WHERE id=? AND family_id=?',
+    'amount': 'UPDATE payments SET amount=? WHERE id=? AND family_id=?',
+    'category': 'UPDATE payments SET category=? WHERE id=? AND family_id=?',
+}
+
+
 @app.route('/api/payments/<int:pid>', methods=['PUT'])
 @require_auth
 def update_payment(pid):
@@ -1329,10 +1348,9 @@ def update_payment(pid):
     data = get_json_object()
     if data is None:
         return jsonify({'error': 'Invalid data'}), 400
-    allowed = ['description', 'amount', 'category']
     with get_db() as conn:
-        for f in allowed:
-            if f in data: conn.execute(f'UPDATE payments SET {f}=? WHERE id=? AND family_id=?', (data[f], pid, fid))
+        for f, sql in PAYMENT_UPDATE_SQL.items():
+            if f in data: conn.execute(sql, (data[f], pid, fid))
         # Get updated payment info for push
         p = conn.execute('SELECT description, amount FROM payments WHERE id=? AND family_id=?', (pid, fid)).fetchone()
 
@@ -1401,9 +1419,13 @@ def archive_month():
     return redirect(url_for('dashboard'))
 
 
+# Returns a multi-sheet .xlsx workbook (openpyxl), not CSV. '/export_csv' is kept
+# only as a backward-compatibility alias for old bookmarks, the Android WebView's
+# saved history and existing tests that still request the original URL.
 @app.route('/export_csv')
+@app.route('/export_xlsx')
 @require_auth
-def export_csv():
+def export_xlsx():
     fid = get_family_id()
     cm = get_cycle_month(fid)
     now = now_israel()
@@ -1434,9 +1456,7 @@ def export_csv():
         except:
             pass
 
-    month_heb = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני',
-                 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר']
-    month_name = month_heb[now.month - 1]
+    month_name = HEBREW_MONTHS[now.month]
 
     wb = Workbook()
 
@@ -1680,10 +1700,8 @@ def history_data():
     fid = get_family_id()
     year = request.args.get('year', now_israel().year, type=int)
     cycle_day = get_cycle_day(fid)
-    hebrew_months = {1:'ינואר',2:'פברואר',3:'מרץ',4:'אפריל',5:'מאי',6:'יוני',
-                     7:'יולי',8:'אוגוסט',9:'ספטמבר',10:'אוקטובר',11:'נובמבר',12:'דצמבר'}
-    reverse_hebrew = {'ינואר':1,'פברואר':2,'מרץ':3,'אפריל':4,'מאי':5,'יוני':6,
-                       'יולי':7,'אוגוסט':8,'ספטמבר':9,'אוקטובר':10,'נובמבר':11,'דצמבר':12}
+    hebrew_months = HEBREW_MONTHS
+    reverse_hebrew = HEBREW_MONTHS_REVERSE
     with get_db() as conn:
         # Load archived labels for this family+year so past months keep original labels
         archived_labels = {}
@@ -1737,10 +1755,8 @@ def history_month_detail():
     month = request.args.get('month', now_israel().month, type=int)
     ms = f'{year}-{month:02d}'
     cycle_day = get_cycle_day(fid)
-    hebrew_months = {1:'ינואר',2:'פברואר',3:'מרץ',4:'אפריל',5:'מאי',6:'יוני',
-                     7:'יולי',8:'אוגוסט',9:'ספטמבר',10:'אוקטובר',11:'נובמבר',12:'דצמבר'}
-    reverse_hebrew = {'ינואר':1,'פברואר':2,'מרץ':3,'אפריל':4,'מאי':5,'יוני':6,
-                       'יולי':7,'אוגוסט':8,'ספטמבר':9,'אוקטובר':10,'נובמבר':11,'דצמבר':12}
+    hebrew_months = HEBREW_MONTHS
+    reverse_hebrew = HEBREW_MONTHS_REVERSE
     with get_db() as conn:
         # Check if this month has a stored archived label (by month column or by parsing label)
         arc = conn.execute('SELECT id, month, label FROM archived_cycles WHERE family_id=? AND month=?',
@@ -1835,6 +1851,17 @@ def add_shopping_item():
     return jsonify({'id': cur.lastrowid}), 201
 
 
+# Literal UPDATE per column, as for PAYMENT_UPDATE_SQL above.
+SHOPPING_ITEM_UPDATE_SQL = {
+    'checked': 'UPDATE shopping_items SET checked=? WHERE id=? AND family_id=?',
+    'name': 'UPDATE shopping_items SET name=? WHERE id=? AND family_id=?',
+    'quantity': 'UPDATE shopping_items SET quantity=? WHERE id=? AND family_id=?',
+    'image': 'UPDATE shopping_items SET image=? WHERE id=? AND family_id=?',
+    'favorite': 'UPDATE shopping_items SET favorite=? WHERE id=? AND family_id=?',
+    'category': 'UPDATE shopping_items SET category=? WHERE id=? AND family_id=?',
+}
+
+
 @app.route('/api/shopping-items/<int:iid>', methods=['PUT'])
 @require_auth
 def update_shopping_item(iid):
@@ -1842,11 +1869,9 @@ def update_shopping_item(iid):
     data = get_json_object()
     if data is None:
         return jsonify({'error': 'Invalid data'}), 400
-    allowed = ['checked', 'name', 'quantity', 'image', 'favorite', 'category']
     with get_db() as conn:
-        for f in allowed:
-            if f in data: conn.execute(f'UPDATE shopping_items SET {f}=? WHERE id=? AND family_id=?',
-                                       (data[f], iid, fid))
+        for f, sql in SHOPPING_ITEM_UPDATE_SQL.items():
+            if f in data: conn.execute(sql, (data[f], iid, fid))
         if data.get('favorite'):
             item = conn.execute(
                 'SELECT name,quantity,COALESCE(category,"") as category FROM shopping_items WHERE id=? AND family_id=?',
@@ -3204,8 +3229,7 @@ def check_auto_archive():
                         continue
 
                     # Build label for the archived cycle
-                    hebrew_months = {1:'ינואר',2:'פברואר',3:'מרץ',4:'אפריל',5:'מאי',6:'יוני',
-                                     7:'יולי',8:'אוגוסט',9:'ספטמבר',10:'אוקטובר',11:'נובמבר',12:'דצמבר'}
+                    hebrew_months = HEBREW_MONTHS
                     prev_month_num = int(prev_cm.split('-')[1])
                     prev_year = int(prev_cm.split('-')[0])
 

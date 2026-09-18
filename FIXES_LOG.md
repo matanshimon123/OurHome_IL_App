@@ -1263,7 +1263,364 @@ the other members first.
 
 ---
 
+## Issue #21 — Missing security regression tests (forged JWTs, CSRF enforcement)
+
+- **Severity**: Medium
+- **Status**: ✅ **Fixed** (tests only — **no application code changed**)
+- **Files changed**: `test_files/test_security.py` (new, 24 checks)
+- **The gap**: nothing in the suite signed a JWT with a **wrong secret** and asserted rejection (the
+  only near-miss was the garbage string `'not.a.jwt'` at `test_edge_cases.py:196`), and the string
+  `csrf` appeared nowhere — so a regression that globally disabled CSRF would have passed silently.
+- **Design decision — in-process, not a live server.** The existing suites are standalone `requests`
+  scripts that need a running server **and open the real `finance_tracker.db` by relative path**. The
+  new file instead sets `DATABASE_PATH` to a `tempfile.mkdtemp()` file **before** `import app`, so
+  `init_db()` builds a throwaway schema, and drives Flask's test client. A hard gate `sys.exit(2)`s if
+  `app.DATABASE` ever resolves outside the temp dir. Firebase is stubbed in `sys.modules` pre-import
+  and `send_push_to_family` is replaced post-import, so no network call is possible.
+- **Coverage** (every case asserts the **status code and the row-count side effect** — several bugs
+  this run returned a normal response while still writing data):
+  - **JWT**, against `POST /api/payments/add` with a **fresh client per call**: no header; garbage;
+    wrong-secret HS256 (`is_admin: True`); tampered payload (genuine signature, fields swapped after
+    signing); `alg:none`; expired (correct secret); valid token for a **non-existent user**; plus the
+    valid-token control → 201 + row. Each negative also asserts directly on `decode_jwt_token()`.
+  - **CSRF**, against `/add_payment` with a session set via `session_transaction()`: no token → 400 and
+    no row; malformed/foreign token → 400 and no row; valid `X-CSRFToken` (cookie parsed exactly as
+    `base.html`'s shim does) → 302 + row; anonymous token-less POST → not 2xx, no row; and `/api/` with
+    a Bearer token and no CSRF → 201 + row, documented in-file as a deliberate exemption because a
+    cross-site page cannot make a browser attach a Bearer header.
+- **Verification — mutation testing** (the decisive check for a tests-only change; mutations applied to
+  scratchpad **copies** of `app.py`, never the repo's):
+
+  | Mutation | Result |
+  |---|---|
+  | `decode_jwt_token` with `verify_signature: False` | **7 checks fail** (wrong-secret, tampered, alg:none, expired — decode *and* request) |
+  | `algorithms=['HS256','none']` | **fails, exit 1** (PyJWT 2.12.1 raises `InvalidKeyError`) |
+  | Swallow `ExpiredSignatureError` | **2 fail** |
+  | `check_csrf` returns before `csrf.protect()` | **2 fail** (no-token case returned 302 **+1 row**) |
+  | Missing CSRF token treated as valid | **exactly 1 fails** (correct precision) |
+  | Skip the user lookup in `auto_jwt_auth` **and** `require_auth` | **ghost-user check fails** (201 + row) |
+  | Skip it in `auto_jwt_auth` only | green — correct, `require_auth` still rejects |
+
+  The only mutation leaving the suite green was making `alg:none` "effective", which PyJWT 2.12.1
+  refuses in every form, so the app is safe regardless; that same test is killed by the
+  `verify_signature: False` mutation. **No mutation left a security assertion falsely green.**
+- **Not tautological**: the wrong-secret rejection was proven signature-based by signing a
+  **byte-identical payload** with the correct secret → 401 vs 201. Controls write real rows, and counts
+  are taken on `payments` for the right `family_id` before and after each request.
+- **Hermetic**: 24/24 and exit 0 from the repo root, from `test_files/`, and from the repo's parent;
+  identical output on repeated runs; still passes with junk `SECRET_KEY`/`JWT_SECRET` in the
+  environment (it pins its own). Across **12 runs** the real DB stayed bit-identical
+  (`8229690d…499d57`), with no `-wal`/`-shm`, no leftover `ourhome_sectest_*` temp dirs and no stray
+  processes. Flipping one expectation produces `23 passed, 1 failed` and **exit 1**.
+- **A subtle trap the fixer avoided**: reusing a single test client across the JWT cases would have
+  silently passed, because `auto_jwt_auth` writes `user_id` into the session — so after the valid-token
+  call, the session cookie alone would have authenticated the supposedly-rejected tokens.
+- **Deliberate style departures** (documented in the file): ASCII `[OK]`/`[FAIL]` markers instead of the
+  existing suites' emoji (the cp1255 rule), and `sys.exit(1)` on failure — making this **the first file
+  in `test_files/` that CI could actually gate on**. Otherwise it matches `test_production.py`'s
+  `check(name, condition, detail)` helper, globals and summary line. No pytest, no new dependency.
+- **Reviewer's nits, not blocking**: three checks are self-evident preconditions; one label claims
+  "CSRF is active" while asserting config shape (enforcement is covered behaviourally elsewhere in the
+  file); the anonymous-POST assertion is loose (`not 2xx`) though paired with a row count. Also noted:
+  `/api/payments/add` uses `@require_auth`, so `require_api_auth` is never exercised by this file.
+- **No findings against the app**: every negative case already behaves correctly on current code, and
+  no assertion was weakened to make it pass.
+- **Reviewer verdict**: **APPROVED** — "every substantive assertion is mutation-proven… No mutation
+  left a security assertion falsely green."
+
+---
+
+## Issue #22 — Missing business-logic test coverage (budget dedup, feeding dedup, cross-family writes)
+
+- **Severity**: Medium
+- **Status**: ✅ **Fixed** (tests only — **no application code changed**)
+- **Files changed**: `test_files/test_business_logic.py` (new, 871 lines, **93 checks**)
+- **Built on Issue #21's harness**: its own `tempfile.mkdtemp()` database set before `import app`, a hard
+  gate that aborts if `app.DATABASE` resolves anywhere else, Firebase stubbed pre-import, and a
+  **recording** push stub so extra pushes surface as counts rather than being silently dropped.
+- **Coverage**:
+  - **A1 monthly budget (15)**: 70% silent; crossing 80% → exactly 1 push and `budget_alert_80_sent` ==
+    cycle month; 90%/92% → 0 further pushes, marker unchanged; crossing 100% → exactly 1 push and
+    `budget_alert_100_sent`; three more over-budget payments plus a `PUT /api/payments/<id>` → 0 pushes.
+  - **A2 new cycle month (8)**: both alerts re-arm exactly once, markers advance, dedup still holds.
+  - **A3 daily budget, Issue #15 (14)**: crossing → 1 push and `budget_alert_daily_sent` == today;
+    same-day payments → none; the day rollover proven **both ways** (backdating the marker and patching
+    `now_israel`) with an assertion that the two agree; `daily_total == budget` → nothing (the guard is
+    strict `>`).
+  - **B feeding reminder (25)**: the first alert sets `last_alert_feeding_id`/`last_alert_hours`; a
+    re-tick is silent; **20 consecutive idle ticks → 0 pushes**; a newer feeding alerts once when due;
+    changing `feeding_reminder_hours` re-arms the same feeding; `0`/NULL fire nothing; a retroactive
+    older entry, a newer *diaper*, and an edited time all fire nothing.
+  - **C cross-family writes (23)**: family C `PUT` + `DELETE` against family A's payment, recurring
+    payment, feeding and shopping item — every row byte-identical or still present, with 8 owner
+    controls proving the writes work at all.
+  - **D harness self-checks (4)**.
+- **Verification — mutation testing**, including **two the reviewer designed independently**
+  (all on scratchpad copies of `app.py`):
+
+  | Mutation | Checks killed |
+  |---|---|
+  | drop `budget_alert_80_sent != cm` | 4 |
+  | drop `budget_alert_100_sent != cm` | 3 |
+  | drop `budget_alert_daily_sent != today` (Issue #15) | 3 |
+  | neutralise the `last_alert_feeding_id`/`last_alert_hours` check | 10 |
+  | **reviewer's**: drop `AND family_id=?` from `update_payment` | 2 (both area-C payment assertions) |
+  | **reviewer's**: fire the reminder regardless of `feeding_reminder_hours` | 2 |
+
+  **No mutant survived.** Non-vacuity confirmed: markers are read on a fresh connection *after* each
+  call, the 20-tick loop really invokes the job 20 times, and the area-C owner controls assert both
+  `200` **and** that the row actually changed — so isolation isn't passing because writes are broken.
+- **Hermetic**: 93/0 and exit 0 from three different working directories, repeated runs identical;
+  `test_security.py` still passes afterwards; real DB `8229690d…499d57` bit-identical across **10 runs**
+  (4 suite, 1 security, 6 mutation), no `-wal`/`-shm`, no leftover temp dirs. `git diff` on `app.py`,
+  `firebase_config.py` and `templates/` is empty; HEAD `ed0b8c7`.
+- **Not covered by design**: the real 60-second loop/threading and the FCM transport (both stubbed).
+- **Reviewer verdict**: **APPROVED** — "genuinely load-bearing: all six mutations… killed checks in
+  exactly the areas they should, with no mutant left green and no vacuous or tautological assertion
+  found."
+
+---
+
+## Issue #23 — Hardcoded Firebase Web API key as a source default
+
+- **Severity**: Low
+- **Status**: ✅ **Fixed**
+- **Files changed**: `firebase_config.py` (+35/−2), `.env.example` (one entry reworded).
+  **`app.py` byte-identical to HEAD.**
+- **Owner's decision (2026-09-18)**: require the env var, **fail loudly in production, degrade clearly
+  in development** — mirroring the Issue #4 secrets guard. (The alternatives — keeping the fallback and
+  just documenting it, or removing it in every mode including dev — were declined.)
+- **What changed**: `FIREBASE_API_KEY = (os.environ.get('FIREBASE_API_KEY') or '').strip()` with **no
+  fallback**. `APP_ENV` is read directly in `firebase_config.py` (importing it from `app` would be
+  circular) using **byte-identical normalization** to `app.py:51`, so the two guards cannot disagree.
+  Missing or whitespace-only in production → `RuntimeError` naming the variable and where to set it;
+  otherwise a 3-line plain-ASCII `[WARN]` and the app starts normally. Both REST functions early-return
+  **before** building a URL. The Admin SDK functions and `_warn_if_credential_in_repo` (Issue #3) are
+  untouched.
+- **Verification** (reviewer, subprocesses with `requests` patched to raise, temp DBs):
+  - **Env matrix**: dev/no-key → rc 0 + warning; dev/key → no warning, URL carries the key;
+    prod/no-key → **refuses to start**; prod/key → rc 0. Also refused: `APP_ENV` as `Production`,
+    `PRODUCTION`, `' Production'`, `'  production  '`, and `FIREBASE_API_KEY='   '`.
+  - **No request can leak with an empty key**: only two REST call sites, both guarded; with `requests`
+    patched to raise, **0 network attempts** across every no-key path.
+  - **Degradation**: `firebase_verify_login → (None, 'שירות ההתחברות אינו זמין כרגע')`,
+    `firebase_send_reset_email → (False, 'שגיאה בשליחת מייל')` (reusing the file's existing wording).
+    Callers verified: `app.py:766`/`2332` feed the error into `local_login_fallback`; `app.py:483`/`2484`
+    ignore it deliberately (no email enumeration). Nothing raises.
+  - **Issue #9 preserved — 17/17 checks** with the **real, unstubbed** module and no key: an unlinked
+    user logs in on `/api/auth/login` (200 + JWT) and web `/login` (302 → `/home`); a wrong password is
+    still rejected; a **linked** user (`firebase_uid='fb-xyz'`) is correctly **denied** the fallback;
+    `firebase_uid` stays `''`; the Issue #7 limiter still fires (`401×4` then `429×5`).
+  - Both hermetic suites still pass (24/24 and 93/93) — though the reviewer noted they **stub
+    `firebase_config` entirely**, so they never exercised this change, which is why it was verified
+    separately.
+  - `app.py` blob matches `git ls-tree HEAD`; `firebase_config.py` 239 CRLF, 0 bare LF, no final
+    newline; real DB `8229690d…499d57` identical at start and end; HEAD `ed0b8c7`.
+- **Behaviour note, judged acceptable**: with no key set, a wrong password surfaces "service
+  unavailable" rather than "wrong credentials". It happens only in dev (deployments always set the key)
+  and is *uniform* across existing, absent and linked accounts — so it leaks less, not more.
+- **`AIzaSy` remaining in tracked files** (4, all expected): `ISSUES.md:181` and `FIXES_LOG.md:104`
+  quote the finding; `PROJECT_MAP.md:351` is a truncated placeholder; and
+  `android/app/google-services.json:18` holds a **different, Android** key — which the reviewer
+  confirmed is **expected practice**, since that file ships inside every APK and is gated by package
+  name, SHA-1 certificate fingerprint and Security Rules, not by secrecy.
+- **Cosmetic inaccuracies in the fixer's report**: production exits rc 1, not rc 3.
+- **Reviewer verdict**: **APPROVED** — "The hardcoded production key is genuinely gone with no
+  surviving fallback anywhere… the highest-risk regression — Issue #9's local-password fallback — still
+  works end-to-end."
+
+### 👉 Action for the owner before the next local run
+Create a `.env` (already gitignored) containing `FIREBASE_API_KEY=<value from Firebase console →
+Project settings → General>`, or Firebase login and password reset will be disabled locally. Nothing
+else in the app is affected, and the Issue #9 local-password fallback still works without it.
+
+---
+
+## Issue #24 — Registration reveals whether a username/email is already taken
+
+- **Severity**: Low
+- **Status**: ⏭️ **Won't fix — deliberate decision, documented**
+- **The finding**: `register()` and `api_register()` return distinct messages
+  (`שם משתמש כבר תפוס` vs `כתובת אימייל כבר רשומה`), letting someone enumerate which usernames and
+  emails are registered. ISSUES.md itself rates this Low and says it is only worth changing "if
+  enumeration protection is ever required for compliance reasons".
+- **Why not fixed**: the only fix is a generic "registration failed" message, which is a **real
+  usability regression** — a user who hits it cannot tell whether to change their username or their
+  email address, on a family app where that is the most common signup friction. The industry-standard
+  way to have both (specific feedback *and* no enumeration) is a verification-email signup flow, which
+  this app does not have and which is far beyond the scope of a Low finding.
+- **Worth knowing**: registration enumeration is already the norm in consumer apps, and this app
+  deliberately does the opposite where it matters — `forgot_password` returns the **same** response
+  whether or not the email exists.
+- **If you ever need this closed** (e.g. a compliance requirement): add email-verification signup, then
+  make the duplicate-account response generic. Revisit together rather than as a drive-by change.
+
+---
+
+## Issue #25 — Fragile whitelist-driven dynamic SQL
+
+- **Severity**: Low
+- **Status**: ✅ **Fixed** (pure refactor — behaviour byte-identical to HEAD)
+- **Files changed**: `app.py` (+27/−7, 4 hunks)
+- **The concern**: `update_payment()` and `update_shopping_item()` built SQL with an f-string column
+  name (`f'UPDATE payments SET {f}=? …'`) taken from a hardcoded `allowed` list. **Not injectable** —
+  the column never came from request data. The risk was purely the *shape*: it looks exactly like code
+  a future refactor would "simplify" into iterating `data.keys()`, which would introduce SQL injection
+  with no visible behaviour change and no failing test.
+- **What changed**: two module-level dicts of **fully literal** statements — `PAYMENT_UPDATE_SQL` (3
+  entries) and `SHOPPING_ITEM_UPDATE_SQL` (6) — each above its route, with the loops now iterating
+  `dict.items()` and executing the literal SQL. Key order reproduces the old `allowed` order exactly.
+  No column name is ever interpolated; the `allowed` lists are gone.
+- **ISSUES.md's line numbers were stale again** (the routes are at 1327/1840, not 1172/1678).
+- **Verification** (reviewer, independent): HEAD and the working tree loaded as separate modules in
+  separate subprocesses, each on its own freshly-initialised temp DB, with every `execute`/`executemany`
+  SQL string and parameter tuple recorded.
+  - **35 differential cases → byte-identical results**: the full comparison dumps (status, response
+    body, recorded SQL list, UPDATE count, push calls, post-row state, all 15 table counts and
+    `shopping_favorites` contents) hash to the **same sha256 `39d9bab9…d6e4`** for both versions. Cases
+    covered each field singly, all fields, reversed body key order, `{}`, unknown-keys-only, mixed,
+    cross-family ids, a non-existent id, `None` values, an uppercase key, and injection-shaped keys.
+  - **The known `amount:"abc"` bug is preserved exactly** (1 UPDATE, `'abc'` stored, `ValueError` in
+    push composition → 500, no push, no budget alert) — deliberately *not* fixed here, since that is a
+    separate logged follow-up and silently fixing it would have been an unreviewed behaviour change.
+  - **Injection keys** (quotes, `--`, `;`, `UNION`, `checked=1 WHERE 1=1; --`, an allowed name plus
+    trailing SQL): 0 UPDATEs, 200, rows untouched, all 15 tables intact — in both versions.
+  - **AST sweep**: 217 execute-family calls; non-literal first arguments dropped from **4 (HEAD) to 2**.
+  - Both hermetic suites still pass; the #21/#22/#23 files are untouched and still hash to their
+    recorded values; 3376 CRLF, 0 bare LF, no final newline; real DB `8229690d…499d57` identical at
+    start and end; HEAD `ed0b8c7`.
+- **Reviewer verdict**: **APPROVED** — "every SQL string in both routes is now a complete literal, no
+  column name is ever interpolated, and 35 differential cases… produce byte-identical recorded SQL,
+  parameters, ordering, counts, HTTP responses, push calls and database state versus HEAD."
+
+---
+
+## Issue #26 — Hebrew month-name mapping duplicated in seven places
+
+- **Severity**: Low
+- **Status**: ✅ **Fixed** (pure extraction — output byte-identical)
+- **Files changed**: `app.py` (−22/+12, 6 hunks)
+- **Inventory (7 sites at HEAD**, found by AST scan — ISSUES.md's line numbers were stale by ~200 lines
+  and it names a `history_month_detail` route that doesn't exist; the real one is `/api/history/month`):
+  forward dicts in `get_cycle_range`, `history_data`, `history_month_detail` and `check_auto_archive`;
+  **reverse** dicts in the two history functions; and a **list** in `export_csv` indexed
+  `month_heb[now.month - 1]`.
+- **No drift between the copies** — verified mechanically before unifying: all four forward dicts were
+  byte-equal in keys, values **and** insertion order; the list equalled the dict's values in order; both
+  reverse dicts were identical and exact inverses. So the extraction could not have silently changed
+  behaviour anywhere.
+- **What changed**: module constants `HEBREW_MONTHS` (the same literal, same order) and
+  `HEBREW_MONTHS_REVERSE` — **derived by comprehension**, so the two can never drift apart. Each
+  duplicate became an assignment from the constant, keeping the local names so no call site changed.
+  `export_csv`'s list became `HEBREW_MONTHS[now.month]`.
+- **Verification** (reviewer's own differential, against an independently reconstructed pre-#26 module
+  on separate temp DBs): **3,780 exact-string comparisons, 0 failures** —
+  - 252 `get_cycle_range` triples (12 months × 7 days × cycle_day 1/10/28)
+  - 78 full JSON bodies from `/api/history` and `/api/history/month`, **seeded with `month=''` archive
+    rows so the reverse-name-to-number fallback actually ran** (confirmed by 36 backfilled rows, e.g.
+    `ינואר 2025 → 2025-01`)
+  - 36 **real** archive runs comparing the archived row and push text (e.g.
+    `דצמבר 2025 (10.12–9.1)`)
+  - 3,378 Excel cell values
+  - **The off-by-one is correct for all 12 months**: the workbook title reads
+    `דוח הוצאות — ינואר 2026` for month 1 and `… דצמבר 2026` for month 12.
+  - `HEBREW_MONTHS_REVERSE` matches HEAD's hand-written reverses in **pairs and iteration order** —
+    which matters, because both fallbacks iterate `reverse_hebrew.items()` with `startswith` (and no
+    month name is a prefix of another, so it's doubly safe).
+  - `ינואר` now appears **once** in `app.py`; both hermetic suites pass; 3376 CRLF, 0 bare LF, no final
+    newline; real DB `8229690d…499d57` identical at start and end; HEAD `ed0b8c7`.
+- **Reviewer verdict**: **APPROVED** — "a pure, behaviour-preserving extraction… my own
+  3780-comparison differential… found zero user-visible string differences."
+
+### ⚠️ Process note — an agent wrote scratch files into the repo
+
+The #26 fixer created `scratchpad/issue26/` (5 files) **inside the repo** instead of the session
+scratchpad. They were untracked and nothing tracked was affected; the orchestrator moved them to
+`scratchpad/issue26_recovered/` outside the repo and removed the directory, restoring a clean
+`git status`. The #25 reviewer had a milder version of the same slip (two JSONs briefly written to the
+repo root, which it moved itself). **Later agent prompts now state explicitly that nothing may be
+written inside the repo and that absolute paths must be used after any `chdir`.**
+
+---
+
+## Issue #27 — `/export_csv` actually returns an `.xlsx`
+
+- **Severity**: Low
+- **Status**: ✅ **Fixed** (rename only — output and headers unchanged)
+- **Files changed**: `app.py` (+8/−4), `templates/dashboard.html`, `templates/settings.html` (one
+  `url_for` line each)
+- **What was actually wrong**: only the **name**. The response already emitted
+  `Content-Disposition: attachment; filename=payments_2026-09.xlsx` and the correct openxml
+  spreadsheet `Content-Type` **at HEAD** — independently verified by the reviewer, so no header
+  correction was needed or made.
+- **What changed**: `def export_csv` → `def export_xlsx` with `@app.route('/export_xlsx')`, and
+  **`@app.route('/export_csv')` retained as a commented backward-compatibility alias** so bookmarks,
+  the Android WebView's history and `test_files/test_deep_audit.py:701` keep working. Both templates
+  updated to `url_for('export_xlsx')` (the endpoint name changed, so leaving them would have raised
+  `BuildError`). The workbook-building body is byte-identical; `/api/payments/export` /
+  `api_export_csv` untouched.
+- **Verification** (reviewer, in-process client, temp DBs, HEAD loaded as a separate module):
+  - **Alias equivalence**: both URLs → 200, identical `Content-Type` and `Content-Disposition`, and
+    identical cells across all three sheets (`סיכום`, `פירוט תשלומים`, `גרף יומי`). Both rules resolve
+    to the **same function object**. A direct `GET /export_csv` returns a workbook openpyxl can load,
+    so the deep-audit test's assertions (`status==200`, `len(content)>100`) still hold — read from its
+    source, not run.
+  - **Parity with HEAD**: sheet names, order and every cell value match; response bytes differ only by
+    zip timestamps. The `url_map` delta versus HEAD is solely `/export_csv → export_xlsx` plus the new
+    `/export_xlsx`.
+  - **No `BuildError`**: all 17 distinct `url_for` endpoints across the 12 real templates resolve; no
+    template references `export_csv`; `/dashboard` and `/settings` both emit `href="/export_xlsx"`.
+  - Unauthenticated → 302 `/login` for both URLs, as at HEAD. Both hermetic suites pass
+    (24/24 and 93/93).
+  - **No line-ending conversion**: `dashboard.html` is anomalously **bare-LF (736)** and stayed that
+    way; `settings.html` CRLF 717; `app.py` CRLF 3376→3380, 0 bare LF. Reverse-applying the patch
+    reproduces the pre-edit hashes exactly. Real DB `8229690d…499d57` identical at start and end; HEAD
+    `ed0b8c7`; no stray files.
+- **Reviewer verdict**: **APPROVED** — "the old `/export_csv` URL still serves a valid workbook through
+  the same view function… no template can raise `BuildError`… the real DB is bit-identical."
+
+---
+
 ### Newly discovered — not in ISSUES.md, not yet fixed
+
+- **The export buttons still say "CSV" in the UI.** `templates/dashboard.html:293` reads `ייצוא CSV`
+  and `templates/settings.html:331` reads `…כ-CSV`, while the download is an `.xlsx`. Issue #27 fixed
+  the misleading **route** name; the reviewer ruled these labels out of scope for it but noted they are
+  "arguably the more impactful half" of the same confusion, since users actually see them. A two-word
+  text change in two templates.
+
+- **Hebrew month names are also duplicated outside `app.py`** (report-only, found during #26): client-side
+  JS arrays in `templates/history.html:233`, `templates/home.html:307` and `templates/settings.html:627`,
+  plus **two Python dicts in `test_files/seed_demo_data.py:132,199`**. The seed script is the only one
+  that could realistically import the new `HEBREW_MONTHS` constant; the template arrays would need a
+  different mechanism (e.g. injecting the constant into the page) and are probably not worth it.
+
+- **One more dynamic-SQL site, same shape as Issue #25**: `init_db()` (~`app.py:595`) runs
+  `conn.execute(f'ALTER TABLE {t} ADD COLUMN {c} {ct}')`, interpolating **three** values from a
+  hardcoded list of tuples. Confirmed by the #25 reviewer's AST sweep as **not reachable with
+  attacker-controlled input**, so it is not a vulnerability — but it is the same "invites a bad
+  refactor" pattern #25 just removed, and it was missed by the first keyword grep. The other survivor,
+  Issue #11's `'DELETE FROM %s' % table` over `FAMILY_SCOPED_TABLES`, was reviewed and approved in #11
+  and is better left alone: rewriting it per-table would lose the "every family-scoped table" guarantee
+  its comment relies on.
+
+- **🟡 A corrected feeding time can permanently lose one reminder** (low severity, confirmed
+  independently by the #22 reviewer). `check_feeding_reminders` keys its dedup state on
+  `(last_alert_feeding_id, last_alert_hours)`. Once a feeding has alerted, editing that feeding's time
+  **forward** cannot re-arm it, so that reminder is silently lost; the next logged feeding re-arms
+  normally, so the impact is bounded to one missed reminder. **Fix**: include the feeding's `date` in
+  the state tuple. This is in the user's own recent anti-spam work, so it's worth a deliberate look.
+
+- **`check_feeding_reminders`'s docstring contradicts its behaviour.** The docstring says a retroactive
+  feeding past the threshold does **not** alert; the code alerts once. The reviewer judged the
+  **behaviour** to be the sensible one, so this is a **docstring defect** — fix the comment, not the
+  code.
+
+- **Cross-family `PUT`/`DELETE` return 200 while changing nothing.** Verified by the #22 reviewer: all
+  four cross-family PUTs and three of the four DELETEs return **200** with **zero rows touched**; only
+  `DELETE /api/payments` returns 404. **Not a security problem** — isolation holds and no push leaks to
+  the victim family — but it is an API-contract wart: a caller cannot distinguish "updated" from
+  "silently ignored". Returning 404 consistently would be the clean fix.
 
 - **🔴 HIGH — takeover of unlinked accounts via Firebase's public sign-up (pre-existing at
   `bb0a195`).** Found by the Issue #9 adversarial reviewer; **not independently confirmed against
@@ -1378,7 +1735,8 @@ the other members first.
 
 Keep this section current: it is the single source of truth for where the run stands.
 
-## Progress: 20 of 31 issues addressed — all 20 fixed & approved
+## Progress: 27 of 31 issues addressed — 26 fixed & approved, 1 deliberately won't-fix (#24).
+**All Critical, High and Medium issues from ISSUES.md are closed**; the remainder are Low.
 
 | # | Issue | Severity | Status |
 |---|---|---|---|
@@ -1402,8 +1760,18 @@ Keep this section current: it is the single source of truth for where the run st
 | 18 | Session/CSRF cookies lack `Secure`/`SameSite` | Medium | ✅ Fixed & approved — **uncommitted** |
 | 19 | `mail.send()` has no SMTP timeout | Medium | ✅ Fixed & approved |
 | 20 | Scheduler threads unsafe under multiple workers | Medium | ✅ Fixed & approved |
-| 21 | Missing security regression tests (JWT/CSRF) | Medium | ⬜ **next** |
-| 22–31 | Remaining | Medium→Low | ⬜ Not started |
+| 21 | Missing security regression tests (JWT/CSRF) | Medium | ✅ Fixed & approved — **uncommitted** |
+| 22 | Missing business-logic test coverage | Medium | ✅ Fixed & approved — **uncommitted** |
+| 23 | Hardcoded Firebase Web API key as a source default | Low | ✅ Fixed & approved — **uncommitted** |
+| 24 | Registration reveals taken username/email | Low | ⏭️ Won't fix (documented) |
+| 25 | Fragile whitelist-driven dynamic SQL | Low | ✅ Fixed & approved — **uncommitted** |
+| 26 | Hebrew month dict duplicated 4+ times | Low | ✅ Fixed & approved — **uncommitted** |
+| 27 | `/export_csv` actually returns an `.xlsx` | Low | ✅ Fixed & approved |
+| 28 | Dead `firestore_db.pyc` with no source | Low | ⬜ **next** |
+| 29–31 | Remaining | Low | ⬜ Not started |
+
+Issues #21-#23 and #25-#27 were committed together in the commit **"Fix 6 more issues (#21-#23,
+#25-#27)"**, on top of `ed0b8c7` (not pushed). #24 is closed as won't-fix and needs no commit.
 
 Commit history for this run (all on `android_firebase_integration`, **nothing pushed**):
 1. `bb0a195` — Issues #1-6.
@@ -1490,17 +1858,19 @@ guard was declined, that setting is the only thing closing it.
 
 ## Next step
 
-**Issue #21** — missing security regression tests: nothing in the suite forges a JWT with a wrong
-secret and asserts 401, and nothing asserts that CSRF actually blocks a token-less web POST. Notes
-before starting:
-- These are **new tests**, not app changes — the first issue of the run in that category. The suites
-  are standalone `requests` scripts against a live server on `http://127.0.0.1:5000` that talk to the
-  **real** `finance_tracker.db` by relative path. A fixer must not run them; decide how the new tests
-  get executed (and by whom) before writing them.
-- Useful material already exists in the scratchpad harnesses from #6, #7 and #18, which did exactly
-  these checks in-process against DB copies.
-- Consider whether these belong as in-process tests (safe, no live server, no real DB) rather than
-  appended to the existing live-server scripts.
+**Issue #28** — dead `__pycache__/firestore_db.cpython-39.pyc` with no corresponding source. ISSUES.md
+suggests deleting `__pycache__/` outright, which is the right call but needs care:
+- The directory is **tracked in git** (a consequence of the broken `.gitignore` fixed in Issue #1), so
+  removing it means `git rm -r --cached __pycache__` plus deleting it on disk — a repo-state change
+  the owner should see before it is committed.
+- `.gitignore` already lists `__pycache__/`, so once untracked it stays out.
+- Several agents this run inadvertently rewrote `__pycache__/*.pyc`; those artifacts have been excluded
+  from every commit so far, and untracking them removes that whole class of noise.
+- Note this is the same decision shape as the pending `node_modules/` question (2,347 tracked files) —
+  worth deciding both together.
+
+**Remaining after that**: #29 (dead `/api/debug-cap` call in `base.html`), #30 (`init_db()` runs
+twice), #31 ("admin" means two different things). All Low and all self-contained.
 
 **High-value follow-ups found during review** (not in ISSUES.md; each is written up under "Newly
 discovered"):

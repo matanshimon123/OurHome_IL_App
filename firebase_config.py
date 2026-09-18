@@ -21,9 +21,31 @@ from firebase_admin import credentials, auth as firebase_auth
 # CONFIG
 # ──────────────────────────────────────────────
 
-# Web API key (public, used for REST API calls)
-FIREBASE_API_KEY = os.environ.get('FIREBASE_API_KEY', 'AIzaSyBXFTtFa5isjv79ZrtyVL7RfE-S_ofigdc')
+# Web API key for the Identity Toolkit REST calls (login / password reset). It is public
+# by design — it names the project, and access is controlled by Security Rules/App Check —
+# but the real production value belongs in configuration, not in source: no fallback here.
+FIREBASE_API_KEY = (os.environ.get('FIREBASE_API_KEY') or '').strip()
 FIREBASE_REST_URL = 'https://identitytoolkit.googleapis.com/v1'
+
+# Read APP_ENV directly rather than importing it from app.py: app.py imports this module,
+# so that would be a circular import. Same normalisation, so the two always agree.
+APP_ENV = os.environ.get('APP_ENV', 'development').strip().lower()
+
+# Shown to the user when a REST call cannot run because no API key is configured.
+FIREBASE_DISABLED_MSG = 'שירות ההתחברות אינו זמין כרגע'
+
+if not FIREBASE_API_KEY and APP_ENV == 'production':
+    raise RuntimeError(
+        'Refusing to start: missing FIREBASE_API_KEY. Firebase login and password reset '
+        'call the Identity Toolkit REST API with this key, so without it neither works. '
+        'Copy the Web API key from the Firebase console (Project settings > General > '
+        'Web API Key) and set FIREBASE_API_KEY in the environment — the server .env, or '
+        'the ourhome service in docker-compose-new.yml (see .env.example).'
+    )
+elif not FIREBASE_API_KEY:
+    print('[WARN] FIREBASE_API_KEY not set - Firebase login and password reset are disabled.')
+    print('   OK for local dev; APP_ENV=production refuses to start until it is set.')
+    print('   Get it from the Firebase console > Project settings > General (see .env.example).')
 
 
 # ──────────────────────────────────────────────
@@ -105,6 +127,11 @@ def firebase_verify_login(email, password):
     """Verify email+password against Firebase Auth.
     Returns (firebase_uid, error_message).
     """
+    if not FIREBASE_API_KEY:
+        # No key configured: fail cleanly instead of calling the REST API with key=.
+        # app.py's local-password fallback takes over from here (see Issue #9).
+        return None, FIREBASE_DISABLED_MSG
+
     try:
         url = f'{FIREBASE_REST_URL}/accounts:signInWithPassword?key={FIREBASE_API_KEY}'
         resp = requests.post(url, json={
@@ -148,6 +175,10 @@ def firebase_send_reset_email(email):
     Google sends the email automatically — no SMTP config needed.
     Returns (success, error_message).
     """
+    if not FIREBASE_API_KEY:
+        # No key configured: fail cleanly instead of calling the REST API with key=.
+        return False, 'שגיאה בשליחת מייל'
+
     try:
         url = f'{FIREBASE_REST_URL}/accounts:sendOobCode?key={FIREBASE_API_KEY}'
         resp = requests.post(url, json={
