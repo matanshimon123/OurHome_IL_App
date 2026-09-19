@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}ניתוח והשוואת מחזורים - OurHome IL{% endblock %}
+{% block head %}
+<style>
+/* ── Cycle analysis. Concept A skin; the race chart is Concept B's cycle overlay, the calendar is Concept C's heatmap. ── */
+.race{padding:14px 12px 12px}
+.race svg{width:100%;height:auto;touch-action:none}
+.readout{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.readout .chip{font-size:14px}
+.race-sentence{font:700 16px/1.45 var(--font-display);margin:4px 2px 10px}
+.range{width:100%;height:44px;background:none;-webkit-appearance:none;appearance:none;margin-top:6px}
+.range::-webkit-slider-runnable-track{height:14px;border:2.5px solid var(--ink);border-radius:99px;background:var(--sky-soft)}
+.range::-webkit-slider-thumb{-webkit-appearance:none;width:40px;height:40px;margin-top:-15px;border-radius:50%;background:var(--sun);border:3px solid var(--ink);box-shadow:2px 2px 0 var(--ink)}
+.range::-moz-range-track{height:14px;border:2.5px solid var(--ink);border-radius:99px;background:var(--sky-soft)}
+.range::-moz-range-thumb{width:36px;height:36px;border-radius:50%;background:var(--sun);border:3px solid var(--ink)}
+.legend-row{display:flex;flex-wrap:wrap;gap:10px 14px;margin-top:6px;font:800 14px var(--font-display)}
+.legend-row span{display:inline-flex;align-items:center;gap:6px}
+.legend-row svg{width:28px;height:10px;flex:none}
+.sticker.cal-card{padding:14px 10px}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.cal .dh{text-align:center;font:800 13px var(--font-display);color:var(--ink-2);padding-bottom:2px}
+.cal .day{min-height:54px;border:2px solid var(--ink);border-radius:12px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;background:#fff;font-family:var(--font-display);padding:2px 0;transition:transform .15s var(--spring)}
+.cal .day b{font-size:14px;font-weight:900;line-height:1}
+.cal .day small{font-size:13px;font-weight:800;line-height:1.1}
+.cal .day[data-l="0"]{background:#fff}
+.cal .day[data-l="1"]{background:var(--sun-soft)} .cal .day[data-l="2"]{background:var(--sun)} .cal .day[data-l="3"]{background:var(--peach)} .cal .day[data-l="4"]{background:var(--coral)}
+.cal .day.future{border-style:dotted;background:var(--cream)}
+.cal .day.today{box-shadow:0 0 0 3px var(--sky-deep)}
+.cal .day:active{transform:scale(.94)}
+.cal .empty{min-height:54px}
+.scale{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.scale .chip i{width:14px;height:14px;border-radius:4px;border:2px solid var(--ink);display:inline-block}
+.cycles{display:flex;justify-content:space-between;gap:6px;height:210px;padding-top:24px;position:relative}
+.cycles .col{flex:1;min-width:44px;height:100%;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;font-family:var(--font-display);color:var(--ink)}
+.cycles .col .area{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:4px}
+.cycles .col .v{font:800 13px var(--font-display);white-space:nowrap;height:16px;line-height:16px}
+.cycles .col .bar{width:100%;max-width:46px;border:2.5px solid var(--ink);border-radius:12px 12px 6px 6px;background:var(--sky-soft);box-shadow:2px 2px 0 var(--ink);transform-origin:bottom;animation:grow .7s var(--spring) both}
+.cycles .col.now .bar{background:var(--sun)}
+.cycles .col .l{font:800 13px var(--font-display);color:var(--ink-2)}
+.cycles .col.now .l{color:var(--ink)}
+.cycles .avg{position:absolute;inset-inline:0;border-top:3px dashed var(--coral-ink);pointer-events:none;z-index:1}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.cmp{padding:12px 0;border-bottom:2px dashed var(--cream-2)}
+.cmp:last-child{border-bottom:0}
+.cmp .head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.cmp .head b{font:900 17px var(--font-display);flex:1;min-width:0}
+.cmp .line{display:flex;align-items:center;gap:8px;margin-top:5px}
+.cmp .line small{flex:0 0 96px;font:700 13px var(--font-display);color:var(--ink-2)}
+.cmp .track{flex:1;height:14px;border:2px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden}
+.cmp .track i{display:block;height:100%;border-inline-end:2px solid var(--ink);transition:width 1s var(--spring)}
+.cmp .line em{flex:0 0 64px;font:800 14px var(--font-display);font-style:normal;text-align:end;white-space:nowrap}
+</style>
+{% endblock %}
+{% block content %}
+<header class="hero hero-sky pop">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="hero-top">
+    <a href="{{ url_for('dashboard') }}" class="back-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>חזרה להוצאות</a>
+  </div>
+  <h1>📊 ניתוח והשוואת מחזורים</h1>
+  <p class="sub" id="heroSub">טוען…</p>
+</header>
+
+<main class="content">
+  <!-- 1. cycle race (Concept B's overlay chart, Pop skin) -->
+  <div class="section-title pop d1"><span>🏁 המחזור הזה מול הקודם</span><small>יום אחרי יום</small></div>
+  <section class="sticker race pop d1">
+    <p class="race-sentence" id="raceSentence"></p>
+    <div class="readout" id="readout"></div>
+    <svg viewBox="0 0 340 210" class="ltr" id="raceSvg" role="img" aria-labelledby="raceSentence"></svg>
+    <label class="label mt-2" for="dayRange">גררו כדי לבחור יום במחזור</label>
+    <input type="range" class="range" id="dayRange" min="1" max="30" value="1" aria-describedby="readout">
+    <div class="legend-row" aria-hidden="true">
+      <span><svg viewBox="0 0 28 10" aria-hidden="true"><line x1="3" x2="25" y1="5" y2="5" stroke="#1759B8" stroke-width="5" stroke-linecap="round"/></svg>המחזור הזה</span>
+      <span><svg viewBox="0 0 28 10" aria-hidden="true"><line x1="3" x2="25" y1="5" y2="5" stroke="#4A4260" stroke-width="3" stroke-linecap="round" stroke-dasharray="6 4"/></svg>המחזור הקודם</span>
+      <span><svg viewBox="0 0 28 10" aria-hidden="true"><line x1="3" x2="25" y1="5" y2="5" stroke="#3E9BFF" stroke-width="4" stroke-linecap="round" stroke-dasharray="1 6"/></svg>צפי</span>
+      <span id="budgetLegend"><svg viewBox="0 0 28 10" aria-hidden="true"><line x1="3" x2="25" y1="5" y2="5" stroke="#C8283E" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 4"/></svg>תקציב</span>
+    </div>
+  </section>
+
+  <!-- 2. cycle calendar (Concept C's heatmap, Pop skin) -->
+  <div class="section-title pop d2"><span>📅 יומן המחזור</span><small>גע ביום לפירוט</small></div>
+  <section class="sticker cal-card pop d2">
+    <div class="cal" id="cal"></div>
+    <div class="scale" id="calScale"></div>
+  </section>
+
+  <!-- 3. last cycles -->
+  <div class="section-title pop d3"><span>📦 6 המחזורים האחרונים</span><small>גע בעמודה לפירוט</small></div>
+  <section class="sticker pad pop d3">
+    <div class="cycles" id="cycles"></div>
+    <div class="legend-row" id="cyclesLegend"></div>
+    <p class="muted mt-2" id="cyclesNote"></p>
+  </section>
+
+  <!-- 4. per category -->
+  <div class="section-title pop d4"><span>🏷️ מה השתנה לפי קטגוריה</span></div>
+  <section class="sticker pad pop d4">
+    <p class="race-sentence" id="catSentence" style="margin-top:0"></p>
+    <div id="cmp"></div>
+  </section>
+
+  <div class="btn-row mt-4">
+    <a href="{{ url_for('history') }}" class="btn white">📅 ארכיון לפי שנה</a>
+    <a href="{{ url_for('dashboard') }}" class="btn white">💳 להוצאות</a>
+  </div>
+</main>
+
+<!-- day / cycle detail sheet -->
+<div class="sheet-ov" id="detailSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="detailTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="detailTitle"></h3>
+    <p class="sheet-sub" id="detailSub"></p>
+    <div id="detailBody"></div>
+    <div class="sheet-actions"><button type="button" class="btn white block" data-close="detailSheet">סגירה</button></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = Pop.esc, money = Pop.money0, D = null, cycleStart = null;
+  var ICON = {'קבועים':'🔄','משק בית':'🏠','קניות - סופר':'🛒','קניות - אופנה':'👗','רכב':'🚗','תינוק':'👶','בילויים / פנאי':'🎉','טיפוח':'💅','כללי':'📦'};
+  function dateOf(i) { var d = new Date(cycleStart); d.setDate(d.getDate() + i); return d; }
+  function dm(d) { return d.getDate() + '.' + (d.getMonth() + 1); }
+
+  /* ── 1. race ── */
+  var W = 340, H = 210, PL = 44, PR = 10, T = 14, B = 26, X, Y, TT, curAt, STEP;
+  function drawRace() {
+    var c = D.current, p = D.previous;
+    TT = Math.max(c.days_total, p ? p.days_total : 0);
+    var top = Math.max(c.budget || 0, c.projection, p ? p.total : 0, c.total) * 1.08 || 1;
+    STEP = (W - PR - PL) / Math.max(1, TT - 1);
+    X = function (d) { return W - PR - (d - 1) * STEP; };
+    Y = function (v) { return H - B - v * (H - T - B) / top; };
+    curAt = function (d) { return d <= c.days_elapsed ? c.cum[d - 1] : c.cum[c.days_elapsed - 1] + (c.projection - c.cum[c.days_elapsed - 1]) * (d - c.days_elapsed) / Math.max(1, c.days_total - c.days_elapsed); };
+    var s = '';
+    [.25, .5, .75, 1].forEach(function (f) { var v = top * f / 1.08; s += '<line x1="' + PL + '" x2="' + (W - PR) + '" y1="' + Y(v).toFixed(1) + '" y2="' + Y(v).toFixed(1) + '" stroke="#FFEFD6" stroke-width="2"/><text x="2" y="' + (Y(v) + 4).toFixed(1) + '" font-size="12 font-family="Rubik" font-weight="800" fill="#4A4260">' + (v >= 1000 ? Math.round(v / 1000) + 'K' : Math.round(v)) + '</text>'; });
+    [1, 5, 10, 15, 20, 25, 30].filter(function (d) { return d <= TT; }).forEach(function (d) { s += '<text x="' + X(d).toFixed(1) + '" y="' + (H - 8) + '" text-anchor="middle" font-size="12" font-family="Rubik" font-weight="800" fill="#4A4260">' + d + '</text>'; });
+    if (c.budget) s += '<line x1="' + PL + '" x2="' + (W - PR) + '" y1="' + Y(c.budget).toFixed(1) + '" y2="' + Y(c.budget).toFixed(1) + '" stroke="#C8283E" stroke-width="2.5" stroke-dasharray="6 5"/>';
+    if (p) s += '<path d="M' + p.cum.map(function (v, i) { return X(i + 1).toFixed(1) + ' ' + Y(v).toFixed(1); }).join(' L') + '" fill="none" stroke="#4A4260" stroke-width="3" stroke-dasharray="7 5" stroke-linecap="round" class="draw"/>';
+    var last = c.days_elapsed;
+    s += '<path d="M' + X(last).toFixed(1) + ' ' + Y(c.cum[last - 1]).toFixed(1) + ' L' + X(c.days_total).toFixed(1) + ' ' + Y(c.projection).toFixed(1) + '" fill="none" stroke="#3E9BFF" stroke-width="4" stroke-dasharray="2 7" stroke-linecap="round"/>';
+    s += '<path d="M' + c.cum.map(function (v, i) { return X(i + 1).toFixed(1) + ' ' + Y(v).toFixed(1); }).join(' L') + '" fill="none" stroke="#1E1633" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>';
+    s += '<path d="M' + c.cum.map(function (v, i) { return X(i + 1).toFixed(1) + ' ' + Y(v).toFixed(1); }).join(' L') + '" fill="none" stroke="#1759B8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>';
+    s += '<g id="scrub"><line id="scLine" y1="' + T + '" y2="' + (H - B) + '" stroke="#1E1633" stroke-width="2" stroke-dasharray="3 3"/><circle id="scPrev" r="6" fill="#fff" stroke="#4A4260" stroke-width="3"/><circle id="scCur" r="8" fill="#FFC531" stroke="#1E1633" stroke-width="3"/></g>';
+    $('raceSvg').innerHTML = s;
+    $('budgetLegend').classList.toggle('hidden', !c.budget);
+    $('dayRange').max = c.days_total; $('dayRange').value = last;
+    setDay(last);
+  }
+  function setDay(d) {
+    var c = D.current, p = D.previous;
+    d = Math.max(1, Math.min(c.days_total, d));
+    var cur = curAt(d), prev = p && d <= p.cum.length ? p.cum[d - 1] : null, future = d > c.days_elapsed;
+    var sl = $('scLine'); sl.setAttribute('x1', X(d)); sl.setAttribute('x2', X(d));
+    $('scCur').setAttribute('cx', X(d)); $('scCur').setAttribute('cy', Y(cur));
+    var sp = $('scPrev'); sp.style.display = prev == null ? 'none' : ''; if (prev != null) { sp.setAttribute('cx', X(d)); sp.setAttribute('cy', Y(prev)); }
+    var diff = prev == null ? null : cur - prev;
+    $('readout').innerHTML = '<span class="chip ink">יום ' + d + ' · ' + dm(dateOf(d - 1)) + '</span>' +
+      '<span class="chip ' + (future ? 'sky' : 'sun') + '">' + (future ? 'צפי: ' : 'המחזור הזה: ') + money(cur) + '</span>' +
+      (prev != null ? '<span class="chip cream">הקודם: ' + money(prev) + '</span><span class="chip ' + (diff <= 0 ? 'mint' : 'coral') + '">' + (diff <= 0 ? '−' : '+') + money(Math.abs(diff)) + '</span>' : '');
+    $('dayRange').value = d;
+  }
+  var svg = $('raceSvg'), dragging = false;
+  function dayFromEvent(e) { var r = svg.getBoundingClientRect(), x = (e.clientX - r.left) / r.width * W; return Math.round((W - PR - x) / STEP) + 1; }
+  svg.addEventListener('pointerdown', function (e) { dragging = true; try { svg.setPointerCapture(e.pointerId); } catch (x) {} setDay(dayFromEvent(e)); });
+  svg.addEventListener('pointermove', function (e) { if (dragging) setDay(dayFromEvent(e)); });
+  svg.addEventListener('pointerup', function () { dragging = false; });
+  svg.addEventListener('pointercancel', function () { dragging = false; });
+  $('dayRange').addEventListener('input', function () { setDay(parseInt(this.value, 10)); });
+
+  function raceSentence() {
+    var c = D.current, p = D.previous, s;
+    if (!p) s = 'עוד אין מחזור קודם להשוואה. אחרי שהמחזור הזה ייסגר, נראה כאן את ההשוואה.';
+    else {
+      var diff = c.cum[c.days_elapsed - 1] - (p.cum[c.days_elapsed - 1] || 0);
+      s = 'אחרי ' + c.days_elapsed + ' ימים הוצאתם ' + money(c.cum[c.days_elapsed - 1]) + ', ' + (Math.abs(diff) < 50 ? 'בערך כמו' : money(Math.abs(diff)) + (diff > 0 ? ' יותר מאשר' : ' פחות מאשר')) + ' באותו שלב ב' + p.label.split(' ')[0] + '.';
+      s += c.budget ? (c.projection > c.budget ? ' בקצב הזה תעברו את התקציב ב־' + money(c.projection - c.budget) + '.' : ' בקצב הזה תישארו ' + money(c.budget - c.projection) + ' מתחת לתקציב.') : ' הצפי לסוף המחזור: ' + money(c.projection) + '.';
+    }
+    $('raceSentence').textContent = s;
+  }
+
+  /* ── 2. calendar heatmap ── */
+  function drawCal() {
+    var c = D.current, days = c.daily, past = days.slice(0, c.days_elapsed).filter(function (v) { return v > 0; }).sort(function (a, b) { return a - b; });
+    var q = function (f) { return past.length ? past[Math.min(past.length - 1, Math.floor(past.length * f))] : 0; }, q1 = q(.34), q2 = q(.67), big = Math.max(q(.9), 1000);
+    var level = function (v) { return !v ? 0 : v >= big ? 4 : v > q2 ? 3 : v > q1 ? 2 : 1; };
+    var html = Pop.HE_DAYS_SHORT.map(function (d) { return '<span class="dh" aria-hidden="true">' + d + '</span>'; }).join('');
+    for (var i = 0; i < dateOf(0).getDay(); i++) html += '<span class="empty"></span>';
+    days.forEach(function (v, i) {
+      var d = dateOf(i), future = v === null, today = i === c.days_elapsed - 1;
+      var amt = future ? '·' : !v ? '0' : v >= 1000 ? (v / 1000).toFixed(1) + 'K' : Math.round(v);
+      html += '<button type="button" class="day' + (future ? ' future' : '') + (today ? ' today' : '') + '" data-l="' + (future ? '' : level(v)) + '" data-i="' + i + '"' + (future ? ' disabled' : '') +
+        ' aria-label="' + dm(d) + (future ? ' עוד לא הגיע' : ': ' + money(v || 0)) + '"><b>' + d.getDate() + '</b><small>' + amt + '</small></button>';
+    });
+    $('cal').innerHTML = html;
+    $('calScale').innerHTML = [['0', '#fff', 'בלי הוצאות'], ['1', 'var(--sun-soft)', 'יום רגוע'], ['2', 'var(--sun)', 'יום רגיל'], ['3', 'var(--peach)', 'יום יקר'], ['4', 'var(--coral)', 'יום חיוב גדול']]
+      .map(function (x) { return '<span class="chip flat"><i style="background:' + x[1] + '"></i>' + x[2] + '</span>'; }).join('');
+  }
+  $('cal').addEventListener('click', async function (e) {
+    var b = e.target.closest('.day[data-i]'); if (!b || b.disabled) return;
+    var d = dateOf(+b.dataset.i), iso = Pop.iso(d);
+    var r = await Pop.api('GET', '/api/payments'); if (!r.ok) return;
+    var rows = r.data.filter(function (p) { return p.date === iso; }), sum = rows.reduce(function (s, p) { return s + p.amount; }, 0);
+    $('detailTitle').textContent = Pop.dayLabel(iso); $('detailSub').textContent = rows.length ? rows.length + ' תשלומים · ' + money(sum) : 'לא נרשמו הוצאות ביום הזה';
+    $('detailBody').innerHTML = '<div class="list">' + rows.map(payRow).join('') + '</div>';
+    Pop.openSheet('detailSheet');
+  });
+  function payRow(p) {
+    return '<div class="sticker item" style="box-shadow:none"><span class="ico" style="background:' + esc(p.color || '#999') + '33">' + (ICON[p.category] || '🏷️') + '</span><span class="grow"><span class="t" style="display:block">' + esc(p.description) + '</span><span class="s">' + esc(p.category) + (p.time ? ' · ' + esc(p.time) : '') + '</span></span><span class="amt num">' + Pop.money(p.amount) + '</span></div>';
+  }
+
+  /* ── 3. last cycles ── */
+  function drawCycles() {
+    var cs = D.cycles.slice(-6), max = Math.max.apply(null, cs.map(function (c) { return c.total; })) || 1, box = $('cycles');
+    var html = cs.map(function (c, i) {
+      var f = c.total ? Math.max(.04, c.total / max) : .02;
+      return '<button type="button" class="col' + (c.current ? ' now' : '') + '" data-m="' + c.month + '"' + (c.count ? '' : ' disabled') + ' aria-label="' + esc(c.label.split(' (')[0]) + ': ' + money(c.total) + '">' +
+        '<span class="area"><span class="v">' + (c.total ? (c.total >= 1000 ? (c.total / 1000).toFixed(1) + 'K' : Math.round(c.total)) : '–') + '</span><span class="bar" style="height:calc((100% - 20px) * ' + f.toFixed(3) + ');animation-delay:' + (i * .07) + 's"></span></span>' +
+        '<span class="l">' + (c.current ? 'עכשיו' : esc(c.label.split(' ')[0].slice(0, 3))) + '</span></button>';
+    }).join('');
+    box.innerHTML = html;
+    var area = box.querySelector('.area');
+    if (D.avg_total && area) {   // average line measured from the real bar area, so it lines up with the bars
+      var br = box.getBoundingClientRect(), ar = area.getBoundingClientRect(), y = ar.bottom - (ar.height - 20) * D.avg_total / max;
+      box.insertAdjacentHTML('beforeend', '<div class="avg" style="top:' + (y - br.top).toFixed(1) + 'px"></div>');
+      $('cyclesLegend').innerHTML = '<span><svg viewBox="0 0 28 10" aria-hidden="true"><line x1="3" x2="25" y1="5" y2="5" stroke="#C8283E" stroke-width="3" stroke-linecap="round" stroke-dasharray="5 4"/></svg>ממוצע מחזור: ' + money(D.avg_total) + '</span>';
+    }
+    var done = D.cycles.filter(function (c) { return !c.current && c.count; });
+    if (done.length) {
+      var hi = done.reduce(function (a, b) { return b.total > a.total ? b : a; }), lo = done.reduce(function (a, b) { return b.total < a.total ? b : a; });
+      $('cyclesNote').textContent = 'בממוצע ' + money(D.avg_total) + ' למחזור. הכי יקר: ' + hi.label + ' (' + money(hi.total) + '). הכי חסכוני: ' + lo.label + ' (' + money(lo.total) + ').';
+    } else $('cyclesNote').textContent = 'אחרי שהמחזור הראשון ייסגר נראה כאן השוואה בין מחזורים.';
+  }
+  $('cycles').addEventListener('click', async function (e) {
+    var b = e.target.closest('.col[data-m]'); if (!b || b.disabled) return;
+    var m = b.dataset.m, r = await Pop.api('GET', '/api/history/month?year=' + m.slice(0, 4) + '&month=' + parseInt(m.slice(5, 7), 10));
+    if (!r.ok || !r.data) { Pop.toast('לא הצלחנו לטעון את המחזור', 'error'); return; }
+    var d = r.data, maxc = Math.max.apply(null, d.categories.map(function (c) { return c.total; })) || 1;
+    $('detailTitle').textContent = (d.cycle_label || '').split(' (')[0];
+    $('detailSub').textContent = d.count + ' תשלומים · ' + money(d.total) + (d.cycle_dates ? ' · ' + d.cycle_dates : '');
+    $('detailBody').innerHTML = d.categories.map(function (c) {
+      return '<div class="cmp"><div class="head"><i class="dot" style="width:14px;height:14px;border-radius:50%;border:2px solid var(--ink);background:' + esc(c.color) + '"></i><b>' + esc(c.name) + '</b><span class="num" style="font:900 17px var(--font-display)">' + money(c.total) + '</span></div><div class="track" style="height:14px;border:2px solid var(--ink);border-radius:99px;overflow:hidden;background:#fff"><i style="display:block;height:100%;width:' + (c.total / maxc * 100).toFixed(1) + '%;background:' + esc(c.color) + '"></i></div></div>';
+    }).join('');
+    Pop.openSheet('detailSheet');
+  });
+
+  /* ── 4. categories ── */
+  function drawCats() {
+    var cats = D.categories.filter(function (c) { return c.current || c.prev_same_point || c.avg; });
+    var hasPrev = !!D.previous, best = null;
+    $('cmp').innerHTML = cats.map(function (c) {
+      var max = Math.max(1, c.current, c.prev_same_point, c.avg), diff = c.current - c.prev_same_point, pct = c.prev_same_point > 0 ? Math.round(diff / c.prev_same_point * 100) : null, chip = '';
+      if (hasPrev && Math.abs(diff) >= 100) {
+        chip = '<span class="chip ' + (diff > 0 ? 'coral' : 'mint') + '">' + (diff > 0 ? '▲ ' : '▼ ') + (pct !== null ? Math.abs(pct) + '%' : money(Math.abs(diff))) + '</span>';
+        if (!best || Math.abs(diff) > Math.abs(best.diff)) best = { n: c.name, diff: diff };
+      }
+      var line = function (lbl, v, bg) { return '<div class="line"><small>' + lbl + '</small><span class="track"><i style="width:' + (v / max * 100).toFixed(1) + '%;background:' + bg + (v ? '' : ';border:0') + '"></i></span><em>' + money(v) + '</em></div>'; };
+      return '<div class="cmp"><div class="head"><i style="width:14px;height:14px;border-radius:50%;border:2px solid var(--ink);display:inline-block;background:' + esc(c.color) + '"></i><b>' + esc(c.name) + '</b>' + chip + '</div>' +
+        line('המחזור הזה', c.current, 'var(--sky)') + (hasPrev ? line('אותו שלב, קודם', c.prev_same_point, 'var(--grape-soft)') : '') + line('ממוצע מחזור', c.avg, 'var(--sun-soft)') + '</div>';
+    }).join('') || '<div class="empty"><div class="e">🏷️</div><div class="t">עוד אין נתונים להשוואה</div></div>';
+    $('catSentence').textContent = best ? 'השינוי הגדול ביותר: ' + best.n + ', ' + money(Math.abs(best.diff)) + (best.diff > 0 ? ' יותר' : ' פחות') + ' מאשר באותו שלב במחזור הקודם.' : 'אין שינוי בולט לעומת המחזור הקודם.';
+  }
+
+  async function load() {
+    var r = await Pop.api('GET', '/api/finance/analysis'); if (!r.ok || !r.data) { Pop.toast('לא הצלחנו לטעון את הנתונים', 'error'); return; }
+    D = r.data; cycleStart = new Date(D.current.start + 'T12:00:00');
+    $('heroSub').textContent = D.current.label + ' · יום ' + D.current.days_elapsed + ' מתוך ' + D.current.days_total;
+    raceSentence(); drawRace(); drawCal(); drawCycles(); drawCats();
+  }
+  load();
+})();
+</script>
+{% endblock %}

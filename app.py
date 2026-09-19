@@ -22,6 +22,7 @@ from flask_mail import Mail, Message
 import jwt as pyjwt
 import secrets
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.exceptions import HTTPException
 import calendar
 from zoneinfo import ZoneInfo
 from firebase_config import (firebase_create_user, firebase_verify_login,
@@ -351,6 +352,112 @@ def get_cycle_range(family_id):
 
     label = f'{hebrew_months[cycle_month]} {cycle_year} ({start.day}.{start.month}–{end.day}.{end.month})'
     return start, end, label
+def _cycle_progress(start, end, now=None):
+    """(days_total, days_elapsed) of a cycle; days_elapsed is clamped to 1..days_total."""
+    now = now or now_israel()
+    s = start.date() if isinstance(start, datetime) else start
+    e = end.date() if isinstance(end, datetime) else end
+    days_total = max(1, (e - s).days + 1)
+    days_elapsed = min(days_total, max(1, (now.date() - s).days + 1))
+    return days_total, days_elapsed
+
+
+def _prev_cycle_month(cm):
+    y, m = int(cm[:4]), int(cm[5:7])
+    return f'{y - 1}-12' if m == 1 else f'{y}-{m - 1:02d}'
+
+
+def _finance_extras(conn, fid, cm, start, end, now=None):
+    """Derived numbers for the current cycle, shared by Home, Expenses and the analysis view.
+
+    fixed    = payments this cycle whose description matches one of the family's recurring payments
+    pending  = recurring payments not logged yet this cycle (they will still come)
+    projection = spent so far + pending + (variable spend per elapsed day x remaining days)
+    prev_same_point = what the previous cycle had reached after the same number of days"""
+    now = now or now_israel()
+    s = start.date() if isinstance(start, datetime) else start
+    days_total, days_elapsed = _cycle_progress(start, end, now)
+    rows = conn.execute('SELECT description, amount, date FROM payments WHERE month=? AND archived=FALSE AND family_id=?',
+                        (cm, fid)).fetchall()
+    recurring = conn.execute('SELECT description, amount FROM recurring_payments WHERE family_id=?', (fid,)).fetchall()
+    rec_names = {r['description'] for r in recurring}
+    logged = {r['description'] for r in rows}
+    total = sum(float(r['amount']) for r in rows)
+    fixed = sum(float(r['amount']) for r in rows if r['description'] in rec_names)
+    pending = [r for r in recurring if r['description'] not in logged]
+    pending_total = sum(float(r['amount']) for r in pending)
+    variable = total - fixed
+    projection = total + pending_total + (variable / days_elapsed) * (days_total - days_elapsed)
+    by_day = defaultdict(float)
+    for r in rows:
+        by_day[str(r['date'])[:10]] += float(r['amount'])
+    cum, run = [], 0.0
+    for i in range(days_elapsed):
+        run += by_day.get((s + timedelta(days=i)).strftime('%Y-%m-%d'), 0.0)
+        cum.append(round(run, 2))
+    # this calendar week (Sunday..Saturday), any cycle / archived state
+    today = now.date()
+    sunday = today - timedelta(days=(today.weekday() + 1) % 7)
+    wk = {r['d']: float(r['t']) for r in conn.execute(
+        'SELECT date(date) as d, SUM(amount) as t FROM payments WHERE family_id=? AND date(date) BETWEEN ? AND ? GROUP BY date(date)',
+        (fid, sunday.strftime('%Y-%m-%d'), (sunday + timedelta(days=6)).strftime('%Y-%m-%d'))).fetchall()}
+    week = []
+    for i in range(7):
+        d = sunday + timedelta(days=i)
+        ds = d.strftime('%Y-%m-%d')
+        week.append({'date': ds, 'dow': i, 'today': d == today, 'amount': None if d > today else round(wk.get(ds, 0.0), 2)})
+    prev_cm = _prev_cycle_month(cm)
+    prev_start = s.replace(year=int(prev_cm[:4]), month=int(prev_cm[5:7])) if s.day <= 28 else s
+    prev = conn.execute(
+        'SELECT COALESCE(SUM(CASE WHEN date(date) < ? THEN amount ELSE 0 END),0) as same_point, COALESCE(SUM(amount),0) as total '
+        'FROM payments WHERE month=? AND family_id=?',
+        ((prev_start + timedelta(days=days_elapsed)).strftime('%Y-%m-%d'), prev_cm, fid)).fetchone()
+    fs = conn.execute('SELECT budget_monthly, budget_daily FROM family_settings WHERE family_id=?', (fid,)).fetchone()
+    return {
+        'budget_monthly': int(fs['budget_monthly']) if fs and fs['budget_monthly'] else 0,
+        'budget_daily': int(fs['budget_daily']) if fs and fs['budget_daily'] else 0,
+        'days_total': days_total, 'days_elapsed': days_elapsed,
+        'cycle_start': s.strftime('%Y-%m-%d'),
+        'cycle_end': (end.date() if isinstance(end, datetime) else end).strftime('%Y-%m-%d'),
+        'fixed_total': round(fixed, 2), 'variable_total': round(variable, 2),
+        'pending_recurring_total': round(pending_total, 2), 'pending_recurring_count': len(pending),
+        'projection': round(projection, 2),
+        'prev_same_point': round(float(prev['same_point']), 2), 'prev_total': round(float(prev['total']), 2),
+        'cum': cum, 'week': week,
+    }
+
+
+def _seconds_since_last_feed(conn, fid, now=None):
+    """Seconds since the latest bottle / breastfeeding / solid, from any day (None if never)."""
+    now = now or now_israel()
+    row = conn.execute("SELECT date FROM feedings WHERE family_id=? AND feeding_type IN ('bottle','breastfeeding','solid') "
+                       'ORDER BY date DESC LIMIT 1', (fid,)).fetchone()
+    if not row:
+        return None
+    try:
+        return max(0, int((now.replace(tzinfo=None) - datetime.strptime(row['date'].split('.')[0], '%Y-%m-%d %H:%M:%S')).total_seconds()))
+    except Exception:
+        return None
+
+
+def _feeding_rhythm(conn, fid, now=None):
+    """(typical_gap_minutes, next_expected 'HH:MM') from the median gap of the last 12 feedings.
+    Gaps under 20 minutes (top-ups) or over 8 hours (night) are ignored. (None, None) with < 3 gaps."""
+    rows = conn.execute("SELECT date FROM feedings WHERE family_id=? AND feeding_type IN ('bottle','breastfeeding','solid') "
+                        'ORDER BY date DESC LIMIT 13', (fid,)).fetchall()
+    times = []
+    for r in rows:
+        try:
+            times.append(datetime.strptime(r['date'].split('.')[0], '%Y-%m-%d %H:%M:%S'))
+        except Exception:
+            pass
+    gaps = sorted(g for g in ((a - b).total_seconds() / 60 for a, b in zip(times, times[1:])) if 20 <= g <= 480)
+    if len(gaps) < 3:
+        return None, None
+    median = gaps[len(gaps) // 2]
+    return int(round(median)), (times[0] + timedelta(minutes=median)).strftime('%H:%M')
+
+
 def create_jwt_token(user_id, username, display_name, family_id, is_admin=False):
     """Create a JWT token for the user"""
     payload = {
@@ -549,6 +656,16 @@ def init_db():
             platform TEXT DEFAULT 'android',
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users(id));
+        CREATE TABLE IF NOT EXISTS notification_prefs (
+            user_id INTEGER PRIMARY KEY,
+            expenses INTEGER DEFAULT 1,
+            budget INTEGER DEFAULT 1,
+            cycle INTEGER DEFAULT 1,
+            shopping INTEGER DEFAULT 1,
+            baby INTEGER DEFAULT 1,
+            feeding_reminder INTEGER DEFAULT 1,
+            family INTEGER DEFAULT 1,
+            FOREIGN KEY (user_id) REFERENCES users(id));
         CREATE TABLE IF NOT EXISTS family_settings (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             family_id INTEGER NOT NULL UNIQUE,
@@ -580,6 +697,8 @@ def init_db():
         ('shopping_items','family_id','INTEGER'),
         ('shopping_items','favorite','BOOLEAN DEFAULT FALSE'),
         ('shopping_items','category','TEXT DEFAULT ""'),
+        ('shopping_items','added_by','INTEGER DEFAULT NULL'),
+        ('payments','added_by','INTEGER DEFAULT NULL'),
         ('payments','family_id','INTEGER'),
         ('feedings','family_id','INTEGER'),
         ('recurring_payments','family_id','INTEGER'),
@@ -947,7 +1066,7 @@ def join_family():
         session['family_id'] = fam['id']
         send_push_to_family(fam['id'], '👨‍👩‍👧 חבר חדש במשפחה!',
                             f'{session.get("display_name", "")} הצטרף/ה למשפחה',
-                            exclude_user_id=session['user_id'])
+                            exclude_user_id=session['user_id'], module='family')
     flash(f'הצטרפת למשפחת {fam["name"]}!', 'success')
     return redirect(url_for('family_setup'))
 
@@ -963,10 +1082,51 @@ def index():
     return redirect(url_for('login'))
 
 
+# ──────────────────────────────────────────────
+# ERROR PAGES
+# ──────────────────────────────────────────────
+# Web requests get the branded error.html (same shell and nav as every other
+# screen); /api/ requests keep getting JSON so mobile/API clients never parse HTML.
+ERROR_PAGE_TEXT = {
+    404: ('הדף לא נמצא', 'הקישור שהגעתם אליו לא קיים או שהועבר. אפשר לחזור לדף הבית ולהמשיך משם.'),
+    403: ('אין הרשאה', 'אין לכם הרשאה לצפות בדף הזה.'),
+    405: ('פעולה לא נתמכת', 'הפעולה שביקשתם לא נתמכת בדף הזה.'),
+    400: ('בקשה לא תקינה', 'משהו בבקשה לא היה תקין. נסו לרענן את הדף ולנסות שוב.'),
+    500: ('משהו השתבש', 'אירעה שגיאה אצלנו. נסו שוב בעוד רגע.'),
+}
+
+
+def _render_error_page(code):
+    title, message = ERROR_PAGE_TEXT.get(code, ERROR_PAGE_TEXT[500])
+    if request.path.startswith('/api/'):
+        return jsonify({'error': title, 'code': 'HTTP_%d' % code}), code
+    try:
+        return render_template('error.html', code=code, title=title, message=message), code
+    except Exception:
+        return title, code
+
+
+@app.errorhandler(HTTPException)
+def handle_http_exception(e):
+    return _render_error_page(e.code or 500)
+
+
+@app.errorhandler(Exception)
+def handle_unexpected_exception(e):
+    # The traceback still goes to the server log exactly as before; only the page changes.
+    import traceback
+    traceback.print_exc()
+    return _render_error_page(500)
+
+
 @app.route('/home')
 @require_auth
 def home():
-    return render_template('home.html')
+    with get_db() as conn:
+        family = conn.execute('SELECT name FROM families WHERE id=?', (session['family_id'],)).fetchone()
+        members = conn.execute('SELECT id, display_name, username FROM users WHERE family_id=? ORDER BY id',
+                               (session['family_id'],)).fetchall()
+    return render_template('home.html', family_name=family['name'] if family else '', members=members)
 
 
 @app.route('/api/home-summary')
@@ -1025,12 +1185,24 @@ def home_summary():
         sleep_str = f'{sleep_mins // 60}:{sleep_mins % 60:02d}h' if sleep_mins >= 60 else (
             f'{sleep_mins} דק\'' if sleep_mins > 0 else '--')
     start, end, cycle_label = get_cycle_range(fid)
+    with get_db() as conn:
+        extra = _finance_extras(conn, fid, cm, start, end, now)
+        shop_items = [dict(r) for r in conn.execute(
+            'SELECT id, name, quantity FROM shopping_items WHERE family_id=? AND checked=FALSE ORDER BY created_at DESC LIMIT 4',
+            (fid,)).fetchall()]
+        last_feed_secs = _seconds_since_last_feed(conn, fid, now)
+        gap_min, next_expected = _feeding_rhythm(conn, fid, now)
+        baby_recent = conn.execute('SELECT COUNT(*) as c FROM feedings WHERE family_id=? AND date >= ?',
+                                   (fid, (now - timedelta(days=14)).strftime('%Y-%m-%d'))).fetchone()['c']
+    finance = {'total': float(fin['total']), 'count': fin['count'],
+               'last': {'desc': last_payment['description'],
+                        'amount': float(last_payment['amount'])} if last_payment else None,
+               'cycle_label': cycle_label}
+    finance.update(extra)
     return jsonify({
-        'finance': {'total': float(fin['total']), 'count': fin['count'],
-                    'last': {'desc': last_payment['description'],
-                             'amount': float(last_payment['amount'])} if last_payment else None,
-                    'cycle_label': cycle_label},
-        'shopping': {'total': shop_total, 'done': shop_done, 'left': shop_left},
+        'finance': finance,
+        'shopping': {'total': shop_total, 'done': shop_done, 'left': shop_left, 'items': shop_items},
+        'hour': now.hour,
         'baby': {
             'count': baby_all['c'],
             'total_ml': float(baby_bottles['ml']),
@@ -1038,7 +1210,12 @@ def home_summary():
             'breastfeedings': baby_bf['c'],
             'diapers': baby_diapers['c'],
             'sleep_str': sleep_str,
-            'last_ago': last_feed_ago
+            'sleep_mins': sleep_mins,
+            'last_ago': last_feed_ago,
+            'last_feed_secs': last_feed_secs,
+            'typical_gap_min': gap_min,
+            'next_expected': next_expected,
+            'recent': baby_recent
         }
     })
 
@@ -1233,6 +1410,8 @@ def dashboard():
         fs = conn.execute('SELECT cycle_day, budget_monthly, budget_daily FROM family_settings WHERE family_id=?', (fid,)).fetchone()
         needs_onboarding = not fs
     start, end, cycle_label = get_cycle_range(fid)
+    with get_db() as conn:
+        fin_extra = _finance_extras(conn, fid, cm, start, end, now)
     days_elapsed = (now.date() - (start.date() if isinstance(start, datetime) else start)).days + 1
     da = mt / days_elapsed if days_elapsed > 0 else 0
     cycle_day = get_cycle_day(fid)
@@ -1246,7 +1425,8 @@ def dashboard():
                            cycle_label=cycle_label, cycle_day=cycle_day,
                            cycle_start=start.strftime('%Y-%m-%d'), cycle_end=end.strftime('%Y-%m-%d'),
                            needs_onboarding=needs_onboarding,
-                           budget_monthly=budget_monthly, budget_daily=budget_daily)
+                           budget_monthly=budget_monthly, budget_daily=budget_daily,
+                           fin_extra=fin_extra)
 
 
 @app.route('/add_payment', methods=['POST'])
@@ -1267,9 +1447,9 @@ def add_payment():
         flash('נא להכניס תיאור', 'error')
         return redirect(url_for('dashboard'))
     with get_db() as conn:
-        conn.execute('INSERT INTO payments (family_id,description,amount,category,month,year,date) VALUES (?,?,?,?,?,?,?)',
+        conn.execute('INSERT INTO payments (family_id,description,amount,category,month,year,date,added_by) VALUES (?,?,?,?,?,?,?,?)',
                      (fid, desc, amount, request.form.get('category', 'כללי'), cm, cy,
-                      now_israel().strftime('%Y-%m-%d %H:%M:%S')))
+                      now_israel().strftime('%Y-%m-%d %H:%M:%S'), session.get('user_id')))
 
     # Push notification + budget check
     user_id = session.get('user_id')
@@ -1277,7 +1457,7 @@ def add_payment():
     send_push_to_family(fid,
         '💰 הוצאה חדשה',
         f'{user_name} הוסיף/ה: {desc} — ₪{amount:.0f}',
-        exclude_user_id=user_id)
+        exclude_user_id=user_id, module='expenses')
     check_budget_alerts(fid)
 
     return redirect(url_for('dashboard'))
@@ -1296,10 +1476,11 @@ def add_payment_api():
     amount = data.get('amount', 0)
     if not desc or amount is None or float(amount) <= 0:
         return jsonify({'error': 'Invalid data'}), 400
+    added_by = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
     with get_db() as conn:
-        conn.execute('INSERT INTO payments (family_id,description,amount,category,month,year,date) VALUES (?,?,?,?,?,?,?)',
+        conn.execute('INSERT INTO payments (family_id,description,amount,category,month,year,date,added_by) VALUES (?,?,?,?,?,?,?,?)',
                      (fid, data['description'], data['amount'], data.get('category', 'כללי'), cm, cy,
-                      now_israel().strftime('%Y-%m-%d %H:%M:%S')))
+                      now_israel().strftime('%Y-%m-%d %H:%M:%S'), added_by))
 
     # Push notification to family
     user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
@@ -1307,7 +1488,7 @@ def add_payment_api():
     send_push_to_family(fid,
         '💰 הוצאה חדשה',
         f'{user_name} הוסיף/ה: {desc} — ₪{float(amount):.0f}',
-        exclude_user_id=user_id)
+        exclude_user_id=user_id, module='expenses')
 
     # Check budget thresholds
     check_budget_alerts(fid)
@@ -1322,11 +1503,17 @@ def get_payments():
     cm = get_cycle_month(fid)
     with get_db() as conn:
         ps = conn.execute(
-            'SELECT p.id,p.description,p.amount,p.category,p.date,COALESCE(c.color,\'#6c757d\') as color FROM payments p LEFT JOIN categories c ON p.category=c.name AND (c.family_id IS NULL OR c.family_id=p.family_id) WHERE p.month=? AND p.archived=FALSE AND p.family_id=? ORDER BY p.date DESC',
+            'SELECT p.id,p.description,p.amount,p.category,p.date,COALESCE(c.color,\'#6c757d\') as color,'
+            "COALESCE(NULLIF(u.display_name,''),u.username,'') as added_by_name "
+            'FROM payments p LEFT JOIN categories c ON p.category=c.name AND (c.family_id IS NULL OR c.family_id=p.family_id) '
+            'LEFT JOIN users u ON u.id=p.added_by '
+            'WHERE p.month=? AND p.archived=FALSE AND p.family_id=? ORDER BY p.date DESC',
             (cm, fid)).fetchall()
     return jsonify([{'id': p['id'], 'description': p['description'], 'amount': float(p['amount']),
                      'category': p['category'], 'color': p['color'],
-                     'date': p['date'].split(' ')[0] if p['date'] else ''} for p in ps])
+                     'date': p['date'].split(' ')[0] if p['date'] else '',
+                     'time': p['date'].split(' ')[1][:5] if p['date'] and ' ' in p['date'] else '',
+                     'added_by_name': p['added_by_name']} for p in ps])
 
 
 # One fully literal UPDATE statement per updatable column, keyed by the field
@@ -1341,6 +1528,13 @@ PAYMENT_UPDATE_SQL = {
 }
 
 
+def _cycle_month_for_date(d, cycle_day):
+    """'YYYY-MM' of the billing cycle a date belongs to (same rule as get_cycle_month / the cycle-day re-categorisation)."""
+    if cycle_day == 1 or d.day >= cycle_day:
+        return d.strftime('%Y-%m')
+    return (d.replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
+
+
 @app.route('/api/payments/<int:pid>', methods=['PUT'])
 @require_auth
 def update_payment(pid):
@@ -1349,10 +1543,31 @@ def update_payment(pid):
     if data is None:
         return jsonify({'error': 'Invalid data'}), 400
     with get_db() as conn:
+        new_date = new_month = None
+        if 'date' in data:   # validate everything before writing anything
+            try:
+                day = datetime.strptime(str(data['date']), '%Y-%m-%d').date()
+            except (TypeError, ValueError):
+                return jsonify({'error': 'תאריך לא תקין'}), 400
+            if day > now_israel().date():
+                return jsonify({'error': 'אי אפשר לרשום תשלום בתאריך עתידי'}), 400
+            cur = conn.execute('SELECT date, archived FROM payments WHERE id=? AND family_id=?', (pid, fid)).fetchone()
+            if not cur:
+                return jsonify({'error': 'התשלום לא נמצא'}), 404
+            if cur['archived']:
+                return jsonify({'error': 'אי אפשר לשנות תאריך של תשלום ממחזור שנסגר'}), 400
+            new_month = _cycle_month_for_date(day, get_cycle_day(fid))
+            if conn.execute('SELECT 1 FROM archived_cycles WHERE family_id=? AND month=?', (fid, new_month)).fetchone():
+                return jsonify({'error': 'התאריך שייך למחזור שכבר נסגר'}), 400
+            old_time = (cur['date'] or '').split('.')[0][11:19] or now_israel().strftime('%H:%M:%S')
+            new_date = '%s %s' % (day.strftime('%Y-%m-%d'), old_time)
         for f, sql in PAYMENT_UPDATE_SQL.items():
             if f in data: conn.execute(sql, (data[f], pid, fid))
+        if new_date:
+            conn.execute('UPDATE payments SET date=?, month=?, year=? WHERE id=? AND family_id=?',
+                         (new_date, new_month, int(new_month[:4]), pid, fid))
         # Get updated payment info for push
-        p = conn.execute('SELECT description, amount FROM payments WHERE id=? AND family_id=?', (pid, fid)).fetchone()
+        p = conn.execute('SELECT description, amount, month FROM payments WHERE id=? AND family_id=?', (pid, fid)).fetchone()
 
     # Push notification
     if p:
@@ -1361,10 +1576,10 @@ def update_payment(pid):
         send_push_to_family(fid,
             '✏️ תשלום עודכן',
             f'{user_name} עדכן/ה: {p["description"]} — ₪{float(p["amount"]):.0f}',
-            exclude_user_id=user_id)
+            exclude_user_id=user_id, module='expenses')
         check_budget_alerts(fid)
 
-    return jsonify({'success': True})
+    return jsonify({'success': True, 'month': p['month'] if p else None})
 
 
 # POST only — never re-add GET. check_csrf() deliberately skips GET (a GET must not
@@ -1384,7 +1599,7 @@ def delete_payment(pid):
         send_push_to_family(fid,
             '🗑️ תשלום נמחק',
             f'{user_name} מחק/ה: {p["description"]} — ₪{float(p["amount"]):.0f}',
-            exclude_user_id=user_id)
+            exclude_user_id=user_id, module='expenses')
 
     if request.is_json or request.args.get('api') or request.method == 'POST':
         return jsonify({'success': True})
@@ -1681,6 +1896,104 @@ def chart_data():
                               'today_index': today_index}})
 
 
+@app.route('/finance/analysis')
+@require_auth
+def finance_analysis():
+    return render_template('analysis.html')
+
+
+def _cycle_start_for(cm, cycle_day):
+    y, m = int(cm[:4]), int(cm[5:7])
+    return datetime(y, m, min(cycle_day, calendar.monthrange(y, m)[1])).date()
+
+
+@app.route('/api/finance/analysis')
+@require_auth
+def finance_analysis_data():
+    """Everything the cycle-analysis view needs, family-scoped and read-only:
+    current vs previous cycle day by day (cumulative), the current cycle's calendar,
+    the last 12 cycles, and a per-category comparison (now / same point last cycle / 6-cycle average)."""
+    fid = get_family_id()
+    now = now_israel()
+    cm = get_cycle_month(fid)
+    cycle_day = get_cycle_day(fid)
+    start, end, cycle_label = get_cycle_range(fid)
+    s = start.date() if isinstance(start, datetime) else start
+    e = end.date() if isinstance(end, datetime) else end
+    days_total, days_elapsed = _cycle_progress(start, end, now)
+    prev_cm = _prev_cycle_month(cm)
+    ps = _cycle_start_for(prev_cm, cycle_day) if cycle_day > 1 else datetime(int(prev_cm[:4]), int(prev_cm[5:7]), 1).date()
+    prev_days = (s - ps).days
+    months = [cm]
+    for _ in range(11):
+        months.insert(0, _prev_cycle_month(months[0]))
+    with get_db() as conn:
+        extra = _finance_extras(conn, fid, cm, start, end, now)
+        colors = {r['name']: r['color'] for r in conn.execute(
+            'SELECT name, color FROM categories WHERE family_id IS NULL OR family_id=?', (fid,)).fetchall()}
+        cur_rows = conn.execute('SELECT amount, category, date(date) as d FROM payments WHERE month=? AND archived=FALSE AND family_id=?',
+                                (cm, fid)).fetchall()
+        prev_rows = conn.execute('SELECT amount, category, date(date) as d FROM payments WHERE month=? AND family_id=?',
+                                 (prev_cm, fid)).fetchall()
+        totals = {r['month']: (float(r['t']), r['n']) for r in conn.execute(
+            'SELECT month, SUM(amount) as t, COUNT(*) as n FROM payments WHERE family_id=? AND month IN (%s) GROUP BY month'
+            % ','.join('?' * len(months)), [fid] + months).fetchall()}
+        last6 = [m for m in months[:-1] if m in totals][-6:]
+        cat6 = defaultdict(float)
+        if last6:
+            for r in conn.execute('SELECT category, SUM(amount) as t FROM payments WHERE family_id=? AND month IN (%s) GROUP BY category'
+                                  % ','.join('?' * len(last6)), [fid] + last6).fetchall():
+                cat6[r['category']] = float(r['t']) / len(last6)
+
+    def daily(rows, start_d, n):
+        out = [0.0] * n
+        for r in rows:
+            try:
+                i = (datetime.strptime(r['d'], '%Y-%m-%d').date() - start_d).days
+            except Exception:
+                continue
+            if 0 <= i < n:
+                out[i] += float(r['amount'])
+        return out
+
+    cur_daily = daily(cur_rows, s, days_total)
+    prev_daily = daily(prev_rows, ps, max(prev_days, 1))
+    def cum(xs):
+        run, out = 0.0, []
+        for x in xs:
+            run += x
+            out.append(round(run, 2))
+        return out
+    cur_cat, prev_cat_same = defaultdict(float), defaultdict(float)
+    for r in cur_rows:
+        cur_cat[r['category']] += float(r['amount'])
+    same_point = ps + timedelta(days=days_elapsed)
+    for r in prev_rows:
+        if r['d'] < same_point.strftime('%Y-%m-%d'):
+            prev_cat_same[r['category']] += float(r['amount'])
+    names = sorted(set(cur_cat) | set(prev_cat_same) | set(cat6), key=lambda n: -(cur_cat.get(n, 0) + cat6.get(n, 0)))
+
+    def label(m):
+        return f'{HEBREW_MONTHS[int(m[5:7])]} {m[:4]}'
+    completed = [totals[m][0] for m in months[:-1] if m in totals]
+    return jsonify({
+        'current': {'month': cm, 'label': cycle_label, 'start': s.strftime('%Y-%m-%d'), 'end': e.strftime('%Y-%m-%d'),
+                    'days_total': days_total, 'days_elapsed': days_elapsed,
+                    'total': round(sum(cur_daily), 2), 'budget': extra['budget_monthly'], 'projection': extra['projection'],
+                    'daily': [round(x, 2) if i < days_elapsed else None for i, x in enumerate(cur_daily)],
+                    'cum': cum(cur_daily)[:days_elapsed]},
+        'previous': {'month': prev_cm, 'label': label(prev_cm), 'start': ps.strftime('%Y-%m-%d'), 'days_total': prev_days,
+                     'total': round(sum(prev_daily), 2), 'cum': cum(prev_daily),
+                     'same_point': extra['prev_same_point']} if prev_rows else None,
+        'cycles': [{'month': m, 'label': label(m), 'total': round(totals.get(m, (0.0, 0))[0], 2),
+                    'count': totals.get(m, (0.0, 0))[1], 'current': m == cm} for m in months],
+        'avg_total': round(sum(completed) / len(completed), 2) if completed else 0,
+        'categories': [{'name': n, 'color': colors.get(n, '#6c757d'), 'current': round(cur_cat.get(n, 0.0), 2),
+                        'prev_same_point': round(prev_cat_same.get(n, 0.0), 2), 'avg': round(cat6.get(n, 0.0), 2)}
+                       for n in names],
+    })
+
+
 @app.route('/history')
 @require_auth
 def history():
@@ -1691,7 +2004,8 @@ def history():
             (fid,)).fetchall()
         ap = conn.execute('SELECT * FROM payments WHERE archived=TRUE AND family_id=? ORDER BY date DESC LIMIT 100',
                           (fid,)).fetchall()
-    return render_template('history.html', monthly_summaries=cy, archived_payments=ap)
+    return render_template('history.html', monthly_summaries=cy, archived_payments=ap,
+                           current_month=get_cycle_month(fid))
 
 
 @app.route('/api/history/data')
@@ -1820,7 +2134,10 @@ def get_shopping_items():
     fid = get_family_id()
     with get_db() as conn:
         items = conn.execute(
-            'SELECT id,name,quantity,checked,image,COALESCE(favorite,0) as favorite,COALESCE(category,"") as category FROM shopping_items WHERE family_id=? ORDER BY checked ASC, category ASC, created_at DESC',
+            'SELECT s.id,s.name,s.quantity,s.checked,s.image,COALESCE(s.favorite,0) as favorite,COALESCE(s.category,"") as category,'
+            "COALESCE(NULLIF(u.display_name,''),u.username,'') as added_by_name "
+            'FROM shopping_items s LEFT JOIN users u ON u.id=s.added_by '
+            'WHERE s.family_id=? ORDER BY s.checked ASC, s.category ASC, s.created_at DESC',
             (fid,)).fetchall()
     return jsonify([dict(i) for i in items])
 
@@ -1837,8 +2154,9 @@ def add_shopping_item():
     cat = data.get('category', '')
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO shopping_items (family_id,name,quantity,checked,category) VALUES (?,?,?,FALSE,?)',
-            (fid, name, data.get('quantity', 1), cat))
+            'INSERT INTO shopping_items (family_id,name,quantity,checked,category,added_by) VALUES (?,?,?,FALSE,?,?)',
+            (fid, name, data.get('quantity', 1), cat,
+             request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')))
 
     # Push notification to family
     user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
@@ -1846,7 +2164,7 @@ def add_shopping_item():
     send_push_to_family(fid,
         '🛒 פריט חדש ברשימה',
         f'{user_name} הוסיף/ה: {name}',
-        exclude_user_id=user_id)
+        exclude_user_id=user_id, module='shopping')
 
     return jsonify({'id': cur.lastrowid}), 201
 
@@ -1904,6 +2222,7 @@ def add_favorites():
     with get_db() as conn:
         favs = conn.execute('SELECT name,quantity,category FROM shopping_favorites WHERE family_id=?',
                             (fid,)).fetchall()
+        adder = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
         added = 0
         names = []
         for f in favs:
@@ -1911,8 +2230,8 @@ def add_favorites():
                                     (fid, f['name'])).fetchone()
             if not existing:
                 conn.execute(
-                    'INSERT INTO shopping_items (family_id,name,quantity,checked,favorite,category) VALUES (?,?,?,FALSE,TRUE,?)',
-                    (fid, f['name'], f['quantity'], f['category']))
+                    'INSERT INTO shopping_items (family_id,name,quantity,checked,favorite,category,added_by) VALUES (?,?,?,FALSE,TRUE,?,?)',
+                    (fid, f['name'], f['quantity'], f['category'], adder))
                 added += 1
                 names.append(f['name'])
 
@@ -1924,7 +2243,7 @@ def add_favorites():
             items_text += f' ועוד {len(names)-3}'
         send_push_to_family(fid, '🛒 מועדפים נוספו לרשימה',
             f'{user_name} הוסיף/ה {added} פריטים: {items_text}',
-            exclude_user_id=user_id)
+            exclude_user_id=user_id, module='shopping')
 
     return jsonify({'success': True, 'added': added})
 
@@ -2000,7 +2319,7 @@ def clear_completed_items():
         user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
         send_push_to_family(fid, '🧹 רשימה נוקתה',
             f'{user_name} ניקה/תה {count} פריטים שהושלמו',
-            exclude_user_id=user_id)
+            exclude_user_id=user_id, module='shopping')
 
     return jsonify({'success': True})
 
@@ -2013,6 +2332,38 @@ def get_recurring():
         'SELECT id,description,amount,category FROM recurring_payments WHERE family_id=? ORDER BY category,description',
         (fid,)).fetchall()
     return jsonify([dict(i) for i in items])
+
+
+@app.route('/api/recurring/suggestions', methods=['GET'])
+@require_auth
+def recurring_suggestions():
+    """Charges that repeat with (almost) the same amount in 3+ of the last 6 cycles but are not
+    recurring payments yet - e.g. a streaming subscription. Read-only; accepting one goes
+    through the existing POST /api/recurring."""
+    fid = get_family_id()
+    months = [get_cycle_month(fid)]
+    for _ in range(5):
+        months.insert(0, _prev_cycle_month(months[0]))
+    with get_db() as conn:
+        rows = conn.execute('SELECT description, category, month, amount FROM payments WHERE family_id=? AND month IN (%s)'
+                            % ','.join('?' * len(months)), [fid] + months).fetchall()
+        known = {r['description'] for r in conn.execute('SELECT description FROM recurring_payments WHERE family_id=?', (fid,)).fetchall()}
+    groups = defaultdict(list)
+    for r in rows:
+        if r['description'] not in known:
+            groups[r['description']].append(r)
+    out = []
+    for desc, rs in groups.items():
+        cycles = {r['month'] for r in rs}
+        amounts = [float(r['amount']) for r in rs]
+        if len(cycles) >= 3 and len(rs) <= len(cycles) + 1 and min(amounts) > 0 and max(amounts) / min(amounts) <= 1.1:
+            cats = defaultdict(int)
+            for r in rs:
+                cats[r['category']] += 1
+            out.append({'description': desc, 'amount': round(sum(amounts) / len(amounts), 2),
+                        'category': max(cats, key=cats.get), 'cycles': len(cycles)})
+    out.sort(key=lambda x: (-x['cycles'], -x['amount']))
+    return jsonify(out[:3])
 
 
 def _validate_recurring():
@@ -2082,9 +2433,10 @@ def add_recurring_to_month(rid):
     with get_db() as conn:
         r = conn.execute('SELECT * FROM recurring_payments WHERE id=? AND family_id=?', (rid, fid)).fetchone()
         if r: conn.execute(
-            'INSERT INTO payments (family_id,description,amount,category,month,year,date) VALUES (?,?,?,?,?,?,?)',
+            'INSERT INTO payments (family_id,description,amount,category,month,year,date,added_by) VALUES (?,?,?,?,?,?,?,?)',
             (fid, r['description'], r['amount'], r['category'], cm, cy,
-             now_israel().strftime('%Y-%m-%d %H:%M:%S')))
+             now_israel().strftime('%Y-%m-%d %H:%M:%S'),
+             request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')))
 
     # Push + budget check
     if r:
@@ -2092,7 +2444,7 @@ def add_recurring_to_month(rid):
         user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
         send_push_to_family(fid, '💰 תשלום קבוע נוסף',
             f'{user_name} הוסיף/ה: {r["description"]} — ₪{float(r["amount"]):.0f}',
-            exclude_user_id=user_id)
+            exclude_user_id=user_id, module='expenses')
         check_budget_alerts(fid)
 
     return jsonify({'success': True})
@@ -2109,9 +2461,10 @@ def add_all_recurring():
         total_amount = 0
         for r in items:
             conn.execute(
-                'INSERT INTO payments (family_id,description,amount,category,month,year,date) VALUES (?,?,?,?,?,?,?)',
+                'INSERT INTO payments (family_id,description,amount,category,month,year,date,added_by) VALUES (?,?,?,?,?,?,?,?)',
                 (fid, r['description'], r['amount'], r['category'], cm, cy,
-                 now_israel().strftime('%Y-%m-%d %H:%M:%S')))
+                 now_israel().strftime('%Y-%m-%d %H:%M:%S'),
+                 request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')))
             total_amount += r['amount']
 
     if items:
@@ -2119,7 +2472,7 @@ def add_all_recurring():
         user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
         send_push_to_family(fid, '💰 תשלומים קבועים נוספו',
             f'{user_name} הוסיף/ה {len(items)} תשלומים קבועים — סה"כ ₪{total_amount:.0f}',
-            exclude_user_id=user_id)
+            exclude_user_id=user_id, module='expenses')
         check_budget_alerts(fid)
 
     return jsonify({'success': True, 'count': len(items)})
@@ -2186,7 +2539,7 @@ def add_feeding():
         send_push_to_family(fid,
             f'👶 {feed_label}',
             f'{user_name} הוסיף/ה {feed_label}{detail}',
-            exclude_user_id=user_id)
+            exclude_user_id=user_id, module='baby')
     except Exception as e:
         print(f'add_feeding push error: {ascii(e)}')
 
@@ -2254,6 +2607,8 @@ def feedings_data():
         lf = conn.execute(
             'SELECT date FROM feedings WHERE family_id=? AND date(date)=? AND feeding_type IN (?,?,?) ORDER BY time(date) DESC LIMIT 1',
             (fid, qd, 'bottle', 'breastfeeding', 'solid')).fetchone()
+        last_feed_secs = _seconds_since_last_feed(conn, fid)
+        typical_gap_min, next_expected = _feeding_rhythm(conn, fid)
         # Weekly
         cur = now_israel()
         dss = (cur.weekday() + 1) % 7
@@ -2302,7 +2657,9 @@ def feedings_data():
     return jsonify({'today_feedings': fmt, 'query_date': qd, 'is_today': qd == today,
                     'stats': {'bottles': bottles['c'], 'bottle_ml': float(bottles['ml']), 'breastfeedings': bf['c'],
                               'solids': solids['c'], 'diapers': diapers['c'], 'medications': meds['c'],
-                              'sleeps': sleeps['c'], 'sleep_mins': float(sleeps['mins']), 'last_feeding': lt},
+                              'sleeps': sleeps['c'], 'sleep_mins': float(sleeps['mins']), 'last_feeding': lt,
+                              'last_feed_secs': last_feed_secs, 'typical_gap_min': typical_gap_min,
+                              'next_expected': next_expected},
                     'weekly': weekly})
 
 
@@ -2577,7 +2934,7 @@ def api_join_family():
     # Notify family about new member
     send_push_to_family(fam['id'], '👨‍👩‍👧 חבר חדש במשפחה!',
         f'{u["display_name"]} הצטרף/ה למשפחה',
-        exclude_user_id=uid)
+        exclude_user_id=uid, module='family')
 
     return jsonify({
         'token': token,
@@ -2644,7 +3001,7 @@ def api_delete_payment(pid):
     send_push_to_family(fid,
         '🗑️ תשלום נמחק',
         f'{user_name} מחק/ה: {p["description"]} — ₪{float(p["amount"]):.0f}',
-        exclude_user_id=user_id)
+        exclude_user_id=user_id, module='expenses')
     return jsonify({'message': 'תשלום נמחק'})
 
 
@@ -2673,7 +3030,7 @@ def api_archive_month():
     send_push_to_family(fid,
         '📦 מחזור אורכב',
         f'{user_name} ארכב/ה את {label} — ₪{total:,.0f}',
-        exclude_user_id=user_id)
+        exclude_user_id=user_id, module='cycle')
 
     return jsonify({'message': f'{label} אורכב!', 'archived': {'label': label, 'total': total, 'count': count}})
 
@@ -2880,8 +3237,29 @@ def _send_push_worker(tokens_list, title, body, access_token, project_id):
         except Exception as e:
             print(f'Push send error: {e}')
 
-def send_push_to_family(family_id, title, body, exclude_user_id=None):
+# Kinds of notification a person can turn off for themselves (Settings → התראות).
+# Keys are also the notification_prefs column names; only these ever reach SQL.
+NOTIFICATION_MODULES = ('expenses', 'budget', 'cycle', 'shopping', 'baby', 'feeding_reminder', 'family')
+
+
+def _push_recipient_tokens(conn, family_id, exclude_user_id=None, module=None):
+    """Device tokens of the family members who should get this push: everyone except exclude_user_id,
+    and (when module is given) except people who turned that kind of notification off."""
+    sql = 'SELECT token FROM push_tokens WHERE user_id IN (SELECT id FROM users WHERE family_id=?'
+    args = [family_id]
+    if exclude_user_id:
+        sql += ' AND id != ?'
+        args.append(exclude_user_id)
+    sql += ')'
+    if module in NOTIFICATION_MODULES:
+        sql += ' AND user_id NOT IN (SELECT user_id FROM notification_prefs WHERE %s=0)' % module
+    return conn.execute(sql, args).fetchall()
+
+
+def send_push_to_family(family_id, title, body, exclude_user_id=None, module=None):
     """Send push notification to all family members (non-blocking, runs in background)
+
+    module: one of NOTIFICATION_MODULES — members who turned it off are skipped. None = everyone (as before).
 
     Returns a short status string (call sites may ignore it):
       'no_tokens'      - no registered devices for the recipients; nothing sent
@@ -2893,18 +3271,7 @@ def send_push_to_family(family_id, title, body, exclude_user_id=None):
     """
     try:
         with get_db() as conn:
-            if exclude_user_id:
-                tokens = conn.execute(
-                    'SELECT token FROM push_tokens WHERE user_id IN '
-                    '(SELECT id FROM users WHERE family_id=? AND id != ?)',
-                    (family_id, exclude_user_id)
-                ).fetchall()
-            else:
-                tokens = conn.execute(
-                    'SELECT token FROM push_tokens WHERE user_id IN '
-                    '(SELECT id FROM users WHERE family_id=?)',
-                    (family_id,)
-                ).fetchall()
+            tokens = _push_recipient_tokens(conn, family_id, exclude_user_id, module)
 
         if not tokens:
             return 'no_tokens'
@@ -2935,6 +3302,27 @@ def send_push_to_family(family_id, title, body, exclude_user_id=None):
 # ──────────────────────────────────────────────
 # FAMILY SETTINGS API
 # ──────────────────────────────────────────────
+
+@app.route('/api/notifications/prefs', methods=['GET', 'PUT'])
+@csrf.exempt
+@require_auth
+def api_notification_prefs():
+    """The current user's own notification settings: {module: true/false}. PUT updates only the keys it sends."""
+    uid = int(request.api_user['user_id'] if hasattr(request, 'api_user') else session['user_id'])
+    with get_db() as conn:
+        if request.method == 'PUT':
+            data = get_json_object()
+            if data is None:
+                return jsonify({'error': 'Invalid data'}), 400
+            changes = {k: 1 if v else 0 for k, v in data.items() if k in NOTIFICATION_MODULES and isinstance(v, bool)}
+            if not changes:
+                return jsonify({'error': 'אין הגדרה לעדכן'}), 400
+            conn.execute('INSERT OR IGNORE INTO notification_prefs (user_id) VALUES (?)', (uid,))
+            for k, v in changes.items():   # k is from the fixed NOTIFICATION_MODULES list
+                conn.execute('UPDATE notification_prefs SET %s=? WHERE user_id=?' % k, (v, uid))
+        row = conn.execute('SELECT * FROM notification_prefs WHERE user_id=?', (uid,)).fetchone()
+    return jsonify({k: bool(row[k]) if row and row[k] is not None else True for k in NOTIFICATION_MODULES})
+
 
 @app.route('/api/family/settings', methods=['GET'])
 @csrf.exempt
@@ -3085,13 +3473,13 @@ def check_budget_alerts(family_id):
                 if pct >= 100 and alert_100 != cm:
                     send_push_to_family(family_id,
                         '🚨 חריגה מהתקציב החודשי!',
-                        f'הוצאתם ₪{total:,.0f} מתוך ₪{budget_monthly:,} — חריגה!')
+                        f'הוצאתם ₪{total:,.0f} מתוך ₪{budget_monthly:,} — חריגה!', module='budget')
                     conn.execute('UPDATE family_settings SET budget_alert_100_sent=? WHERE family_id=?', (cm, family_id))
                     print(f'Budget alert 100% sent for family {family_id}')
                 elif pct >= 80 and alert_80 != cm:
                     send_push_to_family(family_id,
                         '⚠️ התקציב החודשי עומד להיגמר',
-                        f'הוצאתם ₪{total:,.0f} מתוך ₪{budget_monthly:,} ({pct:.0f}%)')
+                        f'הוצאתם ₪{total:,.0f} מתוך ₪{budget_monthly:,} ({pct:.0f}%)', module='budget')
                     conn.execute('UPDATE family_settings SET budget_alert_80_sent=? WHERE family_id=?', (cm, family_id))
                     print(f'Budget alert 80% sent for family {family_id}')
 
@@ -3105,7 +3493,7 @@ def check_budget_alerts(family_id):
                 if daily_total > budget_daily and alert_daily != today:
                     send_push_to_family(family_id,
                         '💸 חריגה מהתקציב היומי!',
-                        f'הוצאתם היום ₪{daily_total:,.0f} מתוך ₪{budget_daily:,}')
+                        f'הוצאתם היום ₪{daily_total:,.0f} מתוך ₪{budget_daily:,}', module='budget')
                     conn.execute('UPDATE family_settings SET budget_alert_daily_sent=? WHERE family_id=?', (today, family_id))
                     print(f'Daily budget alert sent for family {family_id}')
 
@@ -3255,7 +3643,7 @@ def check_auto_archive():
                     # Push notification to family
                     send_push_to_family(fid,
                         '📊 מחזור חדש התחיל',
-                        f'סה"כ {label}: ₪{r["total"]:,.0f} ({r["count"]} תשלומים)')
+                        f'סה"כ {label}: ₪{r["total"]:,.0f} ({r["count"]} תשלומים)', module='cycle')
 
         except Exception as e:
             print(f'Auto-archive error: {e}')
@@ -3348,7 +3736,7 @@ def check_feeding_reminders():
                         
                         send_push_to_family(fid,
                             '🍼 תזכורת האכלה',
-                            f'עברו {hours_text} שעות מהאכלה אחרונה')
+                            f'עברו {hours_text} שעות מהאכלה אחרונה', module='feeding_reminder')
                         
                         # Mark this state as alerted
                         conn.execute(

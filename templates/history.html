@@ -1,448 +1,238 @@
 {% extends "base.html" %}
-{% block title %}היסטוריה - OurHome IL{% endblock %}
-{% block content %}
+{% block title %}ארכיון המחזורים - OurHome IL{% endblock %}
+{% block head %}
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
-*{font-family:'Heebo',sans-serif;box-sizing:border-box;}
-
-:root{
-  --blue:#2563eb;--blue2:#3b82f6;
-  --surface:#f6f7fb;--card:#fff;
-  --border:#eef0f5;--text1:#0f172a;
-  --text2:#64748b;--text3:#94a3b8;
-  --green:#10b981;--r:20px;
-}
-
-.back-bar{display:none!important;}
-
-.page{max-width:600px;margin:0 auto;direction:rtl;background:var(--surface);min-height:100vh;padding-bottom:100px;}
-
-/* ── HEADER ── */
-.pg-header{
-  background:linear-gradient(150deg,#06122a 0%,#0d2248 50%,#112d5e 100%);
-  padding:20px 20px 32px;margin:-10px -10px 0;
-  position:relative;overflow:hidden;
-}
-.pg-header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:26px;background:var(--surface);border-radius:26px 26px 0 0;}
-.hdr-glow{position:absolute;top:-70px;right:-50px;width:240px;height:240px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%);pointer-events:none;}
-
-.hdr-top{display:flex;justify-content:space-between;align-items:flex-start;position:relative;z-index:1;margin-bottom:20px;}
-.hdr-text{color:#fff;}
-.hdr-label{font-size:.65rem;color:rgba(255,255,255,.38);font-weight:300;margin-bottom:4px;letter-spacing:.06em;}
-.hdr-title{font-size:1.4rem;font-weight:900;letter-spacing:-.5px;line-height:1.1;}
-.hdr-title span{color:#60a5fa;}
-.hdr-sub{font-size:.72rem;color:rgba(255,255,255,.35);margin-top:3px;}
-
-/* Year nav */
-.year-nav{display:flex;align-items:center;gap:0;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:14px;overflow:hidden;position:relative;z-index:1;align-self:flex-start;}
-.yn-btn{background:none;border:none;color:rgba(255,255,255,.6);font-size:1rem;padding:8px 14px;cursor:pointer;transition:background .15s;font-family:inherit;}
-.yn-btn:hover{background:rgba(255,255,255,.1);color:#fff;}
-.yn-label{font-size:.9rem;font-weight:900;color:#fff;padding:0 4px;min-width:52px;text-align:center;}
-
-/* Stats row */
-.hdr-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;position:relative;z-index:1;}
-.hdr-stat{background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);border-radius:14px;padding:10px 8px;text-align:center;}
-.hdr-stat .sv{font-size:1.05rem;font-weight:900;color:#fff;line-height:1;}
-.hdr-stat .sl{font-size:.58rem;color:rgba(255,255,255,.4);margin-top:3px;}
-
-/* ── CONTENT ── */
-.content{padding:14px 14px 0;}
-
-/* ── CHART CARD ── */
-.chart-card{background:var(--card);border-radius:var(--r);box-shadow:0 2px 20px rgba(0,0,0,.07);border:1.5px solid var(--border);margin-bottom:14px;padding:16px;}
-.chart-hdr{display:flex;align-items:center;gap:7px;font-size:.82rem;font-weight:800;color:var(--text1);margin-bottom:6px;}
-.chart-hdr .ch-dot{width:8px;height:8px;border-radius:50%;background:var(--blue);}
-.chart-hint{font-size:.65rem;color:var(--text3);margin-bottom:14px;}
-.ch-box{position:relative;height:220px;direction:ltr;}
-
-/* Animations */
-.fu{opacity:0;transform:translateY(14px);animation:fu .4s ease forwards;}
-@keyframes fu{to{opacity:1;transform:translateY(0)}}
-.d1{animation-delay:.04s}.d2{animation-delay:.1s}.d3{animation-delay:.17s}
-
-/* ── BOTTOM SHEET POPUP ── */
-.sheet-ov{display:none;position:fixed;z-index:2000;inset:0;background:rgba(0,0,0,.5);backdrop-filter:blur(4px);justify-content:flex-end;flex-direction:column;align-items:center;}
-.sheet-ov.open{display:flex;}
-.sheet{
-  background:var(--card);border-radius:28px 28px 0 0;
-  width:100%;max-width:500px;direction:rtl;
-  animation:sup .3s cubic-bezier(.4,0,.2,1);
-  max-height:88vh;display:flex;flex-direction:column;
-}
-@keyframes sup{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.sheet-handle{width:36px;height:4px;background:#e5e7eb;border-radius:99px;margin:16px auto 0;flex-shrink:0;}
-.sheet-head{padding:16px 20px 0;flex-shrink:0;}
-.sheet-title{font-size:1.1rem;font-weight:900;color:var(--text1);text-align:center;margin-bottom:14px;}
-
-/* Month summary chips */
-.month-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
-.month-chip{background:#f0f4ff;border-radius:14px;padding:10px 8px;text-align:center;}
-.month-chip .cv{font-size:1.1rem;font-weight:900;color:var(--blue);display:block;line-height:1;}
-.month-chip .cl{font-size:.6rem;color:var(--text3);display:block;margin-top:3px;}
-
-.sheet-section-title{font-size:.68rem;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:10px;}
-
-/* Category bars in popup */
-.pop-cat{margin-bottom:10px;}
-.pop-cat-hdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
-.pop-cat-lbl{display:flex;align-items:center;gap:6px;font-size:.78rem;font-weight:700;color:var(--text1);}
-.pop-cat-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;}
-.pop-cat-stats{display:flex;gap:6px;align-items:center;}
-.pop-cat-val{font-size:.78rem;font-weight:800;color:var(--blue);}
-.pop-cat-pct{font-size:.62rem;color:var(--text3);background:#f0f4ff;padding:1px 6px;border-radius:99px;}
-.pop-cat-bar{height:7px;background:#f1f5f9;border-radius:99px;overflow:hidden;}
-.pop-cat-bar-fill{height:100%;border-radius:99px;transition:width .7s ease;}
-
-/* Payments list in popup */
-.pop-scroll{overflow-y:auto;flex:1;padding:0 20px 24px;}
-.pop-payment{display:flex;align-items:center;padding:9px 0;border-bottom:1px solid var(--border);gap:9px;}
-.pop-payment:last-child{border-bottom:none;}
-.pop-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-.pop-desc{flex:1;font-size:.82rem;font-weight:700;color:var(--text1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-.pop-cat-pill{font-size:.6rem;background:#eff6ff;color:#3b82f6;padding:2px 7px;border-radius:99px;font-weight:700;white-space:nowrap;flex-shrink:0;}
-.pop-amt{font-weight:900;font-size:.84rem;color:var(--blue);white-space:nowrap;}
-.pop-date{font-size:.62rem;color:var(--text3);white-space:nowrap;}
-.pop-empty{text-align:center;padding:30px;color:var(--text3);font-size:.8rem;}
-/* Sort button + category groups */
-.pop-sort-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.pop-sort-btn{
-  background:none;border:1.5px solid var(--border);border-radius:10px;
-  padding:4px 10px;font-size:.65rem;font-weight:700;color:var(--text3);
-  cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;gap:4px;
-}
-.pop-sort-btn:hover,.pop-sort-btn.active{background:#eff6ff;border-color:var(--blue);color:var(--blue);}
-.pop-group-hdr{
-  display:flex;align-items:center;gap:8px;padding:9px 12px;margin-top:10px;
-  border-radius:12px;border-right:3px solid var(--blue);
-  background:linear-gradient(90deg,#f0f4ff,transparent);
-}
-.pop-group-hdr:first-child{margin-top:0;}
-.pop-group-name{font-size:.85rem;font-weight:900;color:var(--text1);}
-.pop-group-cnt{font-size:.58rem;color:var(--text3);font-weight:600;}
-.pop-group-total{font-size:.78rem;font-weight:800;color:var(--blue);margin-right:auto;}
-
-  /* Advanced stats */
-.stats-cards{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;}
-.stat-card{background:var(--card);border-radius:18px;padding:14px;box-shadow:0 2px 16px rgba(0,0,0,.06);border:1.5px solid var(--border);display:flex;align-items:center;gap:12px;}
-.sc-icon{font-size:1.6rem;flex-shrink:0;}
-.sc-body{}
-.sc-val{font-size:1rem;font-weight:900;color:var(--text1);line-height:1.2;}
-.sc-lbl{font-size:.6rem;color:var(--text3);margin-top:3px;}
-.sc-sub{font-size:.68rem;font-weight:700;color:var(--blue);margin-top:2px;}
-.sc-sub.red{color:#ef4444;}
-.sc-sub.green{color:#10b981;}
+/* ── History / archive. Concept A skin: grape hero, chunky month bars, sticker highlights. ── */
+.year-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:16px 0 14px;position:relative;z-index:1}
+.year-nav .yr{font:900 34px/1 var(--font-display);text-shadow:3px 3px 0 var(--ink);letter-spacing:-.02em}
+.year-btn{min-height:48px;min-width:96px;display:inline-flex;align-items:center;justify-content:center;gap:6px;padding:0 14px;background:#fff;color:var(--ink);border:2.5px solid var(--ink);border-radius:var(--r-pill);box-shadow:3px 3px 0 var(--ink);font:800 16px var(--font-display);transition:transform .18s var(--spring),box-shadow .18s var(--spring)}
+.year-btn:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.year-btn[disabled]{visibility:hidden}
+.year-btn svg{width:18px;height:18px;stroke:currentColor;stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.hl-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.hl{padding:14px 12px;min-width:0}
+.hl .e{font-size:24px;line-height:1}
+.hl b{display:block;font:900 18px/1.2 var(--font-display);margin-top:8px;overflow-wrap:anywhere}
+.hl small{display:block;font:700 14px var(--font-display);color:var(--ink-2);margin-top:4px}
+.hl .v{display:inline-block;margin-top:6px}
+.mrow{display:flex;align-items:center;gap:10px;width:100%;min-height:58px;padding:8px 12px;background:#fff;border:2.5px solid var(--ink);border-radius:18px;box-shadow:3px 3px 0 var(--ink);margin-bottom:10px;text-align:start;font-family:var(--font-display);color:var(--ink);transition:transform .18s var(--spring),box-shadow .18s var(--spring)}
+.mrow:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.mrow[disabled]{background:var(--cream);box-shadow:none;border-style:dashed}
+.mrow.now{background:var(--sun-soft)}
+.mrow .nm{flex:0 0 84px;min-width:0}
+.mrow .nm b{display:block;font:900 16px/1.15 var(--font-display)}
+.mrow .nm small{display:block;font:700 13px var(--font-display);color:var(--ink-2);margin-top:2px;white-space:nowrap}
+.mrow .trk{flex:1;height:18px;border:2px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden}
+.mrow .trk i{display:block;height:100%;background:var(--grape-soft);border-inline-end:2px solid var(--ink);transform-origin:right;animation:fillx .8s var(--spring) both}
+.mrow.now .trk i{background:var(--sun)}
+.mrow .amt{flex:0 0 78px;text-align:end;font:900 16px var(--font-display);white-space:nowrap}
+.mrow[disabled] .amt{font-weight:700;font-size:14px;color:var(--ink-2)}
+@keyframes fillx{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+.catrow{padding:10px 0;border-bottom:2px dashed var(--cream-2)}
+.catrow:last-child{border-bottom:0}
+.catrow .top{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.catrow .top .dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--ink);flex:none}
+.catrow .top b{flex:1;min-width:0;font:800 16px var(--font-display)}
+.catrow .top .num{font:900 16px var(--font-display)}
+.catrow .top .pct{font:800 13px var(--font-display);color:var(--ink-2);min-width:38px;text-align:end}
+.catrow .trk{height:14px;border:2px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden}
+.catrow .trk i{display:block;height:100%;border-inline-end:2px solid var(--ink)}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 2px;border-bottom:2px dashed var(--cream-2)}
+.prow:last-child{border-bottom:0}
+.prow .ico{width:40px;height:40px;border-radius:12px;border:2px solid var(--ink);display:grid;place-items:center;font-size:19px;flex:none}
+.prow .grow{min-width:0}
+.prow .t{display:block;font:800 16px var(--font-display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prow .s{display:block;font-size:14px;color:var(--ink-2);margin-top:2px}
+.prow .amt{font:900 16px var(--font-display);white-space:nowrap}
+.grp-h{display:flex;justify-content:space-between;align-items:center;gap:8px;margin:16px 0 4px;padding:6px 12px;border:2px solid var(--ink);border-radius:12px;font:900 15px var(--font-display);background:var(--cream)}
+.grp-h small{font:800 14px var(--font-display);color:var(--ink-2)}
 </style>
-
-<div class="page">
-
-  <!-- HEADER -->
-  <div class="pg-header fu d1">
-    <div class="hdr-glow"></div>
-    <div class="hdr-top">
-      <div class="hdr-text">
-        <div class="hdr-label">OurHome IL</div>
-        <div class="hdr-title">📅 <span>היסטוריה</span></div>
-        <div class="hdr-sub">מבט לאחור על ההוצאות</div>
-      </div>
-      <div class="year-nav">
-        <button class="yn-btn" onclick="changeYear(1)">&#8594;</button>
-        <span class="yn-label" id="yearLabel"></span>
-        <button class="yn-btn" onclick="changeYear(-1)">&#8592;</button>
-      </div>
-    </div>
-    <div class="hdr-stats">
-      <div class="hdr-stat"><div class="sv" id="hTotalArchived">--</div><div class="sl">סה"כ בארכיון</div></div>
-      <div class="hdr-stat"><div class="sv" id="hAvgMonthly">--</div><div class="sl">ממוצע למחזור</div></div>
-      <div class="hdr-stat"><div class="sv" id="hMonthCount">--</div><div class="sl">מחזורים</div></div>
-    </div>
-  </div>
-
-<div class="content">
-
-    <!-- סטטיסטיקות מתקדמות -->
-    <div class="stats-cards fu d2" id="advStats" style="display:none;">
-      <div class="stat-card">
-        <div class="sc-icon">📈</div>
-        <div class="sc-body">
-          <div class="sc-val" id="scMaxMonth">--</div>
-          <div class="sc-lbl">מחזור יקר ביותר</div>
-          <div class="sc-sub" id="scMaxMonthAmt"></div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-icon">📉</div>
-        <div class="sc-body">
-          <div class="sc-val" id="scMinMonth">--</div>
-          <div class="sc-lbl">מחזור זול ביותר</div>
-          <div class="sc-sub" id="scMinMonthAmt"></div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-icon">🏆</div>
-        <div class="sc-body">
-          <div class="sc-val" id="scTopCat">--</div>
-          <div class="sc-lbl">קטגוריה מובילה</div>
-          <div class="sc-sub" id="scTopCatAmt"></div>
-        </div>
-      </div>
-      <div class="stat-card">
-        <div class="sc-icon">📊</div>
-        <div class="sc-body">
-          <div class="sc-val" id="scTrend">--</div>
-          <div class="sc-lbl">מגמה מול מחזור קודם</div>
-          <div class="sc-sub" id="scTrendSub"></div>
-        </div>
-      </div>
-    </div>
-
-    <div class="chart-card fu d2">
-      <div class="chart-hdr"><span class="ch-dot"></span> הוצאות לפי מחזור</div>
-      <div class="chart-hint">לחץ על עמודה לצפייה בפירוט</div>
-      <div class="ch-box"><canvas id="monthlyChart"></canvas></div>
-    </div>
-  </div>
-
-</div>
-
-<!-- MONTH DETAIL SHEET -->
-<div class="sheet-ov" id="histPopup" onclick="if(event.target===this)closePopup()">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-head">
-      <div class="sheet-title" id="popupTitle"></div>
-      <div id="popupDates" style="text-align:center;font-size:.72rem;color:var(--text3);margin:-8px 0 12px;font-weight:400;"></div>
-      <div class="month-chips" id="popupChips"></div>
-      <div class="sheet-section-title" id="popupCatTitle" style="display:none;">פילוח קטגוריות</div>
-      <div id="popupCats"></div>
-      <div class="pop-sort-row" style="margin-top:14px;">
-        <div class="sheet-section-title" style="margin:0;">פירוט תשלומים</div>
-        <button class="pop-sort-btn" id="popSortToggle" onclick="togglePopSort()"><i class="fas fa-layer-group"></i> קטגוריה</button>
-      </div>
-    </div>
-    <div class="pop-scroll" id="popupPayments"></div>
-  </div>
-</div>
-
 {% endblock %}
+{% block content %}
+<header class="hero hero-grape pop">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="hero-top">
+    <a href="{{ url_for('dashboard') }}" class="back-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>חזרה להוצאות</a>
+  </div>
+  <h1>📅 ארכיון המחזורים</h1>
+  <p class="sub">מבט לאחור, מחזור אחרי מחזור</p>
+  <div class="year-nav">
+    <button type="button" class="year-btn" id="prevYear"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg><span id="prevYearLbl"></span></button>
+    <span class="yr num" id="yearLabel" aria-live="polite"></span>
+    <button type="button" class="year-btn" id="nextYear"><span id="nextYearLbl"></span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>
+  </div>
+  <div class="stats3">
+    <div class="stat3 hot"><b class="num" id="yTotal">–</b><small id="yTotalLbl">סה״כ בשנה</small></div>
+    <div class="stat3"><b class="num" id="yAvg">–</b><small>ממוצע למחזור</small></div>
+    <div class="stat3"><b class="num" id="yCount">–</b><small>מחזורים</small></div>
+  </div>
+</header>
+
+<main class="content">
+  <div id="yearEmpty" class="empty hidden mt-4"><div class="e">🗂️</div><div class="t" id="yearEmptyT"></div><p class="muted">בחרו שנה אחרת עם הכפתורים למעלה.</p></div>
+
+  <div id="yearBody">
+    <div class="section-title pop d1"><span>✨ השנה במבט אחד</span></div>
+    <div class="hl-grid pop d1">
+      <div class="sticker hl soft-coral"><div class="e">📈</div><b id="hlMax">–</b><small>המחזור היקר ביותר</small><span class="chip v" id="hlMaxAmt"></span></div>
+      <div class="sticker hl soft-mint"><div class="e">📉</div><b id="hlMin">–</b><small>המחזור החסכוני ביותר</small><span class="chip v" id="hlMinAmt"></span></div>
+      <div class="sticker hl soft-sun"><div class="e">🏆</div><b id="hlCat">–</b><small>הקטגוריה הגדולה בשנה</small><span class="chip v" id="hlCatAmt"></span></div>
+      <div class="sticker hl soft-sky"><div class="e">🧭</div><b id="hlTrend">–</b><small id="hlTrendLbl">מגמה בין המחזורים האחרונים</small><span class="chip v hidden" id="hlTrendAmt"></span></div>
+    </div>
+
+    <div class="section-title pop d2"><span>📦 מחזור אחרי מחזור</span><small>גע במחזור לפירוט</small></div>
+    <div id="months" class="pop d2"></div>
+
+    <div class="section-title pop d3"><span>🏷️ לאן הלך הכסף השנה</span></div>
+    <section class="sticker pad pop d3"><div id="yearCats"></div></section>
+  </div>
+
+  <div class="btn-row mt-4">
+    <a href="{{ url_for('finance_analysis') }}" class="btn white">📊 ניתוח המחזור</a>
+    <a href="{{ url_for('dashboard') }}" class="btn white">💳 להוצאות</a>
+  </div>
+</main>
+
+<!-- one cycle, in detail -->
+<div class="sheet-ov" id="monthSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="mTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="mTitle"></h3>
+    <p class="sheet-sub" id="mDates"></p>
+    <div class="stats3">
+      <div class="stat3 hot"><b class="num" id="mTotal"></b><small>סה״כ</small></div>
+      <div class="stat3"><b class="num" id="mCount"></b><small>תשלומים</small></div>
+      <div class="stat3"><b class="num" id="mAvg"></b><small>ממוצע לתשלום</small></div>
+    </div>
+    <div class="day-h"><span>לפי קטגוריה</span></div>
+    <div id="mCats"></div>
+    <div class="day-h"><span>כל התשלומים</span></div>
+    <div class="seg" role="group" aria-label="סידור התשלומים">
+      <button type="button" class="on" data-sort="date" aria-pressed="true">📅 לפי תאריך</button>
+      <button type="button" data-sort="cat" aria-pressed="false">🏷️ לפי קטגוריה</button>
+    </div>
+    <div id="mPays"></div>
+    <div class="sheet-actions"><button type="button" class="btn white block" data-close="monthSheet">סגירה</button></div>
+  </div>
+</div>
+{% endblock %}
+
 {% block scripts %}
 <script>
-let currentYear=new Date().getFullYear();
-let monthlyChartInstance=null;
-let popSortByCategory=false;
-let lastPopupPayments=[];
-const monthNames=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = Pop.esc, money = Pop.money0;
+  var CURRENT = {{ current_month|tojson }}, THIS_YEAR = parseInt(CURRENT.slice(0, 4), 10);
+  var ICON = {'קבועים':'🔄','משק בית':'🏠','קניות - סופר':'🛒','קניות - אופנה':'👗','רכב':'🚗','תינוק':'👶','בילויים / פנאי':'🎉','טיפוח':'💅','כללי':'📦'};
+  var year = THIS_YEAR, details = {}, sortBy = 'date', openMonth = null, loadSeq = 0;
+  try { var y0 = parseInt(new URLSearchParams(location.search).get('year'), 10); if (y0 > 2000 && y0 <= THIS_YEAR) year = y0; } catch (e) {}
 
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
-function closePopup(){document.getElementById('histPopup').classList.remove('open');popSortByCategory=false;updatePopSortBtn();}
-
-function togglePopSort(){
-  popSortByCategory=!popSortByCategory;
-  updatePopSortBtn();
-  renderPopupPayments(lastPopupPayments);
-}
-function updatePopSortBtn(){
-  const btn=document.getElementById('popSortToggle');
-  if(popSortByCategory){
-    btn.classList.add('active');
-    btn.innerHTML='<i class="fas fa-clock"></i> תאריך';
-  }else{
-    btn.classList.remove('active');
-    btn.innerHTML='<i class="fas fa-layer-group"></i> קטגוריה';
+  function mkey(m) { return year + '-' + Pop.pad2(m); }
+  function monthName(m) {   // stored archive labels look like "אפריל 2026 (10.4–9.5)"; anything else falls back to the month name
+    var n = (m.label || '').split(' (')[0].replace(/\s\d{4}$/, '');
+    return /[֐-׿]/.test(n) ? n : Pop.HE_MONTHS[m.month - 1];
   }
-}
-function renderPopupPayments(payments){
-  const payEl=document.getElementById('popupPayments');
-  if(!payments||payments.length===0){payEl.innerHTML='<div class="pop-empty">אין תשלומים</div>';return;}
-  if(!popSortByCategory){
-    payEl.innerHTML=payments.map(p=>`
-      <div class="pop-payment">
-        <div class="pop-dot" style="background:${esc(p.color||'#94a3b8')};"></div>
-        <div class="pop-desc">${esc(p.description)}</div>
-        <span class="pop-cat-pill">${esc(p.category)}</span>
-        <span class="pop-amt">₪${p.amount.toFixed(2)}</span>
-        <span class="pop-date">${esc(p.date)}</span>
-      </div>`).join('');
-  }else{
-    const groups={};
-    payments.forEach(p=>{
-      if(!groups[p.category])groups[p.category]={color:p.color||'#94a3b8',total:0,items:[]};
-      groups[p.category].total+=p.amount;
-      groups[p.category].items.push(p);
-    });
-    let html='';
-    Object.keys(groups).sort().forEach(cat=>{
-      const g=groups[cat];
-      html+=`<div class="pop-group-hdr" style="border-right-color:${esc(g.color)};"><span class="pop-group-name">${esc(cat)}</span><span class="pop-group-cnt">${g.items.length} תשלומים</span><span class="pop-group-total">₪${Math.round(g.total).toLocaleString('he-IL')}</span></div>`;
-      g.items.forEach(p=>{
-        html+=`<div class="pop-payment">
-          <div class="pop-dot" style="background:${esc(p.color||'#94a3b8')};"></div>
-          <div class="pop-desc">${esc(p.description)}</div>
-          <span class="pop-amt">₪${p.amount.toFixed(2)}</span>
-          <span class="pop-date">${esc(p.date)}</span>
-        </div>`;
-      });
-    });
-    payEl.innerHTML=html;
+  function monthDates(m) { var x = /\((.+)\)/.exec(m.label || ''); return x ? x[1] : ''; }
+  function short(v) { return v >= 1000 ? '₪' + (v / 1000).toFixed(1) + 'K' : money(v); }
+
+  function catRows(cats, total) {
+    var max = Math.max.apply(null, cats.map(function (c) { return c.total; }).concat([1]));
+    return cats.map(function (c) {
+      return '<div class="catrow"><div class="top"><i class="dot" style="background:' + esc(c.color) + '"></i><b>' + esc(c.name) + '</b><span class="num">' + money(c.total) + '</span><span class="pct">' + (total ? Math.round(c.total / total * 100) : 0) + '%</span></div>' +
+        '<div class="trk"><i style="width:' + (c.total / max * 100).toFixed(1) + '%;background:' + esc(c.color) + '"></i></div></div>';
+    }).join('');
   }
-}
 
-function changeYear(dir){
-  const now=new Date().getFullYear();
-  const ny=currentYear+dir;
-  if(ny>now)return;
-  currentYear=ny;
-  loadHistory();
-}
+  async function load() {
+    var seq = ++loadSeq;
+    $('yearLabel').textContent = year; $('yTotalLbl').textContent = 'סה״כ ב־' + year;
+    $('prevYearLbl').textContent = year - 1; $('prevYear').setAttribute('aria-label', 'לשנה הקודמת, ' + (year - 1));
+    $('nextYearLbl').textContent = year + 1; $('nextYear').setAttribute('aria-label', 'לשנה הבאה, ' + (year + 1));
+    $('nextYear').disabled = year >= THIS_YEAR;
+    try { history.replaceState(null, '', year === THIS_YEAR ? location.pathname : '?year=' + year); } catch (e) {}
+    var r = await Pop.api('GET', '/api/history/data?year=' + year);
+    if (seq !== loadSeq) return;
+    if (!r.ok || !r.data) { Pop.toast('לא הצלחנו לטעון את הארכיון', 'error'); return; }
+    var months = r.data.months.filter(function (m) { return year < THIS_YEAR || mkey(m.month) <= CURRENT; });
+    var active = months.filter(function (m) { return m.count > 0; });
+    var total = active.reduce(function (s, m) { return s + m.total; }, 0);
+    $('yTotal').textContent = short(total); $('yAvg').textContent = active.length ? short(total / active.length) : '–'; $('yCount').textContent = active.length;
+    $('yearEmpty').classList.toggle('hidden', active.length > 0); $('yearBody').classList.toggle('hidden', !active.length);
+    if (!active.length) { $('yearEmptyT').textContent = 'אין הוצאות רשומות ב־' + year; return; }
 
-async function loadHistory(){
-  try{
-    const r=await fetch(`/api/history/data?year=${currentYear}`);
-    const data=await r.json();
-    document.getElementById('yearLabel').textContent=currentYear;
-document.getElementById('hTotalArchived').textContent='₪'+Math.round(data.total_all).toLocaleString('he-IL');
-    document.getElementById('hAvgMonthly').textContent='₪'+Math.round(data.avg_monthly).toLocaleString('he-IL');
-    document.getElementById('hMonthCount').textContent=data.month_count;
-    renderMonthlyChart(data.months);
+    // month rows (Jan first, top to bottom; the current cycle is marked)
+    var max = Math.max.apply(null, active.map(function (m) { return m.total; }));
+    $('months').innerHTML = months.map(function (m, i) {
+      var k = mkey(m.month), now = k === CURRENT, dates = monthDates(m);
+      if (!m.count) return '<button type="button" class="mrow" disabled><span class="nm"><b>' + esc(monthName(m)) + '</b>' + (dates ? '<small>' + esc(dates) + '</small>' : '') + '</span><span class="grow"></span><span class="amt">אין הוצאות</span></button>';
+      return '<button type="button" class="mrow' + (now ? ' now' : '') + '" data-m="' + m.month + '" aria-label="' + esc(monthName(m)) + (now ? ' (המחזור הנוכחי)' : '') + ': ' + money(m.total) + ', ' + m.count + ' תשלומים">' +
+        '<span class="nm"><b>' + esc(monthName(m)) + '</b><small>' + (now ? 'עכשיו' : esc(dates) || m.count + ' תשלומים') + '</small></span>' +
+        '<span class="trk"><i style="width:' + Math.max(3, m.total / max * 100).toFixed(1) + '%;animation-delay:' + (i * .04) + 's"></i></span><span class="amt num">' + money(m.total) + '</span></button>';
+    }).join('');
 
-    // Advanced stats
-    const activeMonths=data.months.filter(m=>m.total>0);
-    if(activeMonths.length>0){
-      document.getElementById('advStats').style.display='grid';
-      const maxM=activeMonths.reduce((a,b)=>a.total>b.total?a:b);
-      const minM=activeMonths.reduce((a,b)=>a.total<b.total?a:b);
-      document.getElementById('scMaxMonth').textContent=maxM.label||monthNames[maxM.month-1];
-      document.getElementById('scMaxMonthAmt').textContent='₪'+Math.round(maxM.total).toLocaleString('he-IL');
-      document.getElementById('scMinMonth').textContent=minM.label||monthNames[minM.month-1];
-      document.getElementById('scMinMonthAmt').textContent='₪'+Math.round(minM.total).toLocaleString('he-IL');
+    // highlights (completed cycles only, so a half-finished month is never "the cheapest")
+    var done = active.filter(function (m) { return mkey(m.month) !== CURRENT; }), pool = done.length ? done : active;
+    var hi = pool.reduce(function (a, b) { return b.total > a.total ? b : a; }), lo = pool.reduce(function (a, b) { return b.total < a.total ? b : a; });
+    $('hlMax').textContent = monthName(hi); $('hlMaxAmt').textContent = money(hi.total);
+    $('hlMin').textContent = pool.length > 1 ? monthName(lo) : '–'; $('hlMinAmt').textContent = pool.length > 1 ? money(lo.total) : 'צריך עוד מחזור';
+    if (done.length >= 2) {
+      var a = done[done.length - 1], b = done[done.length - 2], d = a.total - b.total, pct = b.total ? Math.round(Math.abs(d) / b.total * 100) : 0;
+      $('hlTrend').textContent = (d > 0 ? '▲ ' : '▼ ') + pct + '%' + (d > 0 ? ' יותר' : ' פחות');
+      $('hlTrendLbl').textContent = monthName(a) + ' מול ' + monthName(b);
+      $('hlTrendAmt').textContent = (d > 0 ? '+' : '−') + money(Math.abs(d)); $('hlTrendAmt').className = 'chip v ' + (d > 0 ? 'coral' : 'mint');
+    } else { $('hlTrend').textContent = '–'; $('hlTrendLbl').textContent = 'אחרי שני מחזורים שלמים נראה מגמה'; $('hlTrendAmt').className = 'chip v hidden'; }
 
-      // Top category — fetch from last active month
-      try{
-        const cr=await fetch(`/api/history/month?year=${currentYear}&month=${maxM.month}`);
-        const cd=await cr.json();
-        if(cd.categories&&cd.categories.length>0){
-          const top=cd.categories[0];
-          document.getElementById('scTopCat').textContent=top.name;
-          document.getElementById('scTopCatAmt').textContent='₪'+Math.round(top.total).toLocaleString('he-IL')+' ב'+(maxM.label?maxM.label.split(' ')[0]:monthNames[maxM.month-1]);
-        }
-      }catch(e){}
+    // year categories: fetch each active cycle once, reuse for the detail sheet
+    var res = await Promise.all(active.map(function (m) {
+      var k = mkey(m.month);
+      return details[k] ? Promise.resolve(details[k]) : Pop.api('GET', '/api/history/month?year=' + year + '&month=' + m.month).then(function (x) { if (x.ok) details[k] = x.data; return details[k]; });
+    }));
+    if (seq !== loadSeq) return;
+    var agg = {}, yt = 0;
+    res.forEach(function (dd) { (dd && dd.categories || []).forEach(function (c) { agg[c.name] = agg[c.name] || { name: c.name, color: c.color, total: 0 }; agg[c.name].total += c.total; yt += c.total; }); });
+    var cats = Object.keys(agg).map(function (k) { return agg[k]; }).sort(function (x, y) { return y.total - x.total; });
+    $('yearCats').innerHTML = catRows(cats, yt);
+    if (cats.length) { $('hlCat').textContent = cats[0].name; $('hlCatAmt').textContent = money(cats[0].total); }
+  }
 
-      // Trend
-      if(activeMonths.length>=2){
-        const last=activeMonths[activeMonths.length-1];
-        const prev=activeMonths[activeMonths.length-2];
-        const diff=last.total-prev.total;
-        const pct=prev.total>0?Math.abs(Math.round(diff/prev.total*100)):0;
-        const trendEl=document.getElementById('scTrend');
-        const subEl=document.getElementById('scTrendSub');
-        if(diff>0){
-          trendEl.textContent='↑ '+pct+'%';
-          trendEl.style.color='#ef4444';
-          subEl.textContent='יותר ממחזור קודם';
-          subEl.className='sc-sub red';
-        }else{
-          trendEl.textContent='↓ '+pct+'%';
-          trendEl.style.color='#10b981';
-          subEl.textContent='פחות ממחזור קודם';
-          subEl.className='sc-sub green';
-        }
-      }
-    }
-  }catch(e){console.error(e);}
-}
+  function renderPays() {
+    var d = details[openMonth]; if (!d) return;
+    var ps = d.payments.slice(), html = '';
+    var row = function (p, sub) { return '<div class="prow"><span class="ico" style="background:' + esc(p.color) + '33">' + (ICON[p.category] || '🏷️') + '</span><span class="grow"><span class="t">' + esc(p.description) + '</span><span class="s">' + esc(sub) + '</span></span><span class="amt num">' + Pop.money(p.amount) + '</span></div>'; };
+    if (!ps.length) { $('mPays').innerHTML = '<div class="empty"><div class="t">אין תשלומים במחזור הזה</div></div>'; return; }
+    var groups = {}, order = [];
+    ps.forEach(function (p) { var g = sortBy === 'date' ? p.date : p.category; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(p); });
+    if (sortBy === 'cat') order.sort(function (a, b) { return groups[b].reduce(function (s, p) { return s + p.amount; }, 0) - groups[a].reduce(function (s, p) { return s + p.amount; }, 0); });
+    order.forEach(function (g) {
+      var sum = groups[g].reduce(function (s, p) { return s + p.amount; }, 0);
+      html += '<div class="grp-h"><span>' + esc(sortBy === 'date' ? Pop.dayLabel(g) : g) + '</span><small>' + groups[g].length + ' · ' + money(sum) + '</small></div>';
+      groups[g].forEach(function (p) { html += row(p, sortBy === 'date' ? p.category : Pop.dayLabel(p.date)); });
+    });
+    $('mPays').innerHTML = html;
+  }
 
-function renderMonthlyChart(months){
-  const ctx=document.getElementById('monthlyChart').getContext('2d');
-  if(monthlyChartInstance)monthlyChartInstance.destroy();
-  const today=new Date();
-  const isCY=currentYear===today.getFullYear();
-  const cm=today.getMonth()+1;
-  const labels=months.map(m=>m.label?m.label.split(' ')[0]:monthNames[m.month-1].slice(0,3));
-  const totals=months.map(m=>m.total);
-  const bg=months.map(m=>{
-    if(m.total===0)return 'rgba(37,99,235,0.12)';
-    if(isCY&&m.month===cm)return 'rgba(37,99,235,1)';
-    return 'rgba(37,99,235,0.45)';
-  });
-  const hoverBg=months.map(m=>m.total>0?'rgba(37,99,235,0.75)':'rgba(37,99,235,0.2)');
+  async function openCycle(m) {
+    var k = mkey(m);
+    if (!details[k]) { var r = await Pop.api('GET', '/api/history/month?year=' + year + '&month=' + m); if (!r.ok) { Pop.toast('לא הצלחנו לטעון את המחזור', 'error'); return; } details[k] = r.data; }
+    var d = details[k]; openMonth = k;
+    $('mTitle').textContent = (d.cycle_label || '').split(' (')[0];
+    $('mDates').textContent = d.cycle_dates ? '📅 ' + d.cycle_dates : '';
+    $('mTotal').textContent = money(d.total); $('mCount').textContent = d.count; $('mAvg').textContent = d.count ? money(d.total / d.count) : '–';
+    $('mCats').innerHTML = catRows(d.categories, d.total);
+    setSort('date');
+    Pop.openSheet('monthSheet');
+  }
+  function setSort(s) {
+    sortBy = s;
+    document.querySelectorAll('#monthSheet .seg button').forEach(function (b) { var on = b.dataset.sort === s; b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); });
+    renderPays();
+  }
 
-  monthlyChartInstance=new Chart(ctx,{
-    type:'bar',
-    data:{
-      labels,
-      datasets:[{data:totals,backgroundColor:bg,hoverBackgroundColor:hoverBg,borderRadius:8,borderSkipped:false}]
-    },
-    options:{
-      responsive:true,maintainAspectRatio:false,
-      onClick:(_,els)=>{if(els.length>0){const m=months[els[0].index];if(m&&m.total>0)showMonthPopup(m.month);}},
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            label:v=>v.raw>0?' ₪'+Math.round(v.raw).toLocaleString('he-IL'):'',
-            title:t=>{const m=months[t[0].dataIndex];return m&&m.label?m.label:monthNames[parseInt(t[0].dataIndex)];}
-          },
-          rtl:true,
-          backgroundColor:'rgba(15,23,42,.9)',
-          padding:10,cornerRadius:10,
-        }
-      },
-      scales:{
-        y:{
-          beginAtZero:true,
-          grid:{color:'rgba(0,0,0,0.04)'},
-          ticks:{callback:v=>v>0?'₪'+v:'',font:{size:9},color:'#94a3b8'}
-        },
-        x:{grid:{display:false},ticks:{font:{size:11},color:'#94a3b8'}}
-      }
-    }
-  });
-}
-
-async function showMonthPopup(month){
-  try{
-    const r=await fetch(`/api/history/month?year=${currentYear}&month=${month}`);
-    const data=await r.json();
-
-    document.getElementById('popupTitle').textContent=data.cycle_label||`${monthNames[month-1]} ${currentYear}`;
-    document.getElementById('popupDates').textContent=data.cycle_dates?`📅 ${data.cycle_dates}`:'';
-    document.getElementById('popupChips').innerHTML=`
-      <div class="month-chip"><span class="cv">₪${Math.round(data.total).toLocaleString('he-IL')}</span><span class="cl">סה"כ</span></div>
-      <div class="month-chip"><span class="cv">${data.count}</span><span class="cl">תשלומים</span></div>
-      <div class="month-chip"><span class="cv">₪${data.count>0?Math.round(data.total/data.count).toLocaleString('he-IL'):0}</span><span class="cl">ממוצע</span></div>`;
-
-    const catTitle=document.getElementById('popupCatTitle');
-    const catEl=document.getElementById('popupCats');
-    if(data.categories&&data.categories.length>0){
-      catTitle.style.display='block';
-      const maxCat=Math.max(...data.categories.map(c=>c.total));
-      catEl.innerHTML=data.categories.map(c=>{
-        const pct=data.total>0?((c.total/data.total)*100).toFixed(0):0;
-        const bw=maxCat>0?((c.total/maxCat)*100).toFixed(1):0;
-        return `<div class="pop-cat">
-          <div class="pop-cat-hdr">
-            <div class="pop-cat-lbl"><div class="pop-cat-dot" style="background:${esc(c.color)};"></div>${esc(c.name)}</div>
-            <div class="pop-cat-stats"><span class="pop-cat-val">₪${Math.round(c.total).toLocaleString('he-IL')}</span><span class="pop-cat-pct">${pct}%</span></div>
-          </div>
-          <div class="pop-cat-bar"><div class="pop-cat-bar-fill" style="width:${bw}%;background:${esc(c.color)};"></div></div>
-        </div>`;
-      }).join('');
-    } else {
-      catTitle.style.display='none';
-      catEl.innerHTML='';
-    }
-
-    popSortByCategory=false;
-    updatePopSortBtn();
-    lastPopupPayments=data.payments||[];
-    renderPopupPayments(lastPopupPayments);
-
-    document.getElementById('histPopup').classList.add('open');
-  }catch(e){console.error(e);}
-}
-
-// Keep legacy ID for any external refs
-const histPopupContent={};
-
-loadHistory();
+  $('months').addEventListener('click', function (e) { var b = e.target.closest('.mrow[data-m]'); if (b) openCycle(parseInt(b.dataset.m, 10)); });
+  document.querySelectorAll('#monthSheet .seg button').forEach(function (b) { b.addEventListener('click', function () { setSort(b.dataset.sort); }); });
+  $('prevYear').addEventListener('click', function () { year--; load(); });
+  $('nextYear').addEventListener('click', function () { if (year < THIS_YEAR) { year++; load(); } });
+  load();
+})();
 </script>
 {% endblock %}

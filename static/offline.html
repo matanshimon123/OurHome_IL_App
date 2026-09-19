@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#FFC531">
+<title>אין חיבור - OurHome IL</title>
+<!-- Served by the service worker when a page can't load. Everything it needs is precached; fonts fall back to the system font. -->
+<link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800;900&family=Varela+Round&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/static/css/style.css?v=pop1">
+<style>
+.cloud{display:block;width:150px;height:auto;margin:4px auto 10px}
+.tips{margin:0;padding:0;list-style:none}
+.tips li{display:flex;gap:10px;align-items:flex-start;font:700 16px/1.45 var(--font-display);padding:8px 0;border-bottom:2px dashed var(--cream-2)}
+.tips li:last-child{border-bottom:0}
+.tips li span{font-size:20px;line-height:1.2;flex:none}
+</style>
+</head>
+<body class="no-nav">
+<div class="app">
+  <header class="hero hero-sun pop">
+    <div class="blob b1"></div><div class="blob b2"></div>
+    <h1 style="position:relative;z-index:1">📡 אין חיבור <em>כרגע</em></h1>
+    <p class="sub" style="position:relative;z-index:1">כדי להציג את הנתונים של המשפחה צריך אינטרנט.</p>
+  </header>
+  <main class="content">
+    <section class="sticker pad pop d1 mt-3">
+      <svg class="cloud float" viewBox="0 0 160 110" aria-hidden="true">
+        <path d="M44 88h78a26 26 0 0 0 2-52 34 34 0 0 0-64-8 24 24 0 0 0-16 60z" fill="#fff" stroke="#1E1633" stroke-width="4" stroke-linejoin="round"/>
+        <circle cx="66" cy="60" r="4" fill="#1E1633"/><circle cx="96" cy="60" r="4" fill="#1E1633"/>
+        <path d="M70 76q11-8 22 0" fill="none" stroke="#1E1633" stroke-width="4" stroke-linecap="round"/>
+        <path d="M128 18l10-10M138 24l12-4M24 30L12 22" stroke="#FF5C6C" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <ul class="tips">
+        <li><span>📶</span>בדקו שה־WiFi או הדאטה פועלים.</li>
+        <li><span>🔄</span>ברגע שהחיבור יחזור ננסה שוב לבד.</li>
+        <li><span>💾</span>מה שכבר נשמר לא הולך לאיבוד.</li>
+      </ul>
+      <button type="button" class="btn coral block lg mt-3" id="retry">🔄 לנסות שוב</button>
+      <p class="hint" id="status" aria-live="polite" style="text-align:center">מחכים לחיבור…</p>
+    </section>
+    <a href="/home" class="btn white block mt-3">🏠 לדף הבית</a>
+  </main>
+</div>
+<script>
+(function () {
+  var st = document.getElementById('status');
+  function again() { st.textContent = 'מנסים להתחבר…'; location.reload(); }
+  document.getElementById('retry').addEventListener('click', again);
+  window.addEventListener('online', function () { st.textContent = 'החיבור חזר! טוענים…'; setTimeout(again, 600); });
+  if (navigator.onLine) st.textContent = 'נראה שיש רשת, אבל השרת לא ענה. אפשר לנסות שוב.';
+})();
+</script>
+</body>
+</html>

@@ -1,31 +1,60 @@
 {% extends "base.html" %}
 {% block title %}הרשמה - OurHome IL{% endblock %}
 {% block content %}
-<style>
-    .auth-card { max-width: 400px; margin: 8% auto; background: white; border-radius: 20px; padding: 30px; box-shadow: 0 4px 20px rgba(0,0,0,0.1); direction: rtl; }
-    .auth-card .logo { text-align: center; margin-bottom: 20px; }
-    .auth-card .logo img { width: 60px; height: 60px; border-radius: 15px; }
-    .auth-card h2 { text-align: center; font-size: 1.4rem; font-weight: 700; margin: 10px 0 5px; color: #1e3a5f; }
-    .auth-card p { text-align: center; color: #888; font-size: 0.85rem; margin-bottom: 20px; }
-    .auth-card input { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.95rem; margin-bottom: 12px; box-sizing: border-box; }
-    .auth-card input:focus { outline: none; border-color: #2563eb; }
-    .auth-card .btn-auth { width: 100%; padding: 12px; background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 12px; }
-    .auth-card .link { text-align: center; font-size: 0.85rem; color: #2563eb; }
-    .auth-card .link a { color: #2563eb; text-decoration: none; font-weight: 600; }
-</style>
-<div class="auth-card">
-    <div class="logo"><img src="/static/icons/icon-96.png" alt="OurHome IL"></div>
-    <h2>הרשמה ל-OurHome IL</h2>
-    <p>ניהול משק בית חכם למשפחה</p>
-    <form method="POST">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-        <input type="text" name="display_name" placeholder="שם תצוגה (למשל: מתן)" required>
-        <input type="text" name="username" placeholder="שם משתמש (באנגלית)" required>
-        <input type="email" name="email" placeholder="אימייל" required>
-        <input type="password" name="password" placeholder="סיסמה (לפחות 6 תווים)" required minlength="6">
-        <input type="password" name="password2" placeholder="אימות סיסמה" required>
-        <button type="submit" class="btn-auth">צור חשבון</button>
-    </form>
-    <div class="link">כבר יש לך חשבון? <a href="{{ url_for('login') }}">התחבר</a></div>
-</div>
+<header class="hero hero-mint auth-hero pop">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="logo float"><img src="/static/icons/icon-192.png" alt=""></div>
+  <h1>יצירת חשבון</h1>
+  <p class="sub">כמה פרטים ומתחילים — פחות מדקה</p>
+</header>
+
+<main class="sticker auth-card pop d1">
+  <form method="POST" autocomplete="on" id="regForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field">
+      <label class="label" for="display_name">איך לקרוא לך?</label>
+      <input class="input" type="text" id="display_name" name="display_name" autocomplete="name" placeholder="למשל: סבתא רחל" required>
+      <div class="hint">השם שבני המשפחה יראו באפליקציה</div>
+    </div>
+    <div class="field">
+      <label class="label" for="username">שם משתמש באנגלית</label>
+      <input class="input ltr" type="text" id="username" name="username" autocomplete="username" autocapitalize="none" placeholder="rachel12" pattern="[a-zA-Z0-9_]{3,20}" required>
+      <div class="hint">3 עד 20 תווים: אותיות באנגלית, מספרים או קו תחתון</div>
+    </div>
+    <div class="field">
+      <label class="label" for="email">אימייל</label>
+      <input class="input ltr" type="email" id="email" name="email" autocomplete="email" inputmode="email" placeholder="name@example.com" required>
+    </div>
+    <div class="field">
+      <label class="label" for="password">סיסמה</label>
+      <div class="input-wrap">
+        <input class="input" type="password" id="password" name="password" autocomplete="new-password" minlength="6" required>
+        <button type="button" class="pw-toggle" data-toggle-pw="password">👁 <span>הצג</span></button>
+      </div>
+      <div class="hint">לפחות 6 תווים</div>
+    </div>
+    <div class="field">
+      <label class="label" for="password2">הסיסמה שוב, לאימות</label>
+      <input class="input" type="password" id="password2" name="password2" autocomplete="new-password" minlength="6" required>
+      <div class="hint bad hidden" id="pwMismatch">⚠️ הסיסמאות לא תואמות</div>
+    </div>
+    <button type="submit" class="btn coral block lg mt-3">🎉 יצירת חשבון</button>
+  </form>
+  <div class="auth-links">
+    <a href="{{ url_for('login') }}">כבר יש לכם חשבון? לכניסה</a>
+  </div>
+</main>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+  var f = document.getElementById('regForm'), p1 = document.getElementById('password'), p2 = document.getElementById('password2'), warn = document.getElementById('pwMismatch');
+  function check() { var bad = p2.value && p1.value !== p2.value; warn.classList.toggle('hidden', !bad); return !bad; }
+  p1.addEventListener('input', check); p2.addEventListener('input', check);
+  f.addEventListener('submit', function (e) {
+    if (!check()) { e.preventDefault(); p2.focus(); Pop.toast('הסיסמאות לא תואמות', 'error'); return; }
+    var b = f.querySelector('[type=submit]'); b.disabled = true; b.textContent = 'יוצרים חשבון…';
+  });
+})();
+</script>
 {% endblock %}

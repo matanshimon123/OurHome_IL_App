@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Concept A · הוצאות</title>
+<link rel="stylesheet" href="concept.css">
+<style>
+.hero{background:var(--sky);color:#fff;padding-top:max(env(safe-area-inset-top),52px)}
+.hero .blob.b1{width:260px;height:260px;background:var(--grape);top:-120px;inset-inline-start:-80px;opacity:.7}
+.hero .blob.b2{width:170px;height:170px;background:var(--mint);bottom:-80px;inset-inline-end:-50px;opacity:.75;animation-duration:13s}
+.cycle{display:inline-flex;align-items:center;gap:8px;background:#fff;color:var(--ink);border:var(--line) solid var(--ink);border-radius:var(--r-pill);padding:6px 12px 6px 8px;font:800 13px var(--font-display);box-shadow:3px 3px 0 var(--ink)}
+.cycle .arr{width:24px;height:24px;border-radius:50%;background:var(--sun);border:2px solid var(--ink);display:grid;place-items:center;font-size:12px}
+.hero-big{font:900 54px/1 var(--font-display);letter-spacing:-.04em;margin:14px 0 6px;display:flex;align-items:baseline;gap:6px;text-shadow:3px 3px 0 var(--ink)}
+.hero-big .sym{font-size:26px;font-weight:700;opacity:.85;text-shadow:none}
+.hero-sub{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+.hero-sub .chip{border-color:var(--ink);color:var(--ink)}
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.stat3{background:#fff;color:var(--ink);border:2.5px solid var(--ink);border-radius:16px;padding:10px 8px;text-align:center;box-shadow:3px 3px 0 var(--ink)}
+.stat3 b{font:900 18px/1 var(--font-display);display:block}
+.stat3 small{font-size:11px;color:var(--ink-3);display:block;margin-top:4px}
+.stat3.hot{background:var(--sun)}
+
+/* bill detective */
+.detect{padding:14px 16px;background:var(--sun);overflow:hidden;transition:all .5s var(--ease)}
+.detect.gone{max-height:0;padding-top:0;padding-bottom:0;margin:0;opacity:0;border-width:0;transform:scale(.9)}
+.detect h3{font-size:16px;line-height:1.35;margin:6px 0 10px}
+.detect h3 b{background:#fff;border:2px solid var(--ink);border-radius:8px;padding:0 6px;box-shadow:2px 2px 0 var(--ink)}
+.logo{width:46px;height:46px;border-radius:14px;border:2.5px solid var(--ink);background:#E50914;color:#fff;display:grid;place-items:center;font:900 22px var(--font-display);box-shadow:2px 2px 0 var(--ink);flex:none}
+
+/* bubbles */
+.bubbles{padding:14px 12px 10px}
+.bubbles svg{width:100%;height:auto}
+.bub{cursor:pointer;transform-box:fill-box;transform-origin:center;transition:transform .35s var(--spring),opacity .3s}
+.bub circle{stroke:#1E1633;stroke-width:3}
+.bub text{font-family:Rubik,sans-serif;font-weight:900;fill:#1E1633;text-anchor:middle;pointer-events:none}
+.bub.dim{opacity:.35}
+.bub.on{transform:scale(1.12)}
+.bub.in{animation:bubIn .7s var(--spring) both}
+@keyframes bubIn{from{transform:scale(0)}to{transform:scale(1)}}
+.bub-legend{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.bub-legend .chip{font-size:11.5px;padding:4px 9px}
+.bub-legend .chip i{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink);display:inline-block}
+
+/* race */
+.race{padding:16px}
+.lane{position:relative;height:44px;margin:14px 0 6px}
+.lane .track{position:absolute;inset:14px 0;border:2.5px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden}
+.lane .fill{height:100%;width:100%;transform:scaleX(0);transform-origin:right center;transition:transform 1.4s var(--spring)}
+.lane .runner{position:absolute;top:0;inset-inline-start:0;margin-inline-start:-22px;width:44px;height:44px;border-radius:50%;border:2.5px solid var(--ink);display:grid;place-items:center;font:900 15px var(--font-display);box-shadow:2px 2px 0 var(--ink);transition:transform 1.4s var(--spring)}
+.lane .amt{position:absolute;inset-inline-end:8px;top:12px;font:900 14px var(--font-display)}
+.lane-lbl{display:flex;justify-content:space-between;font:800 12px var(--font-display);color:var(--ink-3)}
+.settle{display:flex;align-items:center;gap:10px;margin-top:14px;background:var(--mint-soft);border:2.5px solid var(--ink);border-radius:16px;padding:10px 12px}
+.settle b{font:900 15px var(--font-display)}
+.settle .btn{margin-inline-start:auto}
+
+/* transactions */
+.day-h{display:flex;justify-content:space-between;align-items:center;margin:16px 4px 8px;font:900 14px var(--font-display)}
+.day-h small{color:var(--ink-3);font-weight:700}
+.swipe{position:relative;overflow:hidden;border-radius:var(--r)}
+.swipe .under{position:absolute;inset:0;background:var(--mint);border:var(--line) solid var(--ink);border-radius:var(--r);display:flex;align-items:center;padding:0 18px;font:900 14px var(--font-display);gap:8px}
+.swipe .item{position:relative;background:#fff;transition:transform .35s var(--spring);touch-action:pan-y;user-select:none;box-shadow:none}
+.swipe .item.dragging{transition:none}
+.item .who{width:24px;height:24px;font-size:10px;box-shadow:none;border-width:2px}
+.hint{display:flex;align-items:center;justify-content:center;gap:6px;color:var(--ink-3);font-size:12px;margin-top:10px}
+.hint svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.5;animation:nudge 1.4s ease-in-out infinite}
+@keyframes nudge{50%{transform:translateX(6px)}}
+.cat-tag{font:800 10.5px var(--font-display);border:2px solid var(--ink);border-radius:99px;padding:1px 7px;display:inline-block;margin-inline-start:4px;vertical-align:middle}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar light"><span>9:41</span><span class="notch"></span><span>●●● 100%</span></div>
+  <div class="app">
+
+    <header class="blob-head hero pop">
+      <div class="blob b1"></div><div class="blob b2"></div>
+      <div class="row between">
+        <button class="cycle pressable" onclick="toast('מחזור קודם: 10.8–9.9 · ₪9,140')"><span class="arr">‹</span>מחזור 10.9 – 9.10<span class="arr">›</span></button>
+        <span class="chip sun">יום 9/30</span>
+      </div>
+      <div class="hero-big"><span class="sym">₪</span><span id="total" class="num">0</span></div>
+      <div class="hero-sub">
+        <span class="chip mint">−₪720 מול מחזור קודם</span>
+        <span class="chip">🔮 צפי: ₪8,420</span>
+      </div>
+      <div class="stats3">
+        <div class="stat3 hot"><b class="num">₪186</b><small>היום</small></div>
+        <div class="stat3"><b class="num">₪1,120</b><small>השבוע</small></div>
+        <div class="stat3"><b class="num">23</b><small>תשלומים</small></div>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- ===== SMART: bill detective ===== -->
+      <section class="sticker detect tilt-r pop d1" id="detect">
+        <div class="row">
+          <div class="logo">N</div>
+          <div class="grow">
+            <div class="eyebrow" style="color:var(--ink-2)">🕵️ בלש החיובים</div>
+            <h3>זיהינו חיוב שחוזר 3 חודשים ברצף: <b>Netflix ₪49.90</b>. להוסיף לקבועים כדי שיתווסף אוטומטית בכל מחזור?</h3>
+          </div>
+        </div>
+        <div class="row" style="gap:8px">
+          <button class="btn sm white" onclick="dismiss(true)">כן, הוסף לקבועים</button>
+          <button class="btn sm ghost" onclick="dismiss(false)">לא עכשיו</button>
+        </div>
+      </section>
+
+      <!-- ===== BUBBLE SPLIT ===== -->
+      <div class="section-title pop d2"><span>לאן הלך הכסף?</span><small>גע בבועה</small></div>
+      <section class="sticker bubbles pop d2">
+        <svg viewBox="0 0 340 236" class="ltr" id="bubbles" aria-label="פילוח קטגוריות"></svg>
+        <div class="bub-legend" id="legend"></div>
+        <div class="muted" style="font-size:12px;margin-top:8px">3 קטגוריות עדיין בלי הוצאות החודש: אופנה, טיפוח, כללי ✨</div>
+      </section>
+
+      <!-- ===== SPENDING RACE ===== -->
+      <div class="section-title pop d3"><span>מי הוציא יותר?</span><small>חלוקה 50/50</small></div>
+      <section class="sticker race pop d3">
+        <div class="lane-lbl"><span>נועה</span><span>₪2,610 · 55%</span></div>
+        <div class="lane"><div class="track"><div class="fill" data-w="55%" style="background:var(--sun)"></div></div><div class="runner" data-x="55%" style="background:var(--sun)">נ</div></div>
+        <div class="lane-lbl"><span>יובל</span><span>₪2,120 · 45%</span></div>
+        <div class="lane"><div class="track"><div class="fill" data-w="45%" style="background:var(--coral)"></div></div><div class="runner" data-x="45%" style="background:var(--coral);color:#fff">י</div></div>
+        <div class="settle">
+          <span>⚖️</span>
+          <div><b>יובל חייב לנועה ₪245</b><div class="muted" style="font-size:12px">כדי לאזן את המחזור</div></div>
+          <button class="btn sm mint" onclick="this.textContent='סולק ✓';this.disabled=true;confetti(innerWidth/2,innerHeight/2,60);toast('האיזון נשמר — נועה קיבלה עדכון')">סמן כמסולק</button>
+        </div>
+      </section>
+
+      <!-- ===== TRANSACTIONS ===== -->
+      <div class="section-title pop d4"><span>תשלומים</span><span class="chip ghost" id="filterChip">כל הקטגוריות</span></div>
+      <div id="txList" class="pop d4"></div>
+      <div class="hint"><svg viewBox="0 0 24 24"><path d="M4 12h14M12 6l6 6-6 6"/></svg>החלק שורה ימינה כדי לפצל 50/50</div>
+    </main>
+
+    <nav class="nav">
+      <div class="nav-pill">
+        <div class="nav-blob"></div>
+        <a href="home.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>בית</a>
+        <a href="finance.html" class="active"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg>הוצאות</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M3 4h2l2 11h11l2-7H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>קניות</a>
+        <a href="baby.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".8"/><circle cx="14.5" cy="11" r=".8"/><path d="M9.5 14.5q2.5 2 5 0"/></svg>תינוק</a>
+        <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.3.9a7 7 0 0 0-1.9-1.1L14.4 3H9.6l-.4 2.4a7 7 0 0 0-1.9 1.1L5 5.6 3 9l2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.1L3 14.6l2 3.4 2.3-.9a7 7 0 0 0 1.9 1.1l.4 2.4h4.8l.4-2.4a7 7 0 0 0 1.9-1.1l2.3.9 2-3.4-2-1.5A7 7 0 0 0 19 12z"/></svg>הגדרות</a>
+      </div>
+    </nav>
+
+    <div class="fab-scrim"></div>
+    <div class="fab-wrap">
+      <button class="fab" aria-label="הוספה מהירה"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="fab-item" style="background:var(--sun)" data-toast="פותח הוספת הוצאה 💸"><span>הוצאה</span>💸</button>
+      <button class="fab-item" style="background:var(--peach)" data-toast="סריקת קבלה 📷"><span>קבלה</span>📷</button>
+      <button class="fab-item" style="background:var(--grape)" data-toast="תשלום קבוע חדש 🔄"><span>קבוע</span>🔄</button>
+      <button class="fab-item" style="background:var(--mint)" data-toast="ייצוא CSV 📥"><span>ייצוא</span>📥</button>
+    </div>
+  </div>
+</div>
+
+<script src="concept.js"></script>
+<script>
+const CATS=[
+  {n:'קבועים',v:3150,c:'#8F6BFF',x:110,y:120,r:66},
+  {n:'סופר',v:780,c:'#FFC531',x:218,y:80,r:34},
+  {n:'רכב',v:310,c:'#FF5C6C',x:238,y:152,r:22},
+  {n:'משק בית',v:240,c:'#2FD59A',x:292,y:110,r:19},
+  {n:'תינוק',v:165,c:'#FF9E64',x:196,y:194,r:16},
+  {n:'פנאי',v:85,c:'#3E9BFF',x:302,y:184,r:12},
+];
+const TX=[
+  {d:'היום · שישי 18.9',items:[{t:'ארומה — קפה ומאפה',c:'פנאי',a:18,w:'נ'},{t:'שופרסל דיל',c:'סופר',a:168,w:'י'}]},
+  {d:'אתמול · חמישי 17.9',items:[{t:'חניה — עזריאלי',c:'רכב',a:64,w:'נ'}]},
+  {d:'רביעי 16.9',items:[{t:'סופר-פארם — חיתולים',c:'תינוק',a:95,w:'נ'},{t:'לחם וחלב — מכולת',c:'סופר',a:60,w:'י'}]},
+  {d:'שלישי 15.9',items:[{t:'רמי לוי',c:'סופר',a:312,w:'י'},{t:'מכבסה',c:'משק בית',a:108,w:'נ'}]},
+  {d:'ראשון 13.9',items:[{t:'טיפול 10,000 — מוסך',c:'רכב',a:310,w:'י'},{t:'פיצה',c:'פנאי',a:30,w:'נ'}]},
+];
+const colorOf=n=>(CATS.find(c=>c.n===n)||{c:'#ccc'}).c;
+
+/* bubbles */
+const svg=$('#bubbles');
+CATS.forEach((c,i)=>{
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');g.setAttribute('class','bub in');g.style.animationDelay=(.3+i*.09)+'s';g.dataset.n=c.n;
+  const big=c.r>=30;
+  g.innerHTML=`<circle cx="${c.x}" cy="${c.y}" r="${c.r}" fill="${c.c}"/>`+(big?`<text x="${c.x}" y="${c.y-4}" font-size="${c.r>50?16:13}">${c.n}</text><text x="${c.x}" y="${c.y+14}" font-size="${c.r>50?15:12}">₪${c.v.toLocaleString('he-IL')}</text>`:`<text x="${c.x}" y="${c.y+c.r+13}" font-size="10">${c.n} ₪${c.v}</text>`);
+  svg.appendChild(g);
+  g.addEventListener('click',()=>selectCat(c.n));
+});
+$('#legend').innerHTML=CATS.map(c=>`<span class="chip"><i style="background:${c.c}"></i>${c.n} · ${Math.round(c.v/4730*100)}%</span>`).join('');
+let sel=null;
+function selectCat(n){
+  sel=sel===n?null:n;
+  $$('.bub').forEach(b=>{b.classList.toggle('on',b.dataset.n===sel);b.classList.toggle('dim',sel&&b.dataset.n!==sel);});
+  $('#filterChip').textContent=sel?`מסונן: ${sel}`:'כל הקטגוריות';
+  renderTx();
+  if(sel)toast(`מציג רק ${sel}`);
+}
+
+/* transactions with swipe-to-split */
+function renderTx(){
+  const list=$('#txList');list.innerHTML='';
+  TX.forEach(day=>{
+    const items=day.items.filter(i=>!sel||i.c===sel); if(!items.length)return;
+    const sum=items.reduce((s,i)=>s+i.a,0);
+    list.insertAdjacentHTML('beforeend',`<div class="day-h"><span>${day.d}</span><small>₪${sum}</small></div>`);
+    items.forEach(i=>{
+      list.insertAdjacentHTML('beforeend',`<div class="swipe" style="margin-bottom:10px"><div class="under">🤝 פיצול 50/50</div><div class="item sticker"><div class="ico" style="background:${colorOf(i.c)}33">${{'סופר':'🛒','רכב':'🚗','תינוק':'👶','משק בית':'🏠','פנאי':'🎉','קבועים':'🔄'}[i.c]}</div><div class="grow"><div class="t">${i.t}</div><div class="s">${i.c}<span class="cat-tag" style="border-color:${colorOf(i.c)};color:${colorOf(i.c)}">●</span></div></div><div class="amt num">₪${i.a}</div><span class="avatar who ${i.w==='נ'?'sun':'coral'}">${i.w}</span></div></div>`);
+    });
+  });
+  $$('.swipe .item').forEach(attachSwipe);
+}
+function attachSwipe(el){
+  let x0=null,dx=0;
+  el.addEventListener('pointerdown',e=>{x0=e.clientX;dx=0;el.classList.add('dragging');el.setPointerCapture(e.pointerId);});
+  el.addEventListener('pointermove',e=>{if(x0==null)return;dx=Math.max(0,Math.min(150,e.clientX-x0));el.style.transform=`translateX(${dx}px)`;});
+  const end=()=>{if(x0==null)return;el.classList.remove('dragging');if(dx>90){el.style.transform='translateX(120px)';setTimeout(()=>{el.style.transform='';toast('פוצל 50/50 — יובל קיבל התראה 🤝');},500);}else el.style.transform='';x0=null;};
+  el.addEventListener('pointerup',end);el.addEventListener('pointercancel',end);
+}
+renderTx();
+
+/* bill detective */
+function dismiss(add){const d=$('#detect');d.classList.add('gone');if(add){confetti(innerWidth/2,200,50);toast('Netflix נוסף לקבועים 🔄');}}
+
+/* on ready */
+document.addEventListener('data:ready',()=>{
+  countUp($('#total'),4730);
+  $$('.lane').forEach(l=>{const pct=parseFloat($('.fill',l).dataset.w)/100, w=l.clientWidth;
+    $('.fill',l).style.transform=`scaleX(${pct})`;
+    $('.runner',l).style.transform=`translateX(${-pct*w}px)`;});
+});
+</script>
+</body>
+</html>

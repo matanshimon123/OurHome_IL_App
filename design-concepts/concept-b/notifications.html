@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Concept B · הגדרות התראות</title>
+<link rel="stylesheet" href="concept.css">
+<style>
+.theme-btn .moon{display:none}.theme-btn.is-dark .moon{display:block}.theme-btn.is-dark .sun{display:none}
+.title{font-size:26px;margin-top:6px}
+.title+.sub{color:var(--ink-3);font-size:13.5px;font-weight:300;margin-top:2px}
+
+/* setting rows */
+.card-s{padding:6px 18px}
+.srow{display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid var(--line);transition:opacity .35s var(--ease)}
+.srow:last-child{border:0}
+.srow .t{font-size:14.5px;font-weight:500}
+.srow .s{font-size:12px;color:var(--ink-3);margin-top:1px;line-height:1.4}
+.srow.sub{padding-inline-start:14px}
+.srow.sub .t{font-weight:400}
+.srow.master{padding:14px 0}
+.srow.master .t{font-size:16px;font-family:var(--serif);font-weight:500}
+.mod-ico{width:40px;height:40px;border-radius:13px;display:grid;place-items:center;flex:none}
+.mod-ico svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.card-s.off .srow.sub{opacity:.35;pointer-events:none}
+.content.off .card-s:not(.first){opacity:.35;pointer-events:none}
+.time-chip{font:500 12px var(--sans);padding:4px 9px;border-radius:8px;background:var(--glass-2);border:1px solid var(--line);color:var(--ink-2)}
+
+/* quiet hours */
+.quiet{padding:16px 18px}
+.quiet-body{display:flex;align-items:center;gap:16px;margin-top:8px;transition:opacity .35s var(--ease)}
+.quiet.off .quiet-body{opacity:.35;pointer-events:none}
+.qdial{width:112px;height:112px;flex:none;position:relative}
+.qdial svg{width:100%;height:100%}
+.qdial .qtrack{fill:none;stroke:var(--line-2);stroke-width:9}
+.qdial .qarc{fill:none;stroke:var(--lilac);stroke-width:9;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.4s var(--ease)}
+.qdial .c{position:absolute;inset:0;display:grid;place-items:center;text-align:center}
+.qdial .c b{font:500 14px var(--serif);display:block}
+.qdial .c small{font-size:10px;color:var(--ink-3)}
+.tfield{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-radius:14px;background:var(--bg);box-shadow:var(--neu-out);cursor:pointer;transition:box-shadow .25s}
+.tfield:active{box-shadow:var(--neu-in)}
+.tfield small{font-size:11px;color:var(--ink-3);font-weight:500}
+.tfield b{font:500 20px var(--serif);font-variant-numeric:tabular-nums}
+.tfields{display:flex;flex-direction:column;gap:10px;flex:1}
+
+/* wheel picker */
+.wheel-wrap{display:flex;justify-content:center;gap:8px;position:relative;direction:ltr;margin:8px 0 6px}
+.wheel{height:180px;width:80px;overflow-y:auto;scroll-snap-type:y mandatory;scrollbar-width:none;padding:72px 0;-webkit-mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent);mask-image:linear-gradient(transparent,#000 30%,#000 70%,transparent)}
+.wheel::-webkit-scrollbar{display:none}
+.wheel div{height:36px;display:grid;place-items:center;scroll-snap-align:center;font:500 22px var(--serif);font-variant-numeric:tabular-nums;color:var(--ink-2)}
+.wheel-band{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:176px;height:36px;border-radius:10px;background:var(--glass-2);border:1px solid var(--line);pointer-events:none}
+.wheel-colon{align-self:center;font:500 22px var(--serif);color:var(--ink-3)}
+.seg-line{display:flex;align-items:center;gap:10px;margin-top:12px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar"><span>9:41</span><span class="notch"></span><span>●●● 100%</span></div>
+  <div class="app">
+    <div class="mesh"><i></i><i></i><i></i></div>
+
+    <header class="topbar rise">
+      <a class="icon-btn" href="home.html" aria-label="חזרה"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6"/></svg></a>
+      <div class="eyebrow">הגדרות</div>
+      <button class="icon-btn theme-btn" aria-label="מצב תצוגה"><svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+    </header>
+
+    <main class="content" id="content">
+      <div class="rise d1"><h1 class="title">התראות</h1><div class="sub">מה מגיע אליך, ומתי. ההגדרות אישיות לכל בן משפחה.</div></div>
+
+      <!-- master -->
+      <section class="glass strong card-s first rise d2">
+        <div class="srow master">
+          <span class="mod-ico" style="background:var(--gold-soft);color:var(--gold)"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg></span>
+          <div class="grow"><div class="t">התראות פוש</div><div class="s">מופעל · 4 מודולים · שעות שקט 22:30–07:00</div></div>
+          <button class="switch gold" role="switch" aria-checked="true" id="master"><i></i></button>
+        </div>
+      </section>
+
+      <!-- quiet hours -->
+      <section class="glass quiet rise d3" id="quiet">
+        <div class="srow" style="padding:0;border:0">
+          <span class="mod-ico" style="background:var(--lilac-soft);color:var(--lilac)"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>
+          <div class="grow"><div class="t">שעות שקט</div><div class="s">רק התראות דחופות יעברו</div></div>
+          <button class="switch" role="switch" aria-checked="true" id="quietSw"><i></i></button>
+        </div>
+        <div class="quiet-body">
+          <div class="qdial">
+            <svg viewBox="0 0 112 112" id="qdial"></svg>
+            <div class="c"><div><b id="qlen">8.5 ש׳</b><small>שקט</small></div></div>
+          </div>
+          <div class="tfields">
+            <div class="tfield" onclick="openWheel('from')"><small>מ־</small><b id="tFrom">22:30</b></div>
+            <div class="tfield" onclick="openWheel('to')"><small>עד</small><b id="tTo">07:00</b></div>
+          </div>
+        </div>
+        <div class="srow sub" style="border:0;padding-bottom:0"><div class="grow"><div class="t">חריגה לתינוק</div><div class="s">תזכורת האכלה תעבור גם בשעות שקט</div></div><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+      </section>
+
+      <!-- modules -->
+      <section class="glass card-s rise d4" data-module>
+        <div class="srow master">
+          <span class="mod-ico" style="background:var(--lilac-soft);color:var(--lilac)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".6"/><circle cx="14.5" cy="11" r=".6"/><path d="M9.5 14.5q2.5 2 5 0"/></svg></span>
+          <div class="grow"><div class="t">מעקב תינוק</div><div class="s">3 מתוך 3 פעילות</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-master><i></i></button>
+        </div>
+        <div class="srow sub"><div class="grow"><div class="t">תזכורת האכלה</div><div class="s">כשעוברות 3 שעות מהאכלה אחרונה</div></div><span class="time-chip">כל 3 ש׳</span><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="t">סיכום שינה יומי</div><div class="s">כמה ישנה, כמה אכלה, מה השתנה</div></div><span class="time-chip">20:00</span><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="t">רישום של בן/בת הזוג</div><div class="s">״יובל רשם בקבוק 150 מ״ל״</div></div><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+      </section>
+
+      <section class="glass card-s rise d5" data-module>
+        <div class="srow master">
+          <span class="mod-ico" style="background:var(--slate-soft);color:var(--slate)"><svg viewBox="0 0 24 24"><path d="M3 4h2l2 11h11l2-7H7"/><circle cx="9" cy="19" r="1"/><circle cx="17" cy="19" r="1"/></svg></span>
+          <div class="grow"><div class="t">רשימת קניות</div><div class="s">1 מתוך 2 פעילות</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-master><i></i></button>
+        </div>
+        <div class="srow sub"><div class="grow"><div class="t">פריט נוסף לרשימה</div><div class="s">מאוגד: הודעה אחת לכמה פריטים תוך 10 דקות</div></div><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="t">הרשימה הושלמה</div><div class="s">כשכל הפריטים סומנו</div></div><button class="switch" role="switch" aria-checked="false"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="s">סימון פריט בודד לא שולח התראה — רועש מדי.</div></div></div>
+      </section>
+
+      <section class="glass card-s rise d6" data-module>
+        <div class="srow master">
+          <span class="mod-ico" style="background:var(--gold-soft);color:var(--gold)"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg></span>
+          <div class="grow"><div class="t">הוצאות</div><div class="s">4 מתוך 4 פעילות</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-master><i></i></button>
+        </div>
+        <div class="srow sub"><div class="grow"><div class="t">80% מהתקציב</div><div class="s">אזהרה מוקדמת, פעם אחת במחזור</div></div><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="t">חריגה מהתקציב</div><div class="s">כשעוברים את 100%</div></div><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="t">הוצאה של בן/בת הזוג</div><div class="s">רק מעל ₪100</div></div><span class="time-chip">₪100+</span><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="t">סיכום שבועי</div><div class="s">מה הוצאתם, מה הצפי, מה השתנה</div></div><span class="time-chip">א׳ 09:00</span><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+      </section>
+
+      <section class="glass card-s rise d7" data-module>
+        <div class="srow master">
+          <span class="mod-ico" style="background:var(--sage-soft);color:var(--sage)"><svg viewBox="0 0 24 24"><path d="M9 11l3 3 8-8"/><path d="M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg></span>
+          <div class="grow"><div class="t">משימות</div><div class="s">2 מתוך 3 פעילות</div></div>
+          <button class="switch" role="switch" aria-checked="true" data-master><i></i></button>
+        </div>
+        <div class="srow sub"><div class="grow"><div class="t">משימה הוקצתה לי</div><div class="s">מיד כשמישהו מקצה</div></div><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="t">משימה באיחור</div><div class="s">תזכורת עדינה בשעה שבחרת</div></div><span class="time-chip">18:00</span><button class="switch" role="switch" aria-checked="true"><i></i></button></div>
+        <div class="srow sub"><div class="grow"><div class="t">״כל הכבוד״ משפחתי</div><div class="s">כשכולם סיימו את המשימות של היום</div></div><button class="switch" role="switch" aria-checked="false"><i></i></button></div>
+      </section>
+
+      <!-- style + preview -->
+      <section class="glass card-s rise d7" style="padding:16px 18px">
+        <div class="t" style="font-size:14.5px;font-weight:500">סגנון ההתראה</div>
+        <div class="seg neu-in" style="margin-top:10px"><span class="thumb"></span><button class="on">צליל</button><button>רטט</button><button>שקט</button></div>
+        <div class="seg-line"><button class="neu-btn sm" onclick="showBanner('אלה רעבה בקרוב','עברו 3 שעות מהאכלה האחרונה · הבאה צפויה ~16:30','עכשיו')">תצוגה מקדימה</button><span class="muted" style="font-size:12px">כך תיראה התראה מהמודול ״תינוק״</span></div>
+      </section>
+
+      <div class="muted rise d7" style="font-size:12px;text-align:center;padding:4px 10px 0;line-height:1.5">ההגדרות נשמרות במכשיר הזה ומסונכרנות לחשבון המשפחה. בן/בת הזוג יכולים לבחור הגדרות אחרות.</div>
+    </main>
+
+    <nav class="nav">
+      <div class="nav-bar">
+        <a href="home.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>בית</a>
+        <a href="finance.html"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg>הוצאות</a>
+        <a href="#" class="add" onclick="event.preventDefault();toast('הוספה מהירה')"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></a>
+        <a href="baby.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".6"/><circle cx="14.5" cy="11" r=".6"/><path d="M9.5 14.5q2.5 2 5 0"/></svg>תינוק</a>
+        <a href="notifications.html" class="active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>הגדרות</a>
+      </div>
+    </nav>
+  </div>
+
+  <!-- ===== WHEEL PICKER SHEET ===== -->
+  <div class="sheet-ov" id="wheelSheet">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="row between"><h3 style="font-size:20px" id="wheelTitle">שעות שקט · התחלה</h3><span class="pill lilac" id="wheelPreview">22:30</span></div>
+      <div class="wheel-wrap">
+        <div class="wheel-band"></div>
+        <div class="wheel" id="wh"></div>
+        <span class="wheel-colon">:</span>
+        <div class="wheel" id="wm"></div>
+      </div>
+      <button class="neu-btn primary block" style="margin-top:10px" onclick="confirmWheel()">אישור</button>
+    </div>
+  </div>
+</div>
+
+<script src="concept.js"></script>
+<script>
+/* ---------- quiet-hours dial ---------- */
+const NS='http://www.w3.org/2000/svg';const el=(n,a={})=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const C=56,R=44;const polar=(r,deg)=>{const a=(deg-90)*Math.PI/180;return [C+r*Math.cos(a),C+r*Math.sin(a)];};
+const arc=(r,a1,a2)=>{const [x1,y1]=polar(r,a1),[x2,y2]=polar(r,a2);return `M${x1} ${y1} A${r} ${r} 0 ${a2-a1>180?1:0} 1 ${x2} ${y2}`;};
+const q=$('#qdial');let from=22.5,to=7;
+q.appendChild(el('circle',{cx:C,cy:C,r:R,class:'qtrack'}));
+for(let h=0;h<24;h+=6){const [x1,y1]=polar(R-9,h*15),[x2,y2]=polar(R-13,h*15);q.appendChild(el('line',{x1,y1,x2,y2,stroke:'#8B8994','stroke-width':1.2}));}
+const qarc=el('path',{class:'qarc',pathLength:1});q.appendChild(qarc);
+function drawQ(){const a1=from*15,a2=(to<=from?to+24:to)*15;qarc.setAttribute('d',arc(R,a1,a2));const len=(a2-a1)/15;$('#qlen').textContent=(Math.round(len*2)/2).toLocaleString('he-IL')+' ש׳';requestAnimationFrame(()=>qarc.style.strokeDashoffset=0);}
+drawQ();
+const fmt=t=>`${String(Math.floor(t)).padStart(2,'0')}:${String(Math.round((t%1)*60)).padStart(2,'0')}`;
+
+/* ---------- master / module cascade ---------- */
+$('#master').addEventListener('switch:change',e=>{$('#content').classList.toggle('off',!e.detail.on);toast(e.detail.on?'התראות הופעלו':'כל ההתראות הושתקו');});
+$('#quietSw').addEventListener('switch:change',e=>{$('#quiet').classList.toggle('off',!e.detail.on);});
+$$('[data-module]').forEach(card=>{$('[data-master]',card).addEventListener('switch:change',e=>{card.classList.toggle('off',!e.detail.on);const subs=$$('.srow.sub .switch',card);const on=subs.filter(s=>s.getAttribute('aria-checked')==='true').length;$('.master .s',card).textContent=e.detail.on?`${on} מתוך ${subs.length} פעילות`:'כבוי';});
+  $$('.srow.sub .switch',card).forEach(s=>s.addEventListener('switch:change',()=>{const subs=$$('.srow.sub .switch',card);const on=subs.filter(x=>x.getAttribute('aria-checked')==='true').length;$('.master .s',card).textContent=`${on} מתוך ${subs.length} פעילות`;}));});
+
+/* ---------- wheel picker ---------- */
+let editing='from';
+const wh=$('#wh'),wm=$('#wm');
+wh.innerHTML=Array.from({length:24},(_,i)=>`<div>${String(i).padStart(2,'0')}</div>`).join('');
+wm.innerHTML=[0,15,30,45].map(m=>`<div>${String(m).padStart(2,'0')}</div>`).join('');
+const readWheel=w=>Math.round(w.scrollTop/36);
+const updPreview=()=>{const h=readWheel(wh),m=[0,15,30,45][readWheel(wm)]||0;$('#wheelPreview').textContent=`${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;};
+[wh,wm].forEach(w=>w.addEventListener('scroll',updPreview,{passive:true}));
+function openWheel(which){editing=which;const t=which==='from'?from:to;$('#wheelTitle').textContent=which==='from'?'שעות שקט · התחלה':'שעות שקט · סיום';openSheet('wheelSheet');
+  requestAnimationFrame(()=>{wh.scrollTop=Math.floor(t)*36;wm.scrollTop=([0,15,30,45].indexOf(Math.round((t%1)*60))||0)*36;updPreview();});}
+function confirmWheel(){const h=readWheel(wh),m=[0,15,30,45][readWheel(wm)]||0;const v=h+m/60;if(editing==='from')from=v;else to=v;$('#tFrom').textContent=fmt(from);$('#tTo').textContent=fmt(to);qarc.style.strokeDashoffset=1;drawQ();closeSheet('wheelSheet');toast(`שעות שקט: ${fmt(from)}–${fmt(to)}`);}
+</script>
+</body>
+</html>

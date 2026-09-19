@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Concept C · תינוק</title>
+<link rel="stylesheet" href="concept.css">
+<style>
+.timer{font:600 15px/1.2 var(--mono);letter-spacing:-.04em;color:var(--cyan);text-shadow:0 0 14px rgba(34,211,238,.4);white-space:nowrap}
+/* sleep heatmap 7 × 24 */
+.sh{display:grid;grid-template-columns:22px repeat(24,1fr);gap:2px;margin-top:8px;direction:ltr}
+.sh .lab{font:500 9px var(--mono);color:var(--text-3);display:flex;align-items:center}
+.sh .hh{font:500 8px var(--mono);color:var(--text-3);text-align:center;grid-column:span 3}
+.sh .c{aspect-ratio:1/1.7;border-radius:2px;background:var(--panel-3);position:relative}
+.sh .c.s{background:var(--violet)}
+.sh .c.s.half{background:linear-gradient(90deg,var(--violet) 50%,var(--panel-3) 50%)}
+.sh .c.f::after{content:'';position:absolute;left:50%;top:50%;width:4px;height:4px;border-radius:50%;background:var(--cyan);transform:translate(-50%,-50%);box-shadow:0 0 5px var(--cyan)}
+.sh .c.now{outline:1.5px solid var(--amber);outline-offset:0}
+.sh .c.fut{opacity:.35}
+.sh-legend{display:flex;gap:10px;font:500 9.5px var(--mono);color:var(--text-3);margin-top:8px}
+.sh-legend i{display:inline-block;width:9px;height:9px;border-radius:2px;vertical-align:middle;margin-inline-end:4px}
+/* interval timeline */
+.iv svg{width:100%;height:auto;margin-top:4px}
+/* bars */
+.bars{display:flex;align-items:flex-end;gap:4px;height:64px;margin-top:8px;direction:rtl;position:relative}
+.bars i{flex:1;background:var(--cyan);border-radius:3px 3px 0 0;height:var(--h);opacity:.85;position:relative}
+.bars i.today{background:var(--amber);opacity:1}
+.bars i b{position:absolute;top:-13px;left:0;right:0;text-align:center;font:500 8.5px var(--mono);color:var(--text-3)}
+.bars .avg{position:absolute;left:0;right:0;border-top:1px dashed var(--text-3);bottom:var(--y)}
+.bars-lbl{display:flex;justify-content:space-between;font:500 9px var(--mono);color:var(--text-3);margin-top:4px;direction:rtl}
+.bars-lbl span{flex:1;text-align:center}
+.dp{display:flex;gap:3px;height:36px;align-items:flex-end;margin-top:8px;direction:rtl}
+.dp div{flex:1;display:flex;flex-direction:column;gap:2px;justify-content:flex-end;height:100%}
+.dp i{display:block;border-radius:2px;background:var(--blue);height:var(--h)}
+.dp i.d{background:var(--amber)}
+/* quick log */
+.ql{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.ql button{background:var(--panel-2);border:1px solid var(--line-2);border-radius:10px;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:4px;font:500 9px var(--mono);letter-spacing:.04em;color:var(--text-2);transition:all .2s}
+.ql button svg{width:18px;height:18px;stroke:var(--text);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ql button:active{background:var(--cyan-soft);border-color:var(--cyan);transform:scale(.96)}
+/* forecast */
+.conf{height:6px;border-radius:3px;background:var(--panel-3);overflow:hidden;margin-top:6px}
+.conf i{display:block;height:100%;width:82%;background:linear-gradient(90deg,var(--cyan),var(--lime));transform-origin:right}
+.streak{display:flex;align-items:center;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);font-size:12.5px}
+.streak .n{font:600 18px var(--mono);color:var(--lime)}
+/* log */
+.log .trow{grid-template-columns:44px 1fr auto}
+.log .trow.new{animation:tin .5s var(--ease)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar"><span>09:41</span><span class="notch"></span><span>● 100%</span></div>
+  <div class="app">
+
+    <header class="topbar in">
+      <div>
+        <div class="brand"><b>Baby</b><span class="sep">//</span>אלה · 7M · 8.2KG</div>
+        <div class="title">אלה ישנה<small>NAP STARTED 13:55 · <span id="nap">37</span> MIN</small></div>
+      </div>
+      <div class="sync"><span class="live" style="background:var(--violet);box-shadow:none;animation:none"></span>שינה פעילה</div>
+    </header>
+
+    <main class="content">
+      <div class="kpis in d1">
+        <div class="tile"><div class="lbl">מאז האכלה</div><div class="timer" id="timer">02:07:14</div><div class="sub">בקבוק 12:25</div></div>
+        <div class="tile"><div class="lbl">מ״ל היום</div><div class="kpi">330</div><div class="sub">2 בקבוקים</div></div>
+        <div class="tile"><div class="lbl">חיתולים</div><div class="kpi">4</div><div class="sub">3 רטוב · 1 מלוכלך</div></div>
+        <div class="tile"><div class="lbl">שינה</div><div class="kpi c-violet">7:20</div><div class="sub">/ 14:00 יעד</div></div>
+      </div>
+
+      <div class="bento" style="margin-top:10px">
+
+        <!-- ===== QUICK LOG ===== -->
+        <section class="ql span2 in d2" id="ql">
+          <button data-k="bottle"><svg viewBox="0 0 24 24"><path d="M10 3h4v3h-4zM9 6h6v3a3 3 0 0 1-1 2v9a2 2 0 0 1-2 2h0a2 2 0 0 1-2-2v-9a3 3 0 0 1-1-2z"/></svg>BOTTLE</button>
+          <button data-k="breast"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>NURSE</button>
+          <button data-k="solid"><svg viewBox="0 0 24 24"><path d="M4 12h16a8 8 0 0 1-16 0z"/></svg>SOLID</button>
+          <button data-k="diaper"><svg viewBox="0 0 24 24"><path d="M4 7h16v4a8 8 0 0 1-16 0zM4 7V5h16v2"/></svg>DIAPER</button>
+          <button data-k="sleep"><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>SLEEP</button>
+          <button data-k="meds"><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-45 12 12)"/><path d="M9.5 9.5l5 5"/></svg>MEDS</button>
+        </section>
+
+        <!-- ===== SLEEP HEATMAP ===== -->
+        <section class="tile span2 in d3">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--violet)"></i>מפת שינה · 7 ימים</span><span class="meta">24H × 7D</span></div>
+          <div class="sh" id="sh"></div>
+          <div class="sh-legend"><span><i style="background:var(--violet)"></i>שינה</span><span><i style="background:var(--cyan);border-radius:50%"></i>האכלה</span><span><i style="background:var(--panel-3);outline:1px solid var(--amber)"></i>עכשיו</span></div>
+        </section>
+
+        <!-- ===== SMART: FORECAST ===== -->
+        <section class="tile span2 accent-cyan in d4">
+          <div class="tile-h"><span class="lbl"><i></i>תחזית</span><span class="meta">MODEL · 14 DAYS</span></div>
+          <div class="row between">
+            <div><div style="font-weight:600;font-size:15px">האכלה הבאה ~<span class="c-cyan mono">16:32</span> <span class="muted mono" style="font-size:11px">±18 דק׳</span></div><div class="sub">מרווח ממוצע 3:05 · ביטחון 82%</div></div>
+            <button class="btn sm primary" onclick="toast('תזכורת נקבעה ל־16:15')">תזכורת 16:15</button>
+          </div>
+          <div class="conf"><i class="grow-x"></i></div>
+          <div class="streak"><span class="n">4</span><div class="grow"><div style="font-weight:600">לילות ברצף של שינה רציפה 23:00→05:30</div><div class="sub">שיא חדש · הרצף הקודם: 2 לילות</div></div><span class="mono c-lime">▲</span></div>
+        </section>
+
+        <!-- ===== INTERVALS ===== -->
+        <section class="tile span2 iv in d5">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--cyan)"></i>מרווחי האכלה היום</span><span class="meta">AVG 3:05</span></div>
+          <svg viewBox="0 0 340 74" class="ltr" id="iv"></svg>
+        </section>
+
+        <!-- ===== VOLUME ===== -->
+        <section class="tile in d6">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--cyan)"></i>נפח / יום</span><span class="meta">ML</span></div>
+          <div class="bars" id="bars"></div>
+          <div class="bars-lbl"><span>ש</span><span>א</span><span>ב</span><span>ג</span><span>ד</span><span>ה</span><span>ו</span></div>
+          <div class="sub">ממוצע 590 · היום חלקי</div>
+        </section>
+
+        <!-- ===== DIAPERS ===== -->
+        <section class="tile in d6">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--blue)"></i>חיתולים</span><span class="meta">7D</span></div>
+          <div class="dp" id="dp"></div>
+          <div class="bars-lbl"><span>ש</span><span>א</span><span>ב</span><span>ג</span><span>ד</span><span>ה</span><span>ו</span></div>
+          <div class="sub"><span class="c-blue">■</span> רטוב <span class="c-amber">■</span> מלוכלך · ממוצע 6.4</div>
+        </section>
+
+        <!-- ===== LOG ===== -->
+        <section class="tile span2 log in d7">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--text-3)"></i>יומן</span><span class="meta" id="logMeta">9 EVENTS</span></div>
+          <div id="log"></div>
+        </section>
+      </div>
+    </main>
+
+    <nav class="nav">
+      <div class="nav-bar">
+        <a href="home.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>HOME</a>
+        <a href="finance.html"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg>FINANCE</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M3 4h2l2 11h11l2-7H7"/><circle cx="9" cy="19" r="1"/><circle cx="17" cy="19" r="1"/></svg>SHOP</a>
+        <a href="baby.html" class="active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".6"/><circle cx="14.5" cy="11" r=".6"/><path d="M9.5 14.5q2.5 2 5 0"/></svg>BABY</a>
+        <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>SETTINGS</a>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<script src="concept.js"></script>
+<script>
+const NOW=14.53;
+const TODAY_SLEEP=[[0,2.17],[2.58,5.83],[10.25,11.75],[13.92,NOW]];
+const FEEDS_TODAY=[2.17,6.17,9.5,12.42];
+const NAME={bottle:'בקבוק',breast:'הנקה',solid:'מוצקים',diaper:'חיתול',sleep:'שינה',meds:'תרופה'};
+const EVENTS=[{t:2.17,k:'breast',d:'צד שמאל · 15 דק׳'},{t:6.17,k:'bottle',d:'150 מ״ל'},{t:6.33,k:'diaper',d:'רטוב'},{t:9.5,k:'breast',d:'צד ימין · 12 דק׳'},{t:9.75,k:'diaper',d:'רטוב'},{t:12.42,k:'bottle',d:'180 מ״ל'},{t:12.67,k:'diaper',d:'מלוכלך'},{t:13,k:'solid',d:'דייסת אורז + בננה'},{t:13.33,k:'diaper',d:'רטוב'}];
+const fmtT=t=>`${String(Math.floor(t)).padStart(2,'0')}:${String(Math.round((t%1)*60)).padStart(2,'0')}`;
+
+/* ---------- sleep heatmap 7 days × 24 hours (last 6 days synthesized around a stable pattern) ---------- */
+const DAYS=['ש','א','ב','ג','ד','ה','ו'];
+const base=[[0,5.5],[10,11.5],[14,15.5],[20,24]];const shift=[.3,-.2,.5,-.4,.1,.2,0];
+const sh=$('#sh');sh.innerHTML='<span></span>'+Array.from({length:8},(_,i)=>`<span class="hh">${String(i*3).padStart(2,'0')}</span>`).join('');
+DAYS.forEach((d,di)=>{sh.insertAdjacentHTML('beforeend',`<span class="lab">${d}</span>`);const blocks=di===6?TODAY_SLEEP:base.map(([a,b])=>[a+shift[di],b+shift[di]]);const feeds=di===6?FEEDS_TODAY:[2.5,6.3,9.7,12.6,15.9,19.3].map(f=>f+shift[di]*.5);
+  for(let h=0;h<24;h++){const cov=blocks.reduce((s,[a,b])=>s+Math.max(0,Math.min(b,h+1)-Math.max(a,h)),0);const f=feeds.some(t=>Math.floor(t)===h);const fut=di===6&&h>NOW;const now=di===6&&h===Math.floor(NOW);
+    sh.insertAdjacentHTML('beforeend',`<span class="c fade-cell${cov>=.75?' s':cov>=.3?' s half':''}${f&&!fut?' f':''}${now?' now':''}${fut?' fut':''}" style="transition-delay:${.2+(di*24+h)*.003}s"></span>`);}});
+
+/* ---------- interval timeline ---------- */
+const iv=$('#iv');const X=t=>10+t*(320/24);
+iv.appendChild(svgEl('line',{x1:10,x2:330,y1:40,y2:40,stroke:'#2B3644','stroke-width':1}));
+[0,6,12,18,24].forEach(h=>{iv.appendChild(svgEl('line',{x1:X(h),x2:X(h),y1:36,y2:44,stroke:'#3A4757'}));iv.appendChild(svgEl('text',{x:X(h),y:68,'text-anchor':'middle','font-size':'8.5','font-family':'IBM Plex Mono',fill:'#5D6B7A'},String(h).padStart(2,'0')));});
+FEEDS_TODAY.forEach((t,i)=>{iv.appendChild(svgEl('circle',{cx:X(t),cy:40,r:5,fill:'#22D3EE',class:'fade-cell',style:`transition-delay:${.3+i*.1}s`}));iv.appendChild(svgEl('text',{x:X(t),y:26,'text-anchor':'middle','font-size':'8.5','font-family':'IBM Plex Mono',fill:'#9BA8B6'},fmtT(t)));
+  if(i>0){const a=FEEDS_TODAY[i-1];const gap=t-a;iv.appendChild(svgEl('text',{x:X((a+t)/2),y:56,'text-anchor':'middle','font-size':'8.5','font-family':'IBM Plex Mono',fill:gap>3.5?'#FB7185':'#5D6B7A'},fmtT(gap).replace(/^0/,'')));}});
+/* prediction */
+const P=16.53;iv.appendChild(svgEl('rect',{x:X(P-.3),y:33,width:X(P+.3)-X(P-.3),height:14,rx:3,fill:'rgba(34,211,238,.15)'}));iv.appendChild(svgEl('circle',{cx:X(P),cy:40,r:5,fill:'none',stroke:'#22D3EE','stroke-width':1.5,'stroke-dasharray':'2 2'}));iv.appendChild(svgEl('text',{x:X(P),y:26,'text-anchor':'middle','font-size':'8.5','font-family':'IBM Plex Mono',fill:'#22D3EE'},'~16:32'));
+iv.appendChild(svgEl('line',{x1:X(NOW),x2:X(NOW),y1:30,y2:50,stroke:'#FBBF24','stroke-width':1.5}));
+
+/* ---------- volume bars + diapers ---------- */
+const ML=[520,610,580,640,600,570,330];const mx=700;
+$('#bars').innerHTML=ML.map((v,i)=>`<i class="grow-y${i===6?' today':''}" style="--h:${v/mx*100}%;transition-delay:${i*.06}s"><b>${v}</b></i>`).join('')+`<span class="avg" style="--y:${590/mx*100}%"></span>`;
+const DIA=[[5,2],[4,2],[5,1],[4,3],[5,2],[4,2],[3,1]];
+$('#dp').innerHTML=DIA.map(([w,d],i)=>`<div><i class="d grow-y" style="--h:${d*11}%;transition-delay:${i*.06}s"></i><i class="grow-y" style="--h:${w*11}%;transition-delay:${i*.06}s"></i></div>`).join('');
+
+/* ---------- log ---------- */
+const row=(e,c='')=>`<div class="trow ${c}"><span class="tm">${fmtT(e.t)}</span><div class="grow"><div class="tt">${NAME[e.k]}</div><div class="ts">${e.d}</div></div><span class="who">נ</span></div>`;
+$('#log').innerHTML=[...EVENTS].reverse().map(e=>row(e)).join('');let n=EVENTS.length;
+$('#ql').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;const k=b.dataset.k;n++;$('#logMeta').textContent=`${n} EVENTS`;$('#log').insertAdjacentHTML('afterbegin',row({t:NOW,k,d:k==='bottle'?'150 מ״ל':'—'},'new'));if(k==='bottle'||k==='breast')secs=0;toast(`${NAME[k]} · 14:32 · synced`);});
+
+/* ---------- timers ---------- */
+let secs=2*3600+7*60+14,nap=37*60;setInterval(()=>{secs++;nap++;$('#timer').textContent=[3600,60,1].map((u,i)=>String(Math.floor(secs/u)%(i?60:100)).padStart(2,'0')).join(':');$('#nap').textContent=Math.floor(nap/60);},1000);
+</script>
+</body>
+</html>

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Concept B · תינוק</title>
+<link rel="stylesheet" href="concept.css">
+<style>
+.theme-btn .moon{display:none}.theme-btn.is-dark .moon{display:block}.theme-btn.is-dark .sun{display:none}
+.greet{font-size:32px;line-height:1.15;margin-top:8px}
+.greet+.sub{color:var(--ink-3);font-size:14px;margin-top:2px;font-weight:300}
+
+/* hero ring */
+.hero{padding:20px 18px;display:flex;align-items:center;gap:18px}
+.ring{width:124px;height:124px;position:relative;flex:none}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring circle{fill:none}
+.ring .bg{stroke:var(--line-2);stroke-width:3}
+.ring .fg{stroke:var(--gold);stroke-width:3;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.8s var(--ease)}
+.ring .glow{position:absolute;inset:-8px;border-radius:50%;border:1px solid var(--gold);opacity:.35;animation:breathe 3.6s ease-in-out infinite}
+.ring .glow.g2{inset:-16px;opacity:.18;animation-delay:.6s}
+.ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring .c b{font:500 30px/1 var(--serif);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.ring .c small{font-size:10.5px;color:var(--ink-3);margin-top:4px;font-weight:500}
+.hero-txt .t{font-size:15px;font-weight:500}
+.hero-txt .s{font-size:12.5px;color:var(--ink-3);margin-top:2px}
+
+/* quick log: neumorphic circles */
+.ql{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.ql button{display:flex;flex-direction:column;align-items:center;gap:6px;font:500 11px var(--sans);color:var(--ink-2)}
+.ql button span{width:50px;height:50px;border-radius:50%;background:var(--bg);box-shadow:var(--neu-out);display:grid;place-items:center;transition:box-shadow .25s,transform .25s var(--ease)}
+.ql button span svg{width:22px;height:22px;stroke:var(--ink);fill:none;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.ql button:active span{box-shadow:var(--neu-in);transform:scale(.95)}
+.ql button.pressed span{box-shadow:var(--neu-in)}
+
+/* day band */
+.band-card{padding:16px 18px}
+.band{position:relative;height:36px;border-radius:10px;background:var(--line);margin-top:12px;direction:ltr;overflow:hidden}
+.band .sleep{position:absolute;top:0;bottom:0;background:var(--lilac);opacity:.75;border-radius:6px;transform:scaleX(0);transform-origin:left;transition:transform 1.2s var(--ease)}
+.band .tick{position:absolute;top:6px;bottom:6px;width:2.5px;border-radius:2px;opacity:0;transition:opacity .4s}
+.band .now{position:absolute;top:-4px;bottom:-4px;width:1.5px;background:var(--rose)}
+.band .now::after{content:'14:32';position:absolute;top:-16px;left:50%;transform:translateX(-50%);font-size:9.5px;color:var(--rose);font-weight:600;white-space:nowrap}
+.band-lbl{display:flex;justify-content:space-between;font-size:10px;color:var(--ink-3);margin-top:6px;direction:ltr}
+.band-legend{display:flex;gap:12px;font-size:11.5px;color:var(--ink-3);margin-top:8px;flex-wrap:wrap}
+.band-legend i{width:8px;height:8px;border-radius:2px;display:inline-block;margin-inline-end:5px;vertical-align:middle}
+
+/* moons */
+.moons{padding:16px 18px}
+.moon-row{display:flex;justify-content:space-between;margin-top:12px;direction:rtl}
+.moon{display:flex;flex-direction:column;align-items:center;gap:6px;width:40px}
+.moon svg{width:34px;height:34px}
+.moon .lit{fill:var(--gold);opacity:0;transition:opacity .8s var(--ease)}
+.moon .outline{fill:var(--line-2);stroke:var(--ink-4);stroke-width:1}
+.moon small{font-size:11px;color:var(--ink-3);font-weight:500}
+.moon b{font:500 12px var(--serif)}
+.moon.today small{color:var(--rose)}
+
+/* sparkline */
+.spark{padding:16px 18px}
+.spark svg{width:100%;height:auto;margin-top:8px}
+.drawn{stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.6s var(--ease)}
+
+/* smart */
+.smart{padding:16px 18px}
+.smart h3{font-size:18px;margin-top:4px}
+.smart p{font-size:13.5px;color:var(--ink-2);margin:6px 0 0;line-height:1.55}
+
+/* timeline */
+.tl .rowitem.new{animation:rise .6s var(--ease)}
+.tl .time{font:500 14px var(--serif);font-variant-numeric:tabular-nums;color:var(--ink-3);width:44px;text-align:end}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar"><span>9:41</span><span class="notch"></span><span>●●● 100%</span></div>
+  <div class="app">
+    <div class="mesh"><i></i><i></i><i></i></div>
+
+    <header class="topbar rise">
+      <div class="row"><div class="avatar" style="box-shadow:0 0 0 2px var(--bg),0 0 0 3.5px var(--lilac)">א</div><div><div class="eyebrow">אלה · 7 חודשים · 8.2 ק״ג</div><div class="muted" style="font-size:12.5px">שישי 18 בספטמבר</div></div></div>
+      <div class="row" style="gap:8px">
+        <button class="icon-btn theme-btn" aria-label="מצב תצוגה"><svg class="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><svg class="moon" viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></button>
+        <a class="icon-btn" href="notifications.html" aria-label="התראות"><svg viewBox="0 0 24 24"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21a2 2 0 0 0 4 0"/></svg></a>
+      </div>
+    </header>
+
+    <main class="content">
+      <div class="rise d1"><h1 class="greet">אלה ישנה.</h1><div class="sub">מאז 13:55 · <span id="napMin">37</span> דקות. השקט הזה מגיע לך.</div></div>
+
+      <!-- ===== HERO ===== -->
+      <section class="glass strong hero rise d2">
+        <div class="ring"><span class="glow"></span><span class="glow g2"></span>
+          <svg viewBox="0 0 124 124"><circle class="bg" cx="62" cy="62" r="57"/><circle class="fg" id="ringFg" cx="62" cy="62" r="57" pathLength="1"/></svg>
+          <div class="c"><b id="feedTimer">2:07</b><small>מאז האכלה</small></div>
+        </div>
+        <div class="hero-txt grow">
+          <div class="t">בקבוק 180 מ״ל · 12:25</div>
+          <div class="s">מרווח ממוצע השבוע: 3 ש׳ 05 דק׳</div>
+          <div class="row" style="gap:6px;margin-top:10px;flex-wrap:wrap"><span class="pill gold">הבאה צפויה ~16:30</span><span class="pill">330 מ״ל היום</span></div>
+        </div>
+      </section>
+
+      <!-- ===== QUICK LOG ===== -->
+      <div class="ql rise d3" id="ql">
+        <button data-k="bottle"><span><svg viewBox="0 0 24 24"><path d="M10 3h4v3h-4zM9 6h6v3a3 3 0 0 1-1 2v9a2 2 0 0 1-2 2h0a2 2 0 0 1-2-2v-9a3 3 0 0 1-1-2z"/><path d="M10 14h4M10 17h4"/></svg></span>בקבוק</button>
+        <button data-k="breast"><span><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg></span>הנקה</button>
+        <button data-k="solid"><span><svg viewBox="0 0 24 24"><path d="M4 12h16a8 8 0 0 1-16 0zM8 8c0-2 1-3 1-3M12 8c0-2 1-3 1-3"/></svg></span>מוצקים</button>
+        <button data-k="diaper"><span><svg viewBox="0 0 24 24"><path d="M4 7h16v4a8 8 0 0 1-16 0zM4 7V5h16v2"/></svg></span>חיתול</button>
+        <button data-k="sleep"><span><svg viewBox="0 0 24 24"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg></span>שינה</button>
+        <button data-k="meds"><span><svg viewBox="0 0 24 24"><rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-45 12 12)"/><path d="M9.5 9.5l5 5"/></svg></span>תרופה</button>
+      </div>
+
+      <!-- ===== DAY BAND ===== -->
+      <section class="glass band-card rise d4">
+        <div class="row between"><h3 style="font-size:17px">היום</h3><small class="muted">24 שעות · סה״כ שינה 7:20</small></div>
+        <div class="band" id="band"></div>
+        <div class="band-lbl"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        <div class="band-legend"><span><i style="background:var(--lilac)"></i>שינה</span><span><i style="background:var(--gold)"></i>האכלה</span><span><i style="background:var(--slate)"></i>חיתול</span><span><i style="background:var(--sage)"></i>מוצקים</span></div>
+      </section>
+
+      <!-- ===== SMART ===== -->
+      <section class="glass strong smart rise d5">
+        <div class="eyebrow gold">✦ דפוס שזוהה</div>
+        <h3>חלון תנומה צפוי מחר: 13:10–13:40</h3>
+        <p>ב־5 מתוך 7 הימים האחרונים אלה נרדמה בטווח הזה. אפשר להשתיק התראות לא דחופות אוטומטית בזמן התנומה.</p>
+        <div class="row" style="gap:10px;margin-top:12px"><a class="neu-btn gold sm" href="notifications.html">הגדר שעות שקט</a><button class="neu-btn sm" onclick="this.closest('.smart').style.display='none'">לא עכשיו</button></div>
+      </section>
+
+      <!-- ===== MOON PHASES ===== -->
+      <section class="glass moons rise d6">
+        <div class="row between"><h3 style="font-size:17px">שינה השבוע</h3><small class="muted">ירח מלא = יעד של 14 שעות</small></div>
+        <div class="moon-row" id="moons"></div>
+        <div class="hairline"></div>
+        <div class="row between" style="font-size:12.5px;color:var(--ink-3)"><span>ממוצע <b class="serif" style="color:var(--ink);font-size:15px">13.1</b> שעות</span><span>הלילה הארוך ביותר: שלישי · <b class="serif" style="color:var(--ink);font-size:15px">14.1</b></span></div>
+      </section>
+
+      <!-- ===== VOLUME SPARK ===== -->
+      <section class="glass spark rise d7">
+        <div class="row between"><h3 style="font-size:17px">נפח בקבוקים</h3><small class="muted">7 ימים · מ״ל</small></div>
+        <svg viewBox="0 0 320 90" class="ltr" id="sp"></svg>
+      </section>
+
+      <div class="section rise d7"><h2>יומן היום</h2><small id="tlCount">9 רישומים</small></div>
+      <section class="glass tl rise d7" style="padding:4px 18px" id="tl"></section>
+    </main>
+
+    <nav class="nav">
+      <div class="nav-bar">
+        <a href="home.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>בית</a>
+        <a href="finance.html"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg>הוצאות</a>
+        <a href="#" class="add" onclick="event.preventDefault();toast('הוספה מהירה')"><span><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></span></a>
+        <a href="baby.html" class="active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".6"/><circle cx="14.5" cy="11" r=".6"/><path d="M9.5 14.5q2.5 2 5 0"/></svg>תינוק</a>
+        <a href="notifications.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>הגדרות</a>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<script src="concept.js"></script>
+<script>
+const NS='http://www.w3.org/2000/svg';const el=(n,a={})=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const NOW=14.53;
+const SLEEP=[[0,2.17],[2.58,5.83],[10.25,11.75],[13.92,NOW]];
+const EVENTS=[{t:2.17,k:'breast'},{t:6.17,k:'bottle',ml:150},{t:6.33,k:'diaper'},{t:9.5,k:'breast'},{t:9.75,k:'diaper'},{t:12.42,k:'bottle',ml:180},{t:12.67,k:'diaper'},{t:13,k:'solid'},{t:13.33,k:'diaper'}];
+const COL={bottle:'var(--gold)',breast:'var(--gold)',diaper:'var(--slate)',solid:'var(--sage)',sleep:'var(--lilac)',meds:'var(--rose)'};
+const NAME={bottle:'בקבוק',breast:'הנקה',solid:'מוצקים',diaper:'חיתול',sleep:'שינה',meds:'תרופה'};
+const fmt=t=>{const h=Math.floor(t),m=Math.round((t-h)*60);return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;};
+
+/* day band */
+const band=$('#band');
+SLEEP.forEach(([a,b],i)=>{const s=document.createElement('i');s.className='sleep';s.style.left=(a/24*100)+'%';s.style.width=((b-a)/24*100)+'%';s.style.transitionDelay=(.3+i*.15)+'s';band.appendChild(s);});
+EVENTS.forEach((e,i)=>{const t=document.createElement('i');t.className='tick';t.style.left=(e.t/24*100)+'%';t.style.background=COL[e.k];t.style.transitionDelay=(.9+i*.05)+'s';band.appendChild(t);});
+const now=document.createElement('i');now.className='now';now.style.left=(NOW/24*100)+'%';band.appendChild(now);
+
+/* moons */
+const DAYS=[{d:'ש',v:13.2},{d:'א',v:12.5},{d:'ב',v:14.1},{d:'ג',v:11.8},{d:'ד',v:13.6},{d:'ה',v:12.9},{d:'ו',v:13.4,today:true}];
+const moonPath=(f)=>{const r=15,cx=17,cy=17,rx=r*Math.abs(Math.cos(Math.PI*f));return `M${cx} ${cy-r} A${r} ${r} 0 0 1 ${cx} ${cy+r} A${rx} ${r} 0 0 ${f<.5?0:1} ${cx} ${cy-r} Z`;};
+$('#moons').innerHTML=DAYS.map((d,i)=>`<div class="moon ${d.today?'today':''}"><b>${d.v}</b><svg viewBox="0 0 34 34"><circle class="outline" cx="17" cy="17" r="15"/><path class="lit" d="${moonPath(Math.max(.04,Math.min(1,(d.v-9)/5)))}" style="transition-delay:${.4+i*.1}s"/></svg><small>${d.d}</small></div>`).join('');
+
+/* sparkline */
+const ML=[520,610,580,640,600,570,330];const sp=$('#sp');const X=i=>16+i*(288/6),Y=v=>76-(v-250)*(60/450);
+sp.appendChild(el('path',{d:'M'+ML.map((v,i)=>`${X(i)} ${Y(v)}`).join(' L'),fill:'none',stroke:'#B08D57','stroke-width':2,'stroke-linecap':'round','stroke-linejoin':'round',class:'drawn',pathLength:1}));
+ML.forEach((v,i)=>{sp.appendChild(el('circle',{cx:X(i),cy:Y(v),r:3,fill:i===6?'#B5606B':'#B08D57',stroke:'#fff','stroke-width':1.5}));const t=el('text',{x:X(i),y:Y(v)-8,'text-anchor':'middle','font-size':'9','font-family':'Heebo',fill:'#8B8994'});t.textContent=v;sp.appendChild(t);const d=el('text',{x:X(i),y:88,'text-anchor':'middle','font-size':'9','font-family':'Heebo',fill:'#8B8994'});d.textContent=DAYS[i].d;sp.appendChild(d);});
+const avg=el('line',{x1:10,x2:310,y1:Y(590),y2:Y(590),stroke:'#B9B7C0','stroke-dasharray':'3 4','stroke-width':1});sp.appendChild(avg);
+
+/* timeline */
+const ICONS={bottle:'<path d="M10 3h4v3h-4zM9 6h6v3a3 3 0 0 1-1 2v9a2 2 0 0 1-2 2h0a2 2 0 0 1-2-2v-9a3 3 0 0 1-1-2z"/>',breast:'<path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/>',solid:'<path d="M4 12h16a8 8 0 0 1-16 0z"/>',diaper:'<path d="M4 7h16v4a8 8 0 0 1-16 0z"/>',sleep:'<path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/>',meds:'<rect x="3" y="9" width="18" height="6" rx="3" transform="rotate(-45 12 12)"/>'};
+const desc=e=>e.k==='bottle'?`${e.ml} מ״ל`:e.k==='breast'?'צד שמאל · 15 דק׳':e.k==='solid'?'דייסת אורז ובננה':e.k==='diaper'?'רטוב':e.k==='sleep'?'התחלת שינה':'ויטמין D';
+const row=(e,c='')=>`<div class="rowitem ${c}"><span class="ico"><svg viewBox="0 0 24 24">${ICONS[e.k]}</svg></span><div class="grow"><div class="t">${NAME[e.k]}</div><div class="s">${desc(e)}</div></div><span class="time">${fmt(e.t)}</span></div>`;
+$('#tl').innerHTML=[...EVENTS].reverse().map(e=>row(e)).join('');
+let count=EVENTS.length;
+$('#ql').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;b.classList.add('pressed');setTimeout(()=>b.classList.remove('pressed'),350);
+  const k=b.dataset.k;count++;$('#tlCount').textContent=`${count} רישומים`;$('#tl').insertAdjacentHTML('afterbegin',row({k,t:NOW,ml:150},'new'));if(k==='bottle'||k==='breast')secs=0;toast(`${NAME[k]} נרשם · 14:32`);});
+
+/* timers */
+let secs=2*3600+7*60+14,nap=37*60;setInterval(()=>{secs++;nap++;$('#feedTimer').textContent=`${Math.floor(secs/3600)}:${String(Math.floor(secs%3600/60)).padStart(2,'0')}`;$('#napMin').textContent=Math.floor(nap/60);$('#ringFg').style.strokeDashoffset=1-Math.min(1,secs/(3.08*3600));},1000);
+
+document.addEventListener('data:ready',()=>{$('#ringFg').style.strokeDashoffset=1-secs/(3.08*3600);$$('.band .sleep').forEach(s=>s.style.transform='scaleX(1)');$$('.band .tick').forEach(t=>t.style.opacity=1);$$('.moon .lit').forEach(m=>m.style.opacity=1);$$('.drawn').forEach(p=>p.style.strokeDashoffset=0);});
+</script>
+</body>
+</html>

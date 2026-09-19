@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Concept A · תינוק</title>
+<link rel="stylesheet" href="concept.css">
+<style>
+.hero{background:var(--grape);color:#fff;padding-top:max(env(safe-area-inset-top),52px)}
+.hero .blob.b1{width:240px;height:240px;background:var(--coral);top:-110px;inset-inline-end:-90px;opacity:.75}
+.hero .blob.b2{width:160px;height:160px;background:var(--sky);bottom:-70px;inset-inline-start:-40px;opacity:.8;animation-duration:11s}
+.baby-ill{width:92px;height:92px;flex:none}
+.hero h1{font-size:30px;line-height:1.05;letter-spacing:-.02em}
+.hero h1 em{font-style:normal;background:#fff;color:var(--ink);border:var(--line) solid var(--ink);border-radius:14px;padding:0 10px;display:inline-block;transform:rotate(2deg);box-shadow:3px 3px 0 var(--ink)}
+.timer-card{margin-top:16px;background:#fff;color:var(--ink);border:var(--line) solid var(--ink);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 16px;display:flex;align-items:center;gap:14px}
+.timer-card .big{font:900 38px/1 var(--font-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--grape)}
+.timer-card .next{margin-inline-start:auto;text-align:center;background:var(--sun);border:2.5px solid var(--ink);border-radius:14px;padding:6px 10px;box-shadow:2px 2px 0 var(--ink)}
+.timer-card .next b{font:900 15px/1 var(--font-display);display:block}
+.timer-card .next small{font-size:10px;display:block;margin-top:2px}
+
+/* quick log */
+.ql{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ql button{border:var(--line) solid var(--ink);border-radius:20px;padding:12px 6px 10px;display:flex;flex-direction:column;align-items:center;gap:4px;box-shadow:var(--shadow-sm);background:#fff;font:800 13px var(--font-display);transition:transform .2s var(--spring),box-shadow .2s}
+.ql button span{font-size:28px;line-height:1;transition:transform .35s var(--spring)}
+.ql button:active{transform:translate(3px,3px) scale(.96);box-shadow:0 0 0 var(--ink)}
+.ql button:active span{transform:scale(1.25) rotate(-8deg)}
+.ql button.squish{animation:squish .5s var(--spring)}
+@keyframes squish{30%{transform:scale(1.08,.88)}60%{transform:scale(.94,1.06)}}
+
+/* radial clock */
+.clock-wrap{padding:16px 12px 10px}
+.clock{width:100%;max-width:290px;margin:0 auto}
+.arc{fill:none;stroke-width:16;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.3s var(--ease)}
+.arc.ol{stroke-width:21;stroke:#1E1633}
+.dot{transform-box:fill-box;transform-origin:center;animation:dotIn .6s var(--spring) both}
+@keyframes dotIn{from{transform:scale(0)}to{transform:scale(1)}}
+.hand{transform-origin:130px 130px;transition:transform 1.5s var(--spring)}
+.now-ring{transform-box:fill-box;transform-origin:center;animation:ping2 1.8s ease-out infinite}
+@keyframes ping2{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.8);opacity:0}}
+.clock-legend{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:8px}
+.clock-legend .chip{font-size:11.5px;padding:4px 9px}
+.clock-legend .chip i{width:10px;height:10px;border-radius:50%;border:2px solid var(--ink);display:inline-block}
+
+/* smart pattern */
+.pattern{padding:14px 16px;background:var(--ink);color:#fff;border-color:var(--ink);box-shadow:4px 4px 0 var(--sun)}
+.pattern .eyebrow{color:#FFD97A}
+.pattern h3{font-size:15.5px;line-height:1.4;margin:6px 0 0}
+.pattern h3 b{color:var(--sun)}
+.switch{position:relative;width:62px;height:34px;border-radius:99px;background:#fff;border:2.5px solid var(--ink);flex:none;cursor:pointer;box-shadow:2px 2px 0 var(--ink)}
+.switch i{position:absolute;top:2px;inset-inline-start:2px;width:25px;height:25px;border-radius:50%;background:var(--coral);border:2.5px solid var(--ink);transition:inset-inline-start .35s var(--spring),background .3s}
+.switch.on{background:var(--mint)} .switch.on i{inset-inline-start:31px;background:#fff}
+
+/* pillow stack */
+.pillows{padding:16px 12px 12px}
+.pillows svg{width:100%;height:auto}
+.pw{transform-box:fill-box;transform-origin:center;animation:pw .5s var(--spring) both}
+@keyframes pw{from{transform:scale(0) translateY(10px)}to{transform:scale(1) translateY(0)}}
+
+/* timeline */
+.tl{position:relative;padding-inline-start:26px}
+.tl::before{content:'';position:absolute;inset-inline-start:9px;top:6px;bottom:6px;width:3px;background:var(--ink);border-radius:2px;opacity:.15}
+.tl .item{margin-bottom:10px;position:relative}
+.tl .item::before{content:'';position:absolute;inset-inline-start:-23px;top:20px;width:12px;height:12px;border-radius:50%;background:var(--sun);border:2.5px solid var(--ink)}
+.tl .item.new{animation:pop .6s var(--spring)}
+.tl .time{font:900 14px var(--font-display);color:var(--grape);white-space:nowrap}
+.ml-chips{display:flex;gap:8px;justify-content:center;margin:10px 0 14px}
+.ml-chips .chip{font-size:14px;padding:8px 14px}
+.ml-chips .chip.on{background:var(--grape);color:#fff}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar light"><span>9:41</span><span class="notch"></span><span>●●● 100%</span></div>
+  <div class="app">
+
+    <header class="blob-head hero pop">
+      <div class="blob b1"></div><div class="blob b2"></div>
+      <div class="row between">
+        <div>
+          <div class="eyebrow" style="color:#E3DAFF">מעקב תינוק · שישי 18.9</div>
+          <h1 style="margin-top:6px">היי, <em>אלה</em> 👋</h1>
+          <div style="margin-top:10px;display:flex;gap:6px;flex-wrap:wrap"><span class="chip">7 חודשים</span><span class="chip">8.2 ק״ג</span><span class="chip mint">😴 ישנה עכשיו · <span id="napMin">37</span> דק׳</span></div>
+        </div>
+        <!-- illustration: baby bottle -->
+        <svg class="baby-ill float wiggle" viewBox="0 0 100 100" aria-hidden="true">
+          <g transform="rotate(-14 50 50)">
+            <rect x="34" y="30" width="32" height="56" rx="10" fill="#fff" stroke="#1E1633" stroke-width="3"/>
+            <rect x="37" y="52" width="26" height="30" rx="7" fill="#3E9BFF"/>
+            <rect x="30" y="24" width="40" height="10" rx="5" fill="#FFC531" stroke="#1E1633" stroke-width="3"/>
+            <path d="M42 24 q8 -18 16 0" fill="#FF9E64" stroke="#1E1633" stroke-width="3"/>
+            <g stroke="#1E1633" stroke-width="2" stroke-linecap="round"><line x1="60" y1="60" x2="63" y2="60"/><line x1="60" y1="68" x2="63" y2="68"/><line x1="60" y1="76" x2="63" y2="76"/></g>
+            <circle cx="45" cy="64" r="2" fill="#1E1633"/><circle cx="55" cy="64" r="2" fill="#1E1633"/><path d="M45 70q5 4 10 0" stroke="#1E1633" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+          </g>
+        </svg>
+      </div>
+      <div class="timer-card">
+        <span style="font-size:30px">🍼</span>
+        <div><div class="eyebrow">מאז האכלה אחרונה</div><div class="big num" id="feedTimer">02:07:14</div></div>
+        <div class="next"><b>16:30</b><small>צפי לרעב</small></div>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- ===== QUICK LOG ===== -->
+      <div class="section-title pop d1"><span>רישום מהיר</span><small>לחיצה = נרשם</small></div>
+      <div class="ql pop d1" id="ql">
+        <button data-t="bottle" style="background:var(--sky-soft)"><span>🍼</span>בקבוק</button>
+        <button data-t="breast" style="background:var(--coral-soft)"><span>🤱</span>הנקה</button>
+        <button data-t="solid" style="background:var(--mint-soft)"><span>🥣</span>מוצקים</button>
+        <button data-t="diaper" style="background:var(--sun-soft)"><span>🧷</span>חיתול</button>
+        <button data-t="sleep" style="background:var(--grape-soft)"><span>😴</span>שינה</button>
+        <button data-t="meds" style="background:var(--peach-soft)"><span>💊</span>תרופה</button>
+      </div>
+
+      <!-- ===== SMART PATTERN ===== -->
+      <section class="sticker pattern tilt-l pop d2" style="margin-top:16px">
+        <div class="row">
+          <div class="grow">
+            <div class="eyebrow">🔮 דפוס שזיהינו</div>
+            <h3>ב־6 מתוך 7 הימים האחרונים אלה הייתה רעבה בין <b>16:15–16:45</b>. להפעיל תזכורת חכמה ב־16:15?</h3>
+          </div>
+          <button class="switch" id="patternSw" aria-label="הפעל תזכורת"><i></i></button>
+        </div>
+      </section>
+
+      <!-- ===== 24H RADIAL CLOCK ===== -->
+      <div class="section-title pop d3"><span>היום של אלה</span><small>שעון 24 שעות</small></div>
+      <section class="sticker clock-wrap pop d3">
+        <svg class="clock ltr" viewBox="0 0 260 260" id="clock" aria-label="ציר יומי מעגלי"></svg>
+        <div class="clock-legend">
+          <span class="chip"><i style="background:var(--grape)"></i>שינה</span>
+          <span class="chip"><i style="background:var(--sky)"></i>בקבוק</span>
+          <span class="chip"><i style="background:var(--coral)"></i>הנקה</span>
+          <span class="chip"><i style="background:var(--sun)"></i>חיתול</span>
+          <span class="chip"><i style="background:var(--mint)"></i>מוצקים</span>
+        </div>
+      </section>
+
+      <!-- ===== PILLOW STACK ===== -->
+      <div class="section-title pop d4"><span>שינה השבוע</span><small>יעד 14 שעות</small></div>
+      <section class="sticker pillows pop d4">
+        <svg viewBox="0 0 340 190" class="ltr" id="pillows" aria-label="שעות שינה לפי יום"></svg>
+        <div class="row" style="justify-content:center;gap:14px;margin-top:6px;font:800 12px var(--font-display);color:var(--ink-3)"><span>ממוצע <b style="color:var(--ink)">13.1 ש׳</b></span><span>·</span><span>הכי טוב: <b style="color:var(--ink)">שלישי 14.1</b></span></div>
+      </section>
+
+      <!-- ===== TIMELINE ===== -->
+      <div class="section-title pop d5"><span>יומן היום</span><small id="tlCount">9 רישומים</small></div>
+      <div class="tl pop d5" id="tl"></div>
+    </main>
+
+    <nav class="nav">
+      <div class="nav-pill">
+        <div class="nav-blob"></div>
+        <a href="home.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>בית</a>
+        <a href="finance.html"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg>הוצאות</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M3 4h2l2 11h11l2-7H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>קניות</a>
+        <a href="baby.html" class="active"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".8"/><circle cx="14.5" cy="11" r=".8"/><path d="M9.5 14.5q2.5 2 5 0"/></svg>תינוק</a>
+        <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.3.9a7 7 0 0 0-1.9-1.1L14.4 3H9.6l-.4 2.4a7 7 0 0 0-1.9 1.1L5 5.6 3 9l2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.1L3 14.6l2 3.4 2.3-.9a7 7 0 0 0 1.9 1.1l.4 2.4h4.8l.4-2.4a7 7 0 0 0 1.9-1.1l2.3.9 2-3.4-2-1.5A7 7 0 0 0 19 12z"/></svg>הגדרות</a>
+      </div>
+    </nav>
+  </div>
+
+  <!-- bottle amount sheet -->
+  <div class="sheet-ov" id="mlSheet">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <h3 style="text-align:center;font-size:18px">🍼 כמה שתתה?</h3>
+      <div class="ml-chips" id="mlChips"><button class="chip">90</button><button class="chip">120</button><button class="chip on">150</button><button class="chip">180</button><button class="chip">210</button></div>
+      <button class="btn block" style="background:var(--sky);color:#fff" id="mlSave">שמור בקבוק</button>
+    </div>
+  </div>
+</div>
+
+<script src="concept.js"></script>
+<script>
+/* ---- mock day (frozen at 14:32) ---- */
+const NOW=14.53;
+const SLEEP=[[0,2.17],[2.58,5.83],[10.25,11.75],[13.92,NOW]];
+const EVENTS=[{t:2.17,k:'breast'},{t:6.17,k:'bottle',ml:150},{t:6.33,k:'diaper'},{t:9.5,k:'breast'},{t:9.75,k:'diaper'},{t:12.42,k:'bottle',ml:180},{t:12.67,k:'diaper'},{t:13,k:'solid'},{t:13.33,k:'diaper'}];
+const COL={sleep:'#8F6BFF',bottle:'#3E9BFF',breast:'#FF5C6C',diaper:'#FFC531',solid:'#2FD59A',meds:'#FF9E64'};
+const ICON={bottle:'🍼',breast:'🤱',solid:'🥣',diaper:'🧷',sleep:'😴',meds:'💊'};
+const NAME={bottle:'בקבוק',breast:'הנקה',solid:'מוצקים',diaper:'חיתול',sleep:'שינה',meds:'תרופה'};
+const fmt=t=>{const h=Math.floor(t),m=Math.round((t-h)*60);return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;};
+
+/* ---- radial clock ---- */
+const NS='http://www.w3.org/2000/svg', C=130;
+const polar=(r,deg)=>{const a=(deg-90)*Math.PI/180;return [C+r*Math.cos(a),C+r*Math.sin(a)];};
+const arc=(r,a1,a2)=>{const [x1,y1]=polar(r,a1),[x2,y2]=polar(r,a2);return `M${x1} ${y1} A${r} ${r} 0 ${a2-a1>180?1:0} 1 ${x2} ${y2}`;};
+const el=(n,a={})=>{const e=document.createElementNS(NS,n);for(const k in a)e.setAttribute(k,a[k]);return e;};
+const clock=$('#clock');
+/* face */
+clock.appendChild(el('circle',{cx:C,cy:C,r:118,fill:'#FFF6E9',stroke:'#1E1633','stroke-width':3}));
+clock.appendChild(el('circle',{cx:C,cy:C,r:96,fill:'none',stroke:'#FFEFD6','stroke-width':16}));
+for(let h=0;h<24;h++){const [x1,y1]=polar(112,h*15),[x2,y2]=polar(h%6?108:104,h*15);clock.appendChild(el('line',{x1,y1,x2,y2,stroke:'#1E1633','stroke-width':h%6?1.5:3,'stroke-linecap':'round'}));
+  if(h%6===0){const [tx,ty]=polar(126,h*15);const t=el('text',{x:tx,y:ty+4,'text-anchor':'middle','font-family':'Rubik','font-weight':'900','font-size':'11',fill:'#1E1633'});t.textContent=h;clock.appendChild(t);}}
+/* sleep arcs (outline + fill) */
+SLEEP.forEach(([a,b],i)=>{const p1=el('path',{d:arc(96,a*15,b*15),class:'arc ol',pathLength:1});const p2=el('path',{d:arc(96,a*15,b*15),class:'arc',stroke:COL.sleep,pathLength:1});clock.append(p1,p2);setTimeout(()=>{p1.style.strokeDashoffset=0;p2.style.strokeDashoffset=0;},500+i*180);});
+/* event dots */
+EVENTS.forEach((e,i)=>{const [x,y]=polar(72,e.t*15);const d=el('circle',{cx:x,cy:y,r:7,fill:COL[e.k],stroke:'#1E1633','stroke-width':2.5,class:'dot'});d.style.animationDelay=(1+i*.07)+'s';clock.appendChild(d);});
+/* now hand + center */
+const hand=el('line',{x1:C,y1:C,x2:C,y2:C-104,stroke:'#FF5C6C','stroke-width':4,'stroke-linecap':'round',class:'hand'});hand.style.transform='rotate(0deg)';clock.appendChild(hand);
+setTimeout(()=>hand.style.transform=`rotate(${NOW*15}deg)`,300);
+clock.appendChild(el('circle',{cx:C,cy:C,r:40,fill:'#fff',stroke:'#1E1633','stroke-width':3}));
+const [nx,ny]=polar(104,NOW*15);clock.appendChild(el('circle',{cx:nx,cy:ny,r:8,fill:'#FF5C6C',opacity:.5,class:'now-ring'}));clock.appendChild(el('circle',{cx:nx,cy:ny,r:6,fill:'#FF5C6C',stroke:'#1E1633','stroke-width':2.5}));
+const t1=el('text',{x:C,y:C-2,'text-anchor':'middle','font-family':'Rubik','font-weight':'900','font-size':'20',fill:'#1E1633'});t1.textContent='14:32';
+const t2=el('text',{x:C,y:C+15,'text-anchor':'middle','font-family':'Rubik','font-weight':'700','font-size':'9',fill:'#8E86A3'});t2.textContent='שינה 7:20 ש׳';
+clock.append(t1,t2);
+
+/* ---- pillow stack ---- */
+const DAYS=[{d:'ש',v:13.2},{d:'א',v:12.5},{d:'ב',v:14.1},{d:'ג',v:11.8},{d:'ד',v:13.6},{d:'ה',v:12.9},{d:'ו',v:13.4}];
+const ps=$('#pillows'), colW=340/7, ph=9.5, base=160;
+DAYS.forEach((d,i)=>{const x=i*colW+colW/2, n=Math.round(d.v);
+  for(let k=0;k<n;k++){const r=el('rect',{x:x-15,y:base-(k+1)*ph,width:30,height:ph-2,rx:4,fill:k>=14?'#FFC531':'#E3DAFF',stroke:'#1E1633','stroke-width':1.6,class:'pw'});r.style.animationDelay=(.4+i*.08+k*.03)+'s';ps.appendChild(r);}
+  const lab=el('text',{x,y:182,'text-anchor':'middle','font-family':'Rubik','font-weight':'800','font-size':'12',fill:i===6?'#FF5C6C':'#8E86A3'});lab.textContent=d.d;ps.appendChild(lab);
+  const val=el('text',{x,y:base-n*ph-6,'text-anchor':'middle','font-family':'Rubik','font-weight':'900','font-size':'11',fill:'#1E1633'});val.textContent=d.v;ps.appendChild(val);});
+ps.appendChild(el('line',{x1:6,x2:334,y1:base-14*ph,y2:base-14*ph,stroke:'#FF5C6C','stroke-width':2,'stroke-dasharray':'5 4'}));
+const tl=el('text',{x:330,y:base-14*ph-5,'text-anchor':'end','font-family':'Rubik','font-weight':'800','font-size':'10',fill:'#FF5C6C'});tl.textContent='יעד 14';ps.appendChild(tl);
+
+/* ---- timeline ---- */
+const tlEl=$('#tl');
+function rowHTML(e,extra=''){const desc=e.k==='bottle'?`${e.ml} מ״ל`:e.k==='sleep'?'התחלת שינה':e.k==='solid'?'דייסת אורז + בננה':e.k==='breast'?'צד שמאל · 15 דק׳':e.k==='diaper'?'רטוב':'ויטמין D';
+  return `<div class="item sticker ${extra}"><div class="ico" style="background:${COL[e.k]}33">${ICON[e.k]}</div><div class="grow"><div class="t">${NAME[e.k]}</div><div class="s">${desc}</div></div><div class="time">${fmt(e.t)}</div></div>`;}
+[...EVENTS].reverse().forEach(e=>tlEl.insertAdjacentHTML('beforeend',rowHTML(e)));
+let count=EVENTS.length;
+function log(k,ml){count++;$('#tlCount').textContent=`${count} רישומים`;tlEl.insertAdjacentHTML('afterbegin',rowHTML({k,t:NOW,ml},'new'));
+  if(k==='bottle'||k==='breast'){secs=0;}
+  toast(`${ICON[k]} ${NAME[k]} נרשם — יובל יראה את זה`);}
+$('#ql').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;b.classList.remove('squish');void b.offsetWidth;b.classList.add('squish');
+  const r=b.getBoundingClientRect();confetti(r.left+r.width/2,r.top+r.height/2,28);
+  if(b.dataset.t==='bottle')openSheet('mlSheet');else log(b.dataset.t);});
+$('#mlChips').addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;$$('.chip',$('#mlChips')).forEach(x=>x.classList.remove('on'));c.classList.add('on');});
+$('#mlSave').addEventListener('click',()=>{closeSheet('mlSheet');log('bottle',+$('#mlChips .on').textContent);});
+
+/* ---- live timers ---- */
+let secs=2*3600+7*60+14, nap=37*60;
+setInterval(()=>{secs++;nap++;const h=String(Math.floor(secs/3600)).padStart(2,'0'),m=String(Math.floor(secs%3600/60)).padStart(2,'0'),s=String(secs%60).padStart(2,'0');$('#feedTimer').textContent=`${h}:${m}:${s}`;$('#napMin').textContent=Math.floor(nap/60);},1000);
+
+/* ---- pattern switch ---- */
+$('#patternSw').addEventListener('click',e=>{const on=e.currentTarget.classList.toggle('on');toast(on?'תזכורת חכמה הופעלה ל־16:15 🔔':'התזכורת כובתה');if(on)confetti(innerWidth/2,300,40);});
+</script>
+</body>
+</html>

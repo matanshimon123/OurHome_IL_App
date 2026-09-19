@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Concept A · בית</title>
+<link rel="stylesheet" href="concept.css">
+<style>
+/* ===== page-specific ===== */
+.hero{padding-top:max(env(safe-area-inset-top),52px)}
+.hero .blob.b1{width:230px;height:230px;background:var(--peach);top:-90px;inset-inline-end:-70px}
+.hero .blob.b2{width:150px;height:150px;background:#fff;opacity:.55;bottom:-60px;inset-inline-start:-40px;animation-duration:12s}
+.hero-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.hello{font:900 30px/1.05 var(--font-display);letter-spacing:-.02em}
+.hello em{font-style:normal;background:#fff;border:var(--line) solid var(--ink);border-radius:14px;padding:0 8px;display:inline-block;transform:rotate(-2deg);box-shadow:3px 3px 0 var(--ink)}
+.sun-ill{width:86px;height:86px;flex:none}
+.pulse-row{display:flex;gap:8px;margin-top:18px;overflow-x:auto;scrollbar-width:none;padding-bottom:4px;margin-inline:-4px;padding-inline:4px}
+.pulse-row::-webkit-scrollbar{display:none}
+.pulse{flex:none;background:#fff;border:2.5px solid var(--ink);border-radius:16px;padding:8px 12px;box-shadow:3px 3px 0 var(--ink);display:flex;align-items:center;gap:8px}
+.pulse b{font:900 16px var(--font-display)}
+.pulse small{font-size:11px;color:var(--ink-3);display:block;line-height:1.1}
+
+/* smart card */
+.smart{margin-top:-14px;padding:14px 16px 14px;background:var(--ink);color:#fff;border-color:var(--ink);box-shadow:4px 4px 0 var(--grape)}
+.smart .eyebrow{color:#C9BDFF}
+.smart h3{font-size:16.5px;line-height:1.35;margin:6px 0 10px}
+.smart h3 b{color:var(--sun)}
+.smart .chips{display:flex;gap:8px;flex-wrap:wrap}
+.smart .chip{border-color:#fff;box-shadow:2px 2px 0 #fff;background:transparent;color:#fff}
+.smart .chip.sun{background:var(--sun);color:var(--ink);border-color:var(--ink);box-shadow:2px 2px 0 #fff}
+.spark{width:96px;height:44px;flex:none}
+
+/* finance */
+.fin{padding:16px}
+.fin-top{display:flex;justify-content:space-between;align-items:center}
+.big{font:900 44px/1 var(--font-display);letter-spacing:-.03em;display:flex;align-items:baseline;gap:4px;margin-top:8px}
+.big .sym{font-size:22px;color:var(--ink-3);font-weight:700}
+.jar-row{display:flex;align-items:center;gap:16px;margin-top:8px}
+.jar{width:96px;height:112px;flex:none}
+.jar .wave{animation:wave 2.4s linear infinite}
+.jar .wave.w2{animation-duration:3.1s;opacity:.55}
+@keyframes wave{to{transform:translateX(-50px)}}
+.jar-lift{transition:transform 1.4s var(--ease)}
+.kv{display:flex;justify-content:space-between;padding:8px 0;border-bottom:2px dashed var(--cream-2)}
+.kv:last-child{border-bottom:none}
+.kv span{color:var(--ink-3);font-size:13px}
+.kv b{font:900 17px var(--font-display)}
+.kv b.mint{color:#0FA76E}
+/* week coins */
+.coins{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;padding-top:12px;border-top:2.5px solid var(--ink);direction:rtl}
+.coin{display:flex;flex-direction:column;align-items:center;gap:6px;width:40px}
+.coin i{display:block;border-radius:50%;border:2.5px solid var(--ink);background:var(--sun);width:var(--s);height:var(--s);transform:scale(0);animation:coinIn .6s var(--spring) forwards;box-shadow:2px 2px 0 var(--ink);position:relative}
+.coin i.zero{background:#fff;border-style:dashed;box-shadow:none}
+.coin i.hot{background:var(--coral)}
+.coin i.future{background:var(--cream-2);border-style:dotted;box-shadow:none}
+.coin i.today::after{content:'';position:absolute;inset:-7px;border-radius:50%;border:2.5px dashed var(--coral);animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes coinIn{to{transform:scale(1)}}
+.coin small{font:800 11px var(--font-display);color:var(--ink-3)}
+.coin small.today{color:var(--coral)}
+.coin em{font:800 10px var(--font-display);font-style:normal;color:var(--ink-2);height:12px}
+
+/* module cards */
+.mod{padding:14px 16px 16px}
+.mod-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+.mod-head h3{font-size:17px;display:flex;align-items:center;gap:8px}
+.mod-head .arrow{width:30px;height:30px;border-radius:50%;border:2.5px solid var(--ink);display:grid;place-items:center;background:#fff;box-shadow:2px 2px 0 var(--ink)}
+.mod-head .arrow svg{width:14px;height:14px;stroke:var(--ink);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.shop-body{display:flex;gap:14px;align-items:center}
+.ring{width:84px;height:84px;flex:none;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .tr{fill:none;stroke:#fff;stroke-width:12}
+.ring .fl{fill:none;stroke:var(--peach);stroke-width:12;stroke-linecap:round;stroke-dasharray:201;stroke-dashoffset:201;transition:stroke-dashoffset 1.2s var(--spring)}
+.ring .ol{fill:none;stroke:var(--ink);stroke-width:2.5}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:900 18px var(--font-display)}
+.pills{display:flex;flex-direction:column;gap:7px;flex:1}
+.pill{display:flex;align-items:center;gap:9px;background:#fff;border:2.5px solid var(--ink);border-radius:var(--r-pill);padding:6px 10px;font:800 13.5px var(--font-display);box-shadow:2px 2px 0 var(--ink);transition:transform .2s var(--spring),opacity .3s}
+.pill .cb{width:20px;height:20px;border-radius:50%;border:2.5px solid var(--ink);flex:none;display:grid;place-items:center;background:#fff;transition:background .2s}
+.pill .cb svg{width:11px;height:11px;stroke:#fff;stroke-width:3.5;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.4);transition:all .25s var(--spring)}
+.pill.done{opacity:.55;text-decoration:line-through;transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.pill.done .cb{background:var(--mint)} .pill.done .cb svg{opacity:1;transform:scale(1)}
+.baby-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{background:#fff;border:2.5px solid var(--ink);border-radius:16px;padding:10px 12px;box-shadow:2px 2px 0 var(--ink)}
+.stat .v{font:900 22px/1 var(--font-display)} .stat .l{font-size:11.5px;color:var(--ink-3);margin-top:4px}
+.stat.timer .v{font-variant-numeric:tabular-nums;color:var(--grape)}
+.band{display:flex;height:14px;border:2.5px solid var(--ink);border-radius:99px;overflow:hidden;margin-top:12px;direction:ltr;background:#fff}
+.band i{display:block;height:100%}
+.band-lbl{display:flex;justify-content:space-between;font:800 10px var(--font-display);color:var(--ink-3);margin-top:4px;direction:ltr}
+.tasks{display:flex;flex-direction:column;gap:8px}
+.task{display:flex;align-items:center;gap:10px;background:#fff;border:2.5px solid var(--ink);border-radius:16px;padding:8px 10px;box-shadow:2px 2px 0 var(--ink);transition:transform .2s var(--spring),opacity .3s}
+.task .cb{width:26px;height:26px;border-radius:9px;border:2.5px solid var(--ink);display:grid;place-items:center;background:#fff;flex:none}
+.task .cb svg{width:14px;height:14px;stroke:var(--ink);stroke-width:3.5;fill:none;stroke-linecap:round;stroke-linejoin:round;opacity:0;transform:scale(.3);transition:all .3s var(--spring)}
+.task.done{opacity:.6;transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)} .task.done .cb{background:var(--mint)} .task.done .cb svg{opacity:1;transform:scale(1)}
+.task .t{font:800 14px var(--font-display);flex:1} .task.done .t{text-decoration:line-through}
+.task .avatar{width:28px;height:28px;font-size:11px;box-shadow:none}
+.streak{display:inline-flex;align-items:center;gap:6px;background:var(--sun);border:2px solid var(--ink);border-radius:var(--r-pill);padding:3px 10px;font:800 12px var(--font-display)}
+
+/* keypad sheet */
+.kp-amt{font:900 40px/1 var(--font-display);text-align:center;margin:6px 0 12px;letter-spacing:-.02em}
+.kp-amt span{color:var(--ink-3);font-size:22px}
+.cats{display:flex;gap:8px;overflow-x:auto;scrollbar-width:none;padding:2px 2px 8px;margin-bottom:8px}
+.cats::-webkit-scrollbar{display:none}
+.cats .chip{flex:none}
+.cats .chip.on{background:var(--ink);color:#fff}
+.keys{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;direction:ltr}
+.key{height:52px;border:2.5px solid var(--ink);border-radius:16px;background:#fff;font:900 22px var(--font-display);box-shadow:3px 3px 0 var(--ink);transition:transform .12s var(--spring),box-shadow .12s}
+.key:active{transform:translate(3px,3px);box-shadow:0 0 0 var(--ink)}
+.key.alt{background:var(--sun-soft);font-size:16px}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar"><span>9:41</span><span class="notch"></span><span>●●● 100%</span></div>
+  <div class="app">
+
+    <!-- ===== HERO ===== -->
+    <header class="blob-head hero pop">
+      <div class="blob b1"></div><div class="blob b2"></div>
+      <div class="hero-row">
+        <div>
+          <div class="eyebrow" style="color:var(--ink-2)">יום שישי · 18 בספטמבר</div>
+          <h1 class="hello">בוקר טוב, <em>נועה</em></h1>
+          <div class="row" style="margin-top:12px">
+            <div class="avatar-stack">
+              <div class="avatar coral">י</div>
+              <div class="avatar mint">א</div>
+              <div class="avatar sun">נ</div>
+            </div>
+            <span class="muted" style="font-size:12px">משפחת לוי · 3 מחוברים</span>
+          </div>
+        </div>
+        <!-- illustration: smiling sun -->
+        <svg class="sun-ill float wiggle" viewBox="0 0 100 100" aria-hidden="true">
+          <g stroke="#1E1633" stroke-width="3" stroke-linecap="round">
+            <line x1="50" y1="6" x2="50" y2="16"/><line x1="50" y1="84" x2="50" y2="94"/><line x1="6" y1="50" x2="16" y2="50"/><line x1="84" y1="50" x2="94" y2="50"/>
+            <line x1="19" y1="19" x2="26" y2="26"/><line x1="74" y1="74" x2="81" y2="81"/><line x1="19" y1="81" x2="26" y2="74"/><line x1="74" y1="26" x2="81" y2="19"/>
+          </g>
+          <circle cx="50" cy="50" r="26" fill="#FF9E64" stroke="#1E1633" stroke-width="3"/>
+          <circle cx="41" cy="47" r="2.6" fill="#1E1633"/><circle cx="59" cy="47" r="2.6" fill="#1E1633"/>
+          <path d="M40 57 q10 9 20 0" stroke="#1E1633" stroke-width="3" fill="none" stroke-linecap="round"/>
+          <circle cx="34" cy="55" r="3.5" fill="#FF5C6C" opacity=".8"/><circle cx="66" cy="55" r="3.5" fill="#FF5C6C" opacity=".8"/>
+        </svg>
+      </div>
+      <div class="pulse-row">
+        <div class="pulse"><span>💸</span><div><b class="num" id="pToday">₪186</b><small>הוצאות היום</small></div></div>
+        <div class="pulse"><span>🛒</span><div><b class="num" id="pShop">6</b><small>פריטים נותרו</small></div></div>
+        <div class="pulse"><span>🍼</span><div><b class="num" id="pFeed">2:07</b><small>מאז האכלה</small></div></div>
+        <div class="pulse"><span>✅</span><div><b class="num">1/3</b><small>משימות היום</small></div></div>
+      </div>
+    </header>
+
+    <main class="content">
+
+      <!-- ===== SMART INSIGHT (predictive) ===== -->
+      <section class="sticker smart tilt-l pop d1" id="smartCard">
+        <div class="row between">
+          <div class="grow">
+            <div class="eyebrow">🔮 תחזית חכמה · מחזור 10.9–9.10</div>
+            <h3>בקצב הזה תסיימו את המחזור ב־<b>₪8,420</b> — כ־₪1,580 מתחת לתקציב 🎉</h3>
+          </div>
+          <svg class="spark ltr" viewBox="0 0 96 44" aria-hidden="true">
+            <path id="sparkLine" d="M2 40 L8 12 L14 11 L20 10 L26 8 L32 8 L38 6 L44 5 L50 4 L56 3.5" fill="none" stroke="#FFC531" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="120" stroke-dashoffset="120" style="animation:draw 1.4s .4s var(--ease) forwards"/>
+            <path d="M56 3.5 L70 3 L84 2.5 L94 2" fill="none" stroke="#C9BDFF" stroke-width="3" stroke-dasharray="3 4" stroke-linecap="round"/>
+            <line x1="2" y1="1" x2="94" y2="1" stroke="#FF5C6C" stroke-width="1.5" stroke-dasharray="2 3"/>
+            <circle cx="56" cy="3.5" r="4" fill="#FFC531" stroke="#1E1633" stroke-width="2"/>
+          </svg>
+        </div>
+        <div class="chips">
+          <button class="chip sun pressable" onclick="toast('נזכיר לך ב־25.9 🔔')">הזכר לי ב־25.9</button>
+          <button class="chip pressable" onclick="toast('הרכב: קבועים ₪3,150 + משתנות ₪176/יום')">איך חישבנו?</button>
+        </div>
+      </section>
+
+      <!-- ===== FINANCE ===== -->
+      <div class="section-title pop d2"><span>הוצאות המחזור</span><span class="chip ghost">יום 9 מתוך 30</span></div>
+      <a href="finance.html" class="sticker fin pressable pop d2" style="display:block">
+        <div class="fin-top">
+          <span class="eyebrow">סה״כ עד היום</span>
+          <span class="chip mint">−₪720 מול מחזור קודם</span>
+        </div>
+        <div class="big"><span class="sym">₪</span><span id="finTotal" class="num">0</span></div>
+        <div class="jar-row">
+          <!-- liquid jar gauge -->
+          <svg class="jar ltr" viewBox="0 0 100 116" aria-label="47% מהתקציב">
+            <defs>
+              <clipPath id="jarClip"><path d="M24 18 H76 V26 Q76 32 70 34 V92 Q70 106 56 106 H44 Q30 106 30 92 V34 Q24 32 24 26 Z"/></clipPath>
+            </defs>
+            <g clip-path="url(#jarClip)">
+              <rect width="100" height="116" fill="#fff"/>
+              <g class="jar-lift" id="jarLift" style="transform:translateY(116px)">
+                <g class="wave w2"><path d="M-100 8 Q-87 0 -75 8 T-50 8 T-25 8 T0 8 T25 8 T50 8 T75 8 T100 8 T125 8 T150 8 T175 8 T200 8 V140 H-100 Z" fill="#8F6BFF"/></g>
+                <g class="wave"><path d="M-100 12 Q-87 4 -75 12 T-50 12 T-25 12 T0 12 T25 12 T50 12 T75 12 T100 12 T125 12 T150 12 T175 12 T200 12 V140 H-100 Z" fill="#3E9BFF"/></g>
+              </g>
+            </g>
+            <path d="M24 18 H76 V26 Q76 32 70 34 V92 Q70 106 56 106 H44 Q30 106 30 92 V34 Q24 32 24 26 Z" fill="none" stroke="#1E1633" stroke-width="3.5" stroke-linejoin="round"/>
+            <rect x="20" y="8" width="60" height="12" rx="6" fill="#FFC531" stroke="#1E1633" stroke-width="3"/>
+            <text x="50" y="74" text-anchor="middle" font-family="Rubik, sans-serif" font-weight="900" font-size="18" fill="#1E1633" id="jarPct">0%</text>
+            <text x="50" y="87" text-anchor="middle" font-family="Rubik, sans-serif" font-weight="700" font-size="7" fill="#1E1633">מהתקציב</text>
+          </svg>
+          <div class="grow">
+            <div class="kv"><span>תקציב חודשי</span><b class="num">₪10,000</b></div>
+            <div class="kv"><span>נשאר להוציא</span><b class="num mint">₪5,270</b></div>
+            <div class="kv"><span>ממוצע יומי</span><b class="num">₪176</b></div>
+          </div>
+        </div>
+        <div class="coins" id="coins"></div>
+      </a>
+
+      <!-- ===== SHOPPING ===== -->
+      <div class="section-title pop d3"><span>היום בבית</span><small>גע כדי לסמן ✓</small></div>
+      <section class="sticker soft-peach mod pop d3">
+        <div class="mod-head">
+          <h3>🛒 רשימת קניות</h3>
+          <a class="arrow" href="#" onclick="event.preventDefault();toast('מסך קניות לא נבנה בקונספט')"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></a>
+        </div>
+        <div class="shop-body">
+          <div class="ring">
+            <svg viewBox="0 0 84 84"><circle class="tr" cx="42" cy="42" r="32"/><circle class="fl" id="shopRing" cx="42" cy="42" r="32"/><circle class="ol" cx="42" cy="42" r="38.5"/><circle class="ol" cx="42" cy="42" r="25.5"/></svg>
+            <b id="shopLbl">12/18</b>
+          </div>
+          <div class="pills" id="pills">
+            <button class="pill pressable" data-item><span class="cb"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>חלב 3% ×2</button>
+            <button class="pill pressable" data-item><span class="cb"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>אבוקדו</button>
+            <button class="pill pressable" data-item><span class="cb"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span>מגבונים לאלה</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== BABY ===== -->
+      <section class="sticker soft-grape mod pop d4">
+        <div class="mod-head">
+          <h3>👶 אלה · 7 חודשים</h3>
+          <a class="arrow" href="baby.html"><svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></a>
+        </div>
+        <div class="baby-grid">
+          <div class="stat timer"><div class="v num" id="feedTimer">02:07:14</div><div class="l">מאז האכלה אחרונה</div></div>
+          <div class="stat"><div class="v num">330 <small style="font-size:12px">מ״ל</small></div><div class="l">בקבוקים היום</div></div>
+          <div class="stat"><div class="v num">7:20</div><div class="l">שעות שינה</div></div>
+          <div class="stat"><div class="v num">4</div><div class="l">חיתולים</div></div>
+        </div>
+        <div class="band" title="ציר היום">
+          <i style="width:24%;background:var(--grape)"></i><i style="width:2%;background:var(--sky)"></i><i style="width:14%;background:#fff"></i><i style="width:2%;background:var(--coral)"></i><i style="width:6%;background:var(--grape)"></i><i style="width:2%;background:var(--sky)"></i><i style="width:10%;background:#fff"></i><i style="width:2%;background:var(--sky)"></i><i style="width:2%;background:var(--sun)"></i><i style="width:36%;background:var(--cream-2)"></i>
+        </div>
+        <div class="band-lbl"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+      </section>
+
+      <!-- ===== CHORES (concept module) ===== -->
+      <section class="sticker soft-mint mod pop d5">
+        <div class="mod-head">
+          <h3>🧹 משימות הבית</h3>
+          <span class="streak">🔥 5 ימים ברצף</span>
+        </div>
+        <div class="tasks" id="tasks">
+          <div class="task done"><span class="cb"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span><span class="t">להוציא זבל</span><span class="avatar coral">י</span></div>
+          <div class="task pressable"><span class="cb"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span><span class="t">כביסה של אלה</span><span class="avatar sun">נ</span></div>
+          <div class="task pressable"><span class="cb"><svg viewBox="0 0 24 24"><path d="M5 12l5 5 9-10"/></svg></span><span class="t">להזמין חיתולים (מידה 3)</span><span class="avatar mint">?</span></div>
+        </div>
+        <div class="muted" style="font-size:12px;margin-top:10px">💡 הצעה: המשימה האחרונה נוצרה אוטומטית — נותרו ~6 חיתולים לפי קצב השימוש.</div>
+      </section>
+
+    </main>
+
+    <!-- ===== NAV ===== -->
+    <nav class="nav">
+      <div class="nav-pill">
+        <div class="nav-blob"></div>
+        <a href="home.html" class="active"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>בית</a>
+        <a href="finance.html"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg>הוצאות</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M3 4h2l2 11h11l2-7H7"/><circle cx="9" cy="19" r="1.5"/><circle cx="17" cy="19" r="1.5"/></svg>קניות</a>
+        <a href="baby.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".8"/><circle cx="14.5" cy="11" r=".8"/><path d="M9.5 14.5q2.5 2 5 0"/></svg>תינוק</a>
+        <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19 12a7 7 0 0 0-.1-1.1l2-1.5-2-3.4-2.3.9a7 7 0 0 0-1.9-1.1L14.4 3H9.6l-.4 2.4a7 7 0 0 0-1.9 1.1L5 5.6 3 9l2 1.5A7 7 0 0 0 5 12a7 7 0 0 0 .1 1.1L3 14.6l2 3.4 2.3-.9a7 7 0 0 0 1.9 1.1l.4 2.4h4.8l.4-2.4a7 7 0 0 0 1.9-1.1l2.3.9 2-3.4-2-1.5A7 7 0 0 0 19 12z"/></svg>הגדרות</a>
+      </div>
+    </nav>
+
+    <!-- ===== FAB radial quick actions ===== -->
+    <div class="fab-scrim"></div>
+    <div class="fab-wrap">
+      <button class="fab" aria-label="הוספה מהירה"><svg viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg></button>
+      <button class="fab-item" style="background:var(--sun)" data-sheet="addSheet"><span>הוצאה</span>💸</button>
+      <button class="fab-item" style="background:var(--peach)" data-toast="נוסף לרשימת הקניות 🛒"><span>פריט</span>🛒</button>
+      <button class="fab-item" style="background:var(--grape)" data-toast="האכלה נרשמה 🍼"><span>האכלה</span>🍼</button>
+      <button class="fab-item" style="background:var(--mint)" data-toast="משימה חדשה ✅"><span>משימה</span>✅</button>
+    </div>
+  </div>
+
+  <!-- ===== ADD EXPENSE SHEET ===== -->
+  <div class="sheet-ov" id="addSheet">
+    <div class="sheet">
+      <div class="sheet-handle"></div>
+      <div class="row between"><h3 style="font-size:18px">💸 הוצאה חדשה</h3><span class="chip ghost">היום · נועה</span></div>
+      <div class="kp-amt"><span>₪</span><span id="kpVal">0</span></div>
+      <div class="cats" id="cats">
+        <button class="chip on">🛒 סופר</button><button class="chip">🚗 רכב</button><button class="chip">👶 תינוק</button><button class="chip">🏠 משק בית</button><button class="chip">🎉 פנאי</button><button class="chip">💅 טיפוח</button>
+      </div>
+      <div class="keys" id="keys">
+        <button class="key">1</button><button class="key">2</button><button class="key">3</button>
+        <button class="key">4</button><button class="key">5</button><button class="key">6</button>
+        <button class="key">7</button><button class="key">8</button><button class="key">9</button>
+        <button class="key alt">.</button><button class="key">0</button><button class="key alt">⌫</button>
+      </div>
+      <button class="btn coral block" style="margin-top:12px" id="kpSave">הוסף הוצאה</button>
+    </div>
+  </div>
+</div>
+
+<script src="concept.js"></script>
+<script>
+/* ---- mock data ---- */
+const WEEK=[{d:'א',v:340},{d:'ב',v:0},{d:'ג',v:420},{d:'ד',v:155},{d:'ה',v:64},{d:'ו',v:186,today:true},{d:'ש',v:null}];
+const BUDGET=10000, SPENT=4730;
+
+/* week coins */
+const coins=$('#coins'); const max=Math.max(...WEEK.map(w=>w.v||0));
+WEEK.forEach((w,i)=>{
+  const s=w.v==null?18:w.v===0?16:16+Math.round(24*w.v/max);
+  const cls=w.v==null?'future':w.v===0?'zero':w.v>=300?'hot':'';
+  coins.insertAdjacentHTML('beforeend',`<div class="coin"><em>${w.v==null?'':w.v===0?'—':'₪'+w.v}</em><i class="${cls}${w.today?' today':''}" style="--s:${s}px;animation-delay:${.5+i*.07}s"></i><small class="${w.today?'today':''}">${w.d}</small></div>`);
+});
+
+/* on "data ready": count-ups + jar + ring */
+document.addEventListener('data:ready',()=>{
+  countUp($('#finTotal'),SPENT);
+  const pct=SPENT/BUDGET;
+  $('#jarLift').style.transform=`translateY(${Math.round(116-(pct*88+18))}px)`; /* jar body spans y=18..106 */
+  let p=0;const t=setInterval(()=>{p+=1;$('#jarPct').textContent=Math.min(Math.round(pct*100),p)+'%';if(p>=Math.round(pct*100))clearInterval(t);},22);
+  setRing(12,18);
+});
+
+/* shopping pills */
+let done=12,total=18;
+function setRing(d,t){$('#shopRing').style.strokeDashoffset=201*(1-d/t);$('#shopLbl').textContent=`${d}/${t}`;$('#pShop').textContent=t-d;}
+$$('[data-item]').forEach(p=>p.addEventListener('click',e=>{
+  const was=p.classList.toggle('done'); done+=was?1:-1; setRing(done,total);
+  if(was){const r=p.getBoundingClientRect();confetti(r.left+r.width/2,r.top+r.height/2,30);toast('סומן ✓ — יובל יראה את זה');}
+}));
+
+/* chores */
+$$('.task.pressable').forEach(t=>t.addEventListener('click',()=>{
+  const was=t.classList.toggle('done'); if(was){const r=t.getBoundingClientRect();confetti(r.left+r.width/2,r.top+r.height/2,36);toast('כל הכבוד! 🔥 הרצף נשמר');}
+}));
+
+/* live feeding timer (mock: started 2:07:14 ago) */
+let secs=2*3600+7*60+14;
+setInterval(()=>{secs++;const h=String(Math.floor(secs/3600)).padStart(2,'0'),m=String(Math.floor(secs%3600/60)).padStart(2,'0'),s=String(secs%60).padStart(2,'0');$('#feedTimer').textContent=`${h}:${m}:${s}`;$('#pFeed').textContent=`${+h}:${m}`;},1000);
+
+/* keypad */
+let amt='';
+$('#keys').addEventListener('click',e=>{const k=e.target.closest('.key');if(!k)return;const v=k.textContent;
+  if(v==='⌫')amt=amt.slice(0,-1);else if(v==='.'){if(!amt.includes('.'))amt=(amt||'0')+'.';}else if(amt.replace('.','').length<6)amt+=v;
+  $('#kpVal').textContent=amt||'0';});
+$('#cats').addEventListener('click',e=>{const c=e.target.closest('.chip');if(!c)return;$$('.chip',$('#cats')).forEach(x=>x.classList.remove('on'));c.classList.add('on');});
+$('#kpSave').addEventListener('click',e=>{closeSheet('addSheet');const r=e.target.getBoundingClientRect();confetti(r.left+r.width/2,r.top,50);toast(`נוספה הוצאה של ₪${amt||'0'} 🎉`);amt='';$('#kpVal').textContent='0';});
+</script>
+<style>@keyframes draw{to{stroke-dashoffset:0}}</style>
+</body>
+</html>

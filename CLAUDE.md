@@ -21,7 +21,17 @@ templates/
   baby_tracker.html     — Baby tracker (feedings, diapers, sleep)
   settings.html         — Settings (family, budget, categories, cycle_day)
   history.html          — Archive history
+  analysis.html         — Cycle analysis (race vs last cycle, calendar heatmap, categories)
+  error.html            — Branded 404/403/405/400/500 page (/api/ paths get JSON)
+  _expense_sheet.html   — Shared add/edit expense keypad sheet (home + dashboard)
   login.html / register.html / etc.
+static/
+  css/style.css         — Design system (Concept A "Pop"): tokens + every shared component
+  js/pop.js             — Shared helpers: Pop.api/toast/confirm/openSheet/share/money…
+  js/expense-sheet.js   — Logic for _expense_sheet.html
+  offline.html          — Served by sw.js when a page can't load
+  sw.js                 — Service worker (network first, offline page)
+DECISIONS.md            — Design refresh: what changed, why, backend changes, follow-ups
 android/                — Capacitor Android project
   app/src/main/java/.../MainActivity.java
 capacitor.config.json   — Capacitor config (server URL)
@@ -35,7 +45,7 @@ test_files/
 ## Database Tables
 families, users, payments, categories, archived_cycles, app_settings,
 shopping_items, shopping_favorites, feedings, recurring_payments,
-push_tokens, family_settings
+push_tokens, family_settings, notification_prefs (per-user on/off per kind of push)
 
 ## Key Architecture Decisions
 
@@ -50,9 +60,11 @@ push_tokens, family_settings
 
 ### Push Notifications
 - FCM V1 API via service account
-- `send_push_to_family(fid, title, body, exclude_user_id=None)`
+- `send_push_to_family(fid, title, body, exclude_user_id=None, module=None)`
+- `module` ∈ NOTIFICATION_MODULES (expenses / budget / cycle / shopping / baby / feeding_reminder / family): members who turned it off in Settings → ההתראות שלי are skipped. Always pass it on new call sites.
+- Per-user settings: `GET/PUT /api/notifications/prefs` (missing row = all on)
 - All user actions use exclude_user_id (don't notify yourself)
-- System alerts (budget, feeding reminder) go to everyone
+- System alerts (budget, feeding reminder) go to everyone who kept that kind on; the feeding reminder hours are a family setting
 - Token registered via Capacitor PushNotifications plugin in base.html
 - No push for checking shopping items (too noisy)
 
@@ -76,6 +88,7 @@ push_tokens, family_settings
 - Duplicate email check in API register
 
 ## Recent Changes (Latest First)
+0. Design refresh (branch `design-refresh`): Concept A "Pop" design system on every screen, cycle analysis view, bill detective, feeding rhythm, offline page — see DECISIONS.md
 1. Billing cycle feature (cycle_day, auto-archive, cycle labels)
 2. Category management (family isolation, delete, duplicates fix)
 3. Push notifications audit (all routes covered)
@@ -90,6 +103,7 @@ push_tokens, family_settings
 - Google Play Billing (free/premium)
 - Email notifications not configured (need MAIL_USERNAME/PASSWORD env vars)
 - App icon not yet added
+- `categories.name` is UNIQUE table-wide: two families cannot share a custom category name (needs a UNIQUE(family_id, name) rebuild)
 
 ## Testing
 Run all tests with Flask running:
@@ -105,3 +119,4 @@ python test_files/test_flows.py        # 60 tests — complete user flows
 - Push calls always include `exclude_user_id` for user actions
 - `init_db()` checks existence before inserting default categories
 - PowerShell quote escaping issues — use .py scripts instead of inline
+- UI: templates use the classes in static/css/style.css and the Pop.* helpers in static/js/pop.js (no Bootstrap / Font Awesome / Chart.js); page-only styles go in the page's head block; every button has words; forms open in bottom sheets; confirmations via Pop.confirm(); ≥44px tap targets, ≥13px text, WCAG contrast

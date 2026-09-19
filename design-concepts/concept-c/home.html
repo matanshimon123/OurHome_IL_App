@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Concept C · בית</title>
+<link rel="stylesheet" href="concept.css">
+<style>
+/* fuel gauge */
+.gauge{display:flex;gap:3px;height:22px;margin-top:10px;direction:rtl}
+.gauge i{flex:1;border-radius:3px;background:var(--panel-3);position:relative;overflow:hidden}
+.gauge i::after{content:'';position:absolute;inset:0;background:var(--c,var(--cyan));transform:scaleX(0);transform-origin:right;transition:transform .5s var(--ease);transition-delay:var(--d,0s)}
+.ready .gauge i.on::after{transform:scaleX(1)}
+.gauge i.proj{border:1px dashed var(--line-3);background:transparent}
+.gauge-lbl{display:flex;justify-content:space-between;font:500 10px var(--mono);color:var(--text-3);margin-top:6px}
+.gauge-lbl b{color:var(--text-2);font-weight:500}
+/* sparkbars */
+.sparkbars{display:flex;align-items:flex-end;gap:3px;height:40px;margin-top:10px;direction:rtl}
+.sparkbars i{flex:1;background:var(--cyan);border-radius:2px 2px 0 0;opacity:.85;height:var(--h)}
+.sparkbars i.today{background:var(--amber);opacity:1}
+.sparkbars i.zero{height:2px;background:var(--line-3)}
+/* ring */
+.ring{position:relative;width:64px;height:64px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .bg{fill:none;stroke:var(--panel-3);stroke-width:5}
+.ring .fg{fill:none;stroke:var(--lime);stroke-width:5;stroke-linecap:round}
+.ring b{position:absolute;inset:0;display:grid;place-items:center;font:600 12px var(--mono)}
+.dots{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.dots i{width:8px;height:8px;border-radius:2px;background:var(--line-3)}
+.dots i.on{background:var(--lime)}
+/* heatmap */
+.hm{display:grid;grid-template-columns:34px repeat(7,1fr);gap:4px;margin-top:8px;direction:rtl}
+.hm .lab{font:500 9.5px var(--mono);color:var(--text-3);display:flex;align-items:center}
+.hm .lab.top{justify-content:center}
+.hm .cell{aspect-ratio:1.4;border-radius:4px;background:var(--panel-3);cursor:pointer;transition:transform .2s var(--ease),opacity .5s var(--ease)}
+.hm .cell:active{transform:scale(.9)}
+.hm .cell[data-l="1"]{background:rgba(34,211,238,.22)}.hm .cell[data-l="2"]{background:rgba(34,211,238,.45)}.hm .cell[data-l="3"]{background:rgba(34,211,238,.7)}.hm .cell[data-l="4"]{background:var(--cyan);box-shadow:0 0 10px rgba(34,211,238,.5)}
+.hm .cell.now{outline:1.5px solid var(--amber);outline-offset:1px}
+.hm-legend{display:flex;align-items:center;gap:4px;font:500 9.5px var(--mono);color:var(--text-3);margin-top:8px;justify-content:flex-end}
+.hm-legend i{width:10px;height:10px;border-radius:2px}
+/* sleep mini */
+.mini-bar{height:6px;border-radius:3px;background:var(--panel-3);overflow:hidden;margin-top:8px}
+.mini-bar i{display:block;height:100%;background:var(--violet);width:var(--w);transform-origin:right}
+/* chores matrix */
+.matrix{display:grid;grid-template-columns:auto repeat(7,1fr);gap:3px;align-items:center;margin-top:8px;direction:rtl}
+.matrix .who{font-size:9px}
+.matrix i{aspect-ratio:1;border-radius:3px;background:var(--panel-3)}
+.matrix i.ok{background:var(--lime)} .matrix i.miss{background:var(--rose);opacity:.7} .matrix i.pend{border:1px dashed var(--line-3);background:transparent}
+.matrix .dh{font:500 9px var(--mono);color:var(--text-3);text-align:center}
+/* anomaly */
+.cmp{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.cmp .r{display:grid;grid-template-columns:70px 1fr 52px;align-items:center;gap:8px;font:500 10.5px var(--mono);color:var(--text-2)}
+.cmp .r b{font:600 11px var(--mono);text-align:end}
+.cmp .t{height:8px;border-radius:4px;background:var(--panel-3);overflow:hidden}
+.cmp .t i{display:block;height:100%;width:var(--w);background:var(--c);transform-origin:right}
+.timer{font:600 26px/1 var(--mono);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--cyan);text-shadow:0 0 14px rgba(34,211,238,.4)}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar"><span>09:41</span><span class="notch"></span><span>● 100%</span></div>
+  <div class="app">
+
+    <header class="topbar in">
+      <div>
+        <div class="brand"><b>OurHome</b><span class="sep">//</span>משפחת לוי</div>
+        <div class="title">שישי, 18.09<small>מחזור 10.09 → 09.10 · יום 09/30</small></div>
+      </div>
+      <div class="sync"><span class="live"></span>מסונכרן 14:32</div>
+    </header>
+
+    <!-- ===== SMART: natural-language quick add ===== -->
+    <div class="cmd in d1">
+      <div class="cmd-in"><span class="k">+</span><input id="cmd" type="text" placeholder="הוסף בשפה חופשית… למשל: שופרסל 240" autocomplete="off"><button class="btn sm primary" id="cmdGo">הוסף</button></div>
+      <div class="cmd-chips" id="cmdChips"><span class="tag ghost" data-ex="שופרסל 240">נסה: שופרסל 240</span><span class="tag ghost" data-ex="דלק 220 יובל">דלק 220 יובל</span><span class="tag ghost" data-ex="בקבוק 150">בקבוק 150</span></div>
+    </div>
+
+    <main class="content">
+      <div class="bento">
+
+        <!-- ===== BUDGET FUEL GAUGE ===== -->
+        <section class="tile span2 hi in d2">
+          <div class="tile-h"><span class="lbl"><i></i>תקציב מחזור</span><span class="meta">BUDGET 10,000</span></div>
+          <div class="row between" style="align-items:flex-end">
+            <div><div class="kpi"><small>₪</small><span id="spent">0</span></div><div class="sub">נוצל 47% · 21 ימים נותרו</div></div>
+            <div style="text-align:end"><span class="delta dn">−720 vs מחזור קודם</span><div class="sub">צפי סיום <b class="c-lime">8,420</b></div></div>
+          </div>
+          <div class="gauge" id="gauge"></div>
+          <div class="gauge-lbl"><span>0</span><span><b>▲ היום 47%</b></span><span>צפי 84% ▽</span><span>10K</span></div>
+        </section>
+
+        <!-- ===== TODAY ===== -->
+        <a class="tile in d3" href="finance.html">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--amber)"></i>היום</span><span class="meta">2 TX</span></div>
+          <div class="kpi sm"><small>₪</small>186</div>
+          <div class="sparkbars" id="spark"></div>
+          <div class="sub">7 ימים · ממוצע 176/יום</div>
+        </a>
+
+        <!-- ===== SHOPPING ===== -->
+        <section class="tile in d3">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--lime)"></i>קניות</span><span class="meta">6 LEFT</span></div>
+          <div class="row" style="gap:12px">
+            <div class="ring"><svg viewBox="0 0 64 64"><circle class="bg" cx="32" cy="32" r="27"/><circle class="fg drawn" cx="32" cy="32" r="27" pathLength="1" style="stroke-dasharray:1;stroke-dashoffset:.333"/></svg><b>12/18</b></div>
+            <div class="grow"><div class="kpi sm">67%</div><div class="sub">הושלם</div></div>
+          </div>
+          <div class="dots" id="dots"></div>
+        </section>
+
+        <!-- ===== FAMILY ACTIVITY HEATMAP ===== -->
+        <section class="tile span2 in d4" id="hmTile">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--cyan)"></i>מתי הבית פעיל</span><span class="meta">7D × 4H · 142 פעולות</span></div>
+          <div class="hm" id="hm"></div>
+          <div class="hm-legend"><span>פחות</span><i style="background:var(--panel-3)"></i><i style="background:rgba(34,211,238,.22)"></i><i style="background:rgba(34,211,238,.45)"></i><i style="background:rgba(34,211,238,.7)"></i><i style="background:var(--cyan)"></i><span>יותר</span></div>
+        </section>
+
+        <!-- ===== BABY ===== -->
+        <a class="tile in d5" href="baby.html">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--violet)"></i>אלה</span><span class="meta">SLEEPING</span></div>
+          <div class="timer" id="timer">02:07:14</div>
+          <div class="sub">מאז האכלה · הבאה ~16:32</div>
+          <div class="mini-bar"><i class="grow-x" style="--w:52%"></i></div>
+          <div class="sub">שינה 7:20 / 14:00</div>
+        </a>
+
+        <!-- ===== CHORES ===== -->
+        <section class="tile in d5">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--lime)"></i>משימות</span><span class="meta">2/3</span></div>
+          <div class="matrix" id="matrix"></div>
+          <div class="sub">השבוע: 11/14 · רצף 5 ימים</div>
+        </section>
+
+        <!-- ===== SMART: ANOMALY ===== -->
+        <section class="tile span2 accent-rose in d6" id="anom">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--rose)"></i>אנומליה זוהתה</span><span class="meta">CONF 91%</span></div>
+          <div style="font-weight:600;font-size:14px">הוצאות <span class="c-rose">רכב</span> גבוהות פי 2.3 מהממוצע החודשי</div>
+          <div class="cmp">
+            <div class="r"><span>ממוצע 6 חודשים</span><div class="t"><i class="grow-x" style="--w:43%;--c:var(--text-3)"></i></div><b>₪135</b></div>
+            <div class="r"><span>מחזור נוכחי</span><div class="t"><i class="grow-x" style="--w:100%;--c:var(--rose)"></i></div><b class="c-rose">₪310</b></div>
+          </div>
+          <div class="sub" style="margin-top:8px">הסיבה: ״טיפול 10,000 — מוסך״ ₪246 ב־13.9. חד־פעמי? נוציא אותו מהתחזית.</div>
+          <div class="row" style="gap:8px;margin-top:10px"><button class="btn sm primary" onclick="$('#anom').style.opacity=.45;toast('סומן כחד־פעמי · צפי עודכן ל־8,174')">סמן כחד־פעמי</button><button class="btn sm ghost" onclick="toast('פירוט הוצאות רכב')">פרטים</button></div>
+        </section>
+
+      </div>
+    </main>
+
+    <nav class="nav">
+      <div class="nav-bar">
+        <a href="home.html" class="active"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>HOME</a>
+        <a href="finance.html"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg>FINANCE</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M3 4h2l2 11h11l2-7H7"/><circle cx="9" cy="19" r="1"/><circle cx="17" cy="19" r="1"/></svg>SHOP</a>
+        <a href="baby.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".6"/><circle cx="14.5" cy="11" r=".6"/><path d="M9.5 14.5q2.5 2 5 0"/></svg>BABY</a>
+        <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>SETTINGS</a>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<script src="concept.js"></script>
+<script>
+/* ---------- fuel gauge: 20 segments, 47% used, projection to 84% ---------- */
+const g=$('#gauge');const used=Math.round(20*.473),proj=Math.round(20*.842);
+for(let i=0;i<20;i++){const c=i<12?'var(--cyan)':i<16?'var(--amber)':'var(--rose)';const cls=i<used?'on':i<proj?'proj':'';g.insertAdjacentHTML('beforeend',`<i class="${cls}" style="--c:${c};--d:${i*.05}s"></i>`);}
+
+/* ---------- 7-day sparkbars ---------- */
+const W=[340,0,420,155,64,186];const mx=Math.max(...W);
+$('#spark').innerHTML=[...W,null].map((v,i)=>v==null?`<i class="zero"></i>`:`<i class="${i===5?'today':''}${v===0?' zero':''}" style="--h:${Math.max(4,v/mx*100)}%"></i>`).join('');
+
+/* ---------- shopping dots ---------- */
+$('#dots').innerHTML=Array.from({length:18},(_,i)=>`<i class="${i<12?'on':''}"></i>`).join('');
+
+/* ---------- family activity heatmap 7 days × 6 buckets ---------- */
+const DAYS=['ש','א','ב','ג','ד','ה','ו'];const BUCKETS=['00','04','08','12','16','20'];
+const ACT=[[1,0,3,2,2,3],[1,0,4,3,3,2],[0,1,3,4,2,2],[1,0,2,3,4,3],[0,0,3,2,3,4],[1,1,4,3,2,2],[1,0,3,3,0,0]];
+const hm=$('#hm');hm.innerHTML='<span></span>'+DAYS.map(d=>`<span class="lab top">${d}</span>`).join('');
+BUCKETS.forEach((b,bi)=>{hm.insertAdjacentHTML('beforeend',`<span class="lab">${b}–${BUCKETS[bi+1]||'24'}</span>`);DAYS.forEach((d,di)=>{const l=ACT[di][bi];const now=di===6&&bi===3;hm.insertAdjacentHTML('beforeend',`<span class="cell fade-cell${now?' now':''}" data-l="${l}" data-d="${d}" data-b="${b}" data-n="${l*2+(l?1:0)}" style="transition-delay:${.3+(bi*7+di)*.012}s"></span>`);});});
+hm.addEventListener('click',e=>{const c=e.target.closest('.cell');if(!c)return;const r=c.getBoundingClientRect(),h=$('#hmTile').getBoundingClientRect();tipAt($('#hmTile'),r.left-h.left+r.width/2,r.top-h.top,`${c.dataset.d}׳ ${c.dataset.b}:00 · ${c.dataset.n} פעולות`);});
+
+/* ---------- chores matrix ---------- */
+const M=[['נ',[1,1,1,0,1,1,2]],['י',[1,0,1,1,1,1,1]]];
+const mx2=$('#matrix');mx2.innerHTML='<span></span>'+DAYS.map(d=>`<span class="dh">${d}</span>`).join('')+M.map(([w,row])=>`<span class="who">${w}</span>`+row.map(v=>`<i class="${v===1?'ok':v===0?'miss':'pend'}"></i>`).join('')).join('');
+
+/* ---------- live timer ---------- */
+let secs=2*3600+7*60+14;setInterval(()=>{secs++;$('#timer').textContent=[3600,60,1].map((u,i)=>String(Math.floor(secs/u)%(i?60:100)).padStart(2,'0')).join(':');},1000);
+
+/* ---------- natural-language quick add ---------- */
+const CATMAP=[['שופרסל|רמי לוי|סופר|מכולת|חלב|לחם','קניות - סופר','amber'],['דלק|חניה|מוסך|רכב','רכב','rose'],['חיתולים|פארם|מוצץ|תינוק','תינוק','cyan'],['מכבסה|ניקיון|חשמל|ארנונה','משק בית','lime'],['קפה|פיצה|מסעדה|סרט|ארומה','בילויים / פנאי','blue'],['בקבוק|הנקה','__feed','violet'],['ספר|בגד|נעל','קניות - אופנה','violet']];
+const input=$('#cmd'),chips=$('#cmdChips');
+function parse(s){s=s.trim();if(!s){chips.innerHTML='<span class="tag ghost" data-ex="שופרסל 240">נסה: שופרסל 240</span><span class="tag ghost" data-ex="דלק 220 יובל">דלק 220 יובל</span><span class="tag ghost" data-ex="בקבוק 150">בקבוק 150</span>';return null;}
+  const num=(s.match(/\d+(\.\d+)?/)||[])[0];const who=/יובל/.test(s)?'יובל':'נועה';const when=/אתמול/.test(s)?'אתמול':'היום';
+  let cat='כללי',col='';for(const [re,c,cl] of CATMAP){if(new RegExp(re).test(s)){cat=c;col=cl;break;}}
+  const feed=cat==='__feed';
+  const out=feed?[['violet',`🍼 האכלה · ${num||'?'} מ״ל`],['',when+' 14:32'],['',who]]:[['cyan',num?`₪${num}`:'סכום?'],[col,cat],['',when],['',who]];
+  chips.innerHTML=out.map(([c,t])=>`<span class="tag ${c}">${t}</span>`).join('')+`<span class="tag" style="opacity:.6">Enter ↵</span>`;
+  return {num,cat,who,when,feed};}
+input.addEventListener('input',()=>parse(input.value));
+chips.addEventListener('click',e=>{const t=e.target.closest('[data-ex]');if(t){input.value=t.dataset.ex;parse(input.value);input.focus();}});
+const go=()=>{const p=parse(input.value);if(!p)return;toast(p.feed?`נרשם בקבוק ${p.num||''} מ״ל`:`נוספה הוצאה ₪${p.num||0} · ${p.cat}`);input.value='';parse('');};
+$('#cmdGo').addEventListener('click',go);input.addEventListener('keydown',e=>{if(e.key==='Enter')go();});
+
+document.addEventListener('data:ready',()=>countUp($('#spent'),4730));
+</script>
+</body>
+</html>

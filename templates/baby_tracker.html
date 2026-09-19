@@ -1,536 +1,502 @@
 {% extends "base.html" %}
-{% block title %}תינוק - OurHome IL{% endblock %}
-{% block content %}
+{% block title %}מעקב תינוק - OurHome IL{% endblock %}
+{% block head %}
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
-*{font-family:'Heebo',sans-serif;box-sizing:border-box;}
-
-:root{
-  --pink:#d4356a;--pink2:#e8648a;
-  --surface:#fef6f9;--card:#fff;
-  --border:#fce7f3;
-  --text1:#1a0a12;--text2:#6b5060;--text3:#b08898;
-  --r:20px;
-}
-
-.back-bar{display:none!important;}
-.page{max-width:600px;margin:0 auto;direction:rtl;background:var(--surface);min-height:100vh;padding-bottom:100px;overflow-x:hidden;}
-/* ── HEADER — lighter warm rose ── */
-.pg-header{
-  background:linear-gradient(150deg,#7b1535 0%,#b52e5a 45%,#d4547e 100%);
-  padding:20px 20px 36px;margin:-10px -10px 0;
-  position:relative;overflow:hidden;
-}
-.pg-header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:28px;background:var(--surface);border-radius:28px 28px 0 0;}
-.hdr-glow{position:absolute;top:-50px;right:-30px;width:200px;height:200px;border-radius:50%;background:radial-gradient(circle,rgba(255,255,255,.18) 0%,transparent 65%);pointer-events:none;}
-.hdr-glow2{position:absolute;bottom:-30px;left:-20px;width:160px;height:160px;border-radius:50%;background:radial-gradient(circle,rgba(255,200,220,.15) 0%,transparent 65%);pointer-events:none;}
-
-/* Row 1: label + title + date */
-.hdr-top{position:relative;z-index:1;margin-bottom:18px;}
-.hdr-label{font-size:.62rem;color:rgba(255,255,255,.45);font-weight:300;letter-spacing:.07em;margin-bottom:5px;}
-.hdr-title-row{display:flex;align-items:center;gap:10px;}
-.hdr-title{font-size:1.5rem;font-weight:900;letter-spacing:-.5px;line-height:1;color:#fff;}
-.hdr-title span{color:#fecdd3;}
-.hdr-date-pill{display:inline-flex;align-items:center;background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);border-radius:99px;padding:3px 11px;margin-right:auto;}
-.hdr-date-pill span{font-size:.68rem;font-weight:700;color:#fff;}
-
-/* Row 2: Last feeding hero */
-.hdr-hero{
-  position:relative;z-index:1;
-  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.2);
-  border-radius:18px;padding:14px 18px;
-  display:flex;align-items:center;gap:14px;
-  backdrop-filter:blur(10px);
-  margin-bottom:12px;
-}
-.hhr-icon{font-size:1.8rem;flex-shrink:0;}
-.hhr-body{flex:1;}
-.hhr-label{font-size:.62rem;color:rgba(255,255,255,.55);margin-bottom:3px;}
-.hhr-val{font-size:2rem;font-weight:900;color:#fff;letter-spacing:-1px;line-height:1;}
-.hhr-sub{font-size:.65rem;color:rgba(255,255,255,.5);margin-top:3px;}
-.hhr-alert{
-  background:rgba(239,68,68,.25);border:1px solid rgba(255,180,180,.3);
-  border-radius:12px;padding:6px 10px;text-align:center;flex-shrink:0;
-}
-.hhr-alert .av{font-size:.8rem;font-weight:900;color:#fecaca;}
-.hhr-alert .al{font-size:.58rem;color:rgba(255,255,255,.55);}
-
-/* Row 3: 3-column stat chips */
-.hdr-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;position:relative;z-index:1;}
-.hdr-chip{
-  background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
-  border-radius:14px;padding:10px 6px;text-align:center;
-  backdrop-filter:blur(8px);
-}
-.hdr-chip .cv{font-size:1.05rem;font-weight:900;color:#fff;line-height:1;display:block;}
-.hdr-chip .cl{font-size:.58rem;color:rgba(255,255,255,.5);display:block;margin-top:3px;}
-.hdr-chip .cs{font-size:.75rem;color:rgba(255,220,230,1);display:block;margin-top:2px;font-weight:900;letter-spacing:-.3px;}
-
-/* ── CONTENT ── */
-.content{padding:14px 14px 0;}
-
-/* ── QUICK ADD ── */
-.qa-card{background:var(--card);border-radius:var(--r);box-shadow:0 2px 20px rgba(212,53,106,.07);border:1.5px solid var(--border);margin-bottom:14px;padding:14px;}
-.qa-label{font-size:.66rem;font-weight:700;color:var(--text3);letter-spacing:.08em;text-transform:uppercase;margin-bottom:12px;}
-.qa-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
-.qa-item{display:flex;flex-direction:column;align-items:center;gap:5px;padding:12px 6px;border-radius:14px;border:1.5px solid;cursor:pointer;transition:transform .15s;background:white;}
-.qa-item:active{transform:scale(.93);}
-.qa-item .qi{font-size:1.5rem;line-height:1;}
-.qa-item .ql{font-size:.68rem;font-weight:700;color:var(--text2);}
-.qa-item[data-t="bottle"]{border-color:#bfdbfe;background:#eff6ff;}
-.qa-item[data-t="breastfeeding"]{border-color:#fbcfe8;background:#fdf2f8;}
-.qa-item[data-t="solid"]{border-color:#a7f3d0;background:#ecfdf5;}
-.qa-item[data-t="diaper"]{border-color:#fde68a;background:#fffbeb;}
-.qa-item[data-t="medication"]{border-color:#c7d2fe;background:#eef2ff;}
-.qa-item[data-t="sleep"]{border-color:#e5e7eb;background:#f9fafb;}
-
-/* ── SECTION CARDS ── */
-.sec-card{background:var(--card);border-radius:var(--r);box-shadow:0 2px 16px rgba(0,0,0,.05);border:1.5px solid #f0ede8;margin-bottom:14px;padding:16px;}
-.sec-hdr{display:flex;align-items:center;gap:7px;margin-bottom:14px;}
-.sec-dot{width:8px;height:8px;border-radius:50%;background:var(--pink);flex-shrink:0;}
-.sec-title{font-size:.82rem;font-weight:800;color:var(--text1);}
-
-/* ── TIMELINE VISUAL ── */
-.day-tl{direction:ltr;}
-.day-tl-hours{display:flex;justify-content:space-between;font-size:.55rem;color:var(--text3);padding:0 2px;margin-bottom:8px;font-weight:600;}
-.day-tl-row{display:flex;align-items:center;gap:6px;margin-bottom:7px;}
-.day-tl-label{font-size:.95rem;width:24px;text-align:center;flex-shrink:0;}
-.day-tl-track{flex:1;height:20px;background:#fce7f3;border-radius:10px;position:relative;overflow:hidden;}
-.day-tl-dot{position:absolute;top:2px;width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.5rem;color:white;font-weight:700;cursor:pointer;transition:transform .2s;box-shadow:0 1px 4px rgba(0,0,0,.2);}
-.day-tl-dot:hover{transform:scale(1.35);z-index:2;}
-.day-tl-dot.bottle{background:#3b82f6;}
-.day-tl-dot.breastfeeding{background:#ec4899;}
-.day-tl-dot.solid{background:#10b981;}
-.day-tl-dot.diaper{background:#f59e0b;}
-.day-tl-dot.medication{background:#6366f1;}
-.day-tl-dot.sleep{background:#6b7280;}
-.day-tl-now{position:absolute;top:0;bottom:0;width:2px;background:#ef4444;z-index:1;}
-.day-tl-tooltip{position:absolute;bottom:110%;left:50%;transform:translateX(-50%);background:#1a0a12;color:white;padding:3px 8px;border-radius:8px;font-size:.62rem;white-space:nowrap;pointer-events:none;z-index:10;display:none;}
-.day-tl-dot:hover .day-tl-tooltip{display:block;}
-.day-tl-legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;justify-content:center;}
-.day-tl-legend span{font-size:.62rem;color:var(--text3);display:flex;align-items:center;gap:3px;}
-.ldot{width:7px;height:7px;border-radius:50%;display:inline-block;}
-
-/* Chart types */
-.chart-types{display:flex;gap:6px;margin-bottom:12px;overflow-x:auto;padding-bottom:2px;}
-.chart-types::-webkit-scrollbar{display:none;}
-.ct-btn{flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid #f0ede8;background:white;font-size:.82rem;font-weight:700;cursor:pointer;color:var(--text3);white-space:nowrap;transition:all .2s;font-family:inherit;}
-.ct-btn.active{border-color:var(--pink);background:#fdf2f8;color:var(--pink);}
-
-/* Week nav */
-.week-nav{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
-.wn-btn{background:none;border:1.5px solid #f0ede8;border-radius:10px;padding:5px 12px;cursor:pointer;font-size:.9rem;color:var(--text2);font-family:inherit;}
-.wn-btn:hover{background:#fdf2f8;}
-.wn-label{font-size:.82rem;font-weight:800;color:var(--text1);}
-.chart-wrap{position:relative;height:210px;direction:ltr;}.chart-hint{font-size:.62rem;color:var(--text3);text-align:center;margin-bottom:8px;}
-.amounts-wrap{position:relative;min-height:80px;direction:ltr;}
-
-/* Event list */
-.tl-item{display:flex;align-items:center;gap:12px;padding:14px 0;border-bottom:1px solid #fce7f3;}
-
-.tl-item:last-child{border-bottom:none;}
-.tl-icon{font-size:1.3rem;width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.tl-icon.bottle{background:#eff6ff;}.tl-icon.breastfeeding{background:#fdf2f8;}.tl-icon.solid{background:#ecfdf5;}
-.tl-icon.diaper{background:#fffbeb;}.tl-icon.medication{background:#eef2ff;}.tl-icon.sleep{background:#f9fafb;}
-.tl-info{flex:1;min-width:0;}
-.tl-name{font-weight:700;font-size:.95rem;color:var(--text1);}
-.tl-detail{font-size:.82rem;color:var(--text3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-top:2px;}
-.tl-time{font-size:.95rem;font-weight:700;color:var(--pink);white-space:nowrap;}
-.tl-acts{display:flex;gap:2px;}
-.tl-acts button{background:none;border:none;cursor:pointer;padding:5px 6px;font-size:.75rem;border-radius:8px;color:var(--text3);}
-.tl-acts .te:hover{background:#fef3c7;color:#d97706;}
-.tl-acts .td:hover{background:#fee2e2;color:#ef4444;}
-.tl-empty{text-align:center;padding:28px;color:var(--text3);}
-.tl-empty .te-icon{font-size:2rem;margin-bottom:8px;}
-.tl-empty .te-txt{font-size:.8rem;}
-
-/* Sheets */
-.sheet-ov{display:none;position:fixed;z-index:2000;inset:0;background:rgba(0,0,0,.45);backdrop-filter:blur(3px);justify-content:flex-end;flex-direction:column;align-items:center;}
-.sheet-ov.open{display:flex;}
-.sheet{background:var(--card);border-radius:24px 24px 0 0;padding:20px 20px 36px;width:100%;max-width:500px;direction:rtl;animation:sup .28s cubic-bezier(.4,0,.2,1);}
-@keyframes sup{from{transform:translateY(100%)}to{transform:translateY(0)}}
-.sheet-handle{width:36px;height:4px;background:#e5e7eb;border-radius:99px;margin:0 auto 18px;}
-.sheet-title{font-size:1.05rem;font-weight:900;color:var(--text1);margin-bottom:16px;text-align:center;}
-.sheet label{display:block;font-size:.72rem;font-weight:700;color:var(--text2);margin-bottom:5px;}
-.sheet input,.sheet select{width:100%;padding:10px 14px;border:1.5px solid #f0ede8;border-radius:12px;font-size:.9rem;font-family:inherit;background:#fef6f9;color:var(--text1);outline:none;margin-bottom:12px;}
-.sheet input:focus,.sheet select:focus{border-color:var(--pink);}
-.sheet-row{display:flex;gap:8px;width:100%;}
-.sheet-row>div{flex:1;min-width:0;box-sizing:border-box;}
-.sheet-save{width:100%;padding:13px;background:linear-gradient(135deg,var(--pink),var(--pink2));color:#fff;border:none;border-radius:13px;font-size:.9rem;font-weight:800;font-family:inherit;cursor:pointer;margin-bottom:8px;}
-.sheet-cancel{width:100%;padding:10px;background:none;border:none;color:var(--text3);font-size:.82rem;font-family:inherit;cursor:pointer;}
-.pop-chips{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;}
-.pop-chip{background:#fdf2f8;border-radius:14px;padding:9px 6px;text-align:center;}
-.pop-chip .cv{font-size:1rem;font-weight:900;color:var(--pink);display:block;line-height:1;}
-.pop-chip .cl{font-size:.58rem;color:var(--text3);display:block;margin-top:3px;}
-.pop-scroll{overflow-y:auto;flex:1;padding:0 20px 24px;}
-.pop-event{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #fce7f3;font-size:.82rem;}
-.pop-event:last-child{border-bottom:none;}
-.pop-event .pe-icon{font-size:1.1rem;flex-shrink:0;}
-.pop-event .pe-name{flex:1;font-weight:700;color:var(--text1);}
-.pop-event .pe-detail{font-size:.68rem;color:var(--text3);}
-.pop-event .pe-time{font-weight:800;color:var(--pink);white-space:nowrap;}
-
-.fu{opacity:0;transform:translateY(14px);animation:fu .4s ease forwards;}
-@keyframes fu{to{opacity:1;transform:translateY(0)}}
-.d1{animation-delay:.04s}.d2{animation-delay:.1s}.d3{animation-delay:.17s}.d4{animation-delay:.24s}.d5{animation-delay:.3s}.d6{animation-delay:.36s}
+/* ── Baby tracker. Concept A: grape hero + live timer card, quick-log grid, 24h radial clock, pillow stack.
+      Borrowed from Concept C: today's feeding intervals, with the long gaps called out. ── */
+.baby-ill{width:84px;height:84px;flex:none;position:relative;z-index:1}
+.hero-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.hero-chips .chip{font-size:14px}
+.timer-card{position:relative;z-index:1;margin-top:16px;background:#fff;color:var(--ink);border:var(--line) solid var(--ink);border-radius:var(--r);box-shadow:var(--shadow);padding:12px 14px;display:flex;align-items:center;gap:12px}
+.timer-card .e{font-size:30px;flex:none}
+.timer-card .eyebrow{color:var(--ink-2)}
+.timer-card .grow{min-width:0}
+.timer-card .big{font:900 34px/1 var(--font-display);letter-spacing:-.02em;font-variant-numeric:tabular-nums;color:var(--grape-deep);margin-top:4px}
+.timer-card .next{flex:none;text-align:center;background:var(--sun);border:2.5px solid var(--ink);border-radius:14px;padding:6px 10px;box-shadow:2px 2px 0 var(--ink);min-width:84px}
+.timer-card .next b{font:900 18px/1 var(--font-display);display:block}
+.timer-card .next small{font:700 13px var(--font-display);display:block;margin-top:3px}
+.timer-card .next.late{background:var(--coral)}
+.ql{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.ql button{border:var(--line) solid var(--ink);border-radius:20px;min-height:88px;padding:10px 6px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;box-shadow:var(--shadow-sm);background:#fff;font:800 16px var(--font-display);color:var(--ink);transition:transform .2s var(--spring),box-shadow .2s}
+.ql button span{font-size:30px;line-height:1;transition:transform .35s var(--spring)}
+.ql button:active{transform:translate(3px,3px) scale(.96);box-shadow:0 0 0 var(--ink)}
+.ql button:active span{transform:scale(1.25) rotate(-8deg)}
+.pattern{padding:16px;background:var(--ink);color:#fff;border-color:var(--ink);box-shadow:4px 4px 0 var(--sun)}
+.pattern .eyebrow{color:#FFD97A}
+.pattern h3{font:800 17px/1.45 var(--font-display);margin:8px 0 4px}
+.pattern h3 b{color:var(--sun)}
+.pattern .toggle-row{color:#fff;border-bottom:0;margin-top:6px}
+.pattern .toggle-row .d{color:#E3DAFF}
+.pattern .sw-state{color:#fff}
+.pattern .cat-wrap{margin-top:6px}
+.pattern .chip-btn.on{background:var(--sun);color:var(--ink)}
+.clock-wrap{padding:14px 10px 12px}
+.clock{width:100%;max-width:300px;margin:0 auto;display:block}
+.arc{fill:none;stroke-width:16;stroke-linecap:round;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.3s var(--ease)}
+.arc.ol{stroke-width:21;stroke:#1E1633}
+.cdot{transform-box:fill-box;transform-origin:center;animation:dotIn .6s var(--spring) both}
+@keyframes dotIn{from{transform:scale(0)}to{transform:scale(1)}}
+.hand{transform-origin:130px 130px;transition:transform 1.5s var(--spring)}
+.now-ring{transform-box:fill-box;transform-origin:center;animation:ping2 1.8s ease-out infinite}
+@keyframes ping2{0%{transform:scale(.6);opacity:.9}100%{transform:scale(1.8);opacity:0}}
+.legend{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-top:10px}
+.legend .chip i{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);display:inline-block}
+.gap-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:2px dashed var(--cream-2)}
+.gap-row:last-child{border-bottom:0}
+.gap-row .when{flex:0 0 108px;font:800 14px var(--font-display);color:var(--ink-2);white-space:nowrap}
+.gap-row .trk{flex:1;height:18px;border:2px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden}
+.gap-row .trk i{display:block;height:100%;background:var(--sky);border-inline-end:2px solid var(--ink)}
+.gap-row.long .trk i{background:var(--coral)}
+.gap-row.open .trk i{background:repeating-linear-gradient(45deg,var(--sky-soft) 0 6px,#fff 6px 12px)}
+.gap-row b{flex:0 0 46px;font:900 17px var(--font-display);text-align:end}
+.week-nav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:12px}
+.wk-label{display:block;text-align:center;font:900 18px var(--font-display);margin-bottom:10px;white-space:nowrap}
+.week-nav .btn.hide{visibility:hidden}
+.wk{display:flex;gap:4px;height:200px;margin-top:14px}
+.wk .col{flex:1;min-width:44px;height:100%;display:flex;flex-direction:column;align-items:center;gap:6px;background:none;border:0;padding:0;color:var(--ink);font-family:var(--font-display)}
+.wk .area{flex:1;width:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;gap:2px}
+.wk .v{font:800 13px/16px var(--font-display);white-space:nowrap}
+.wk .bar{width:100%;max-width:38px;border:2.5px solid var(--ink);border-radius:10px 10px 5px 5px;background:var(--sky-soft);box-shadow:2px 2px 0 var(--ink);transform-origin:bottom;animation:grow .6s var(--spring) both}
+.wk .pw{width:32px;border:1.6px solid var(--ink);border-radius:5px;background:var(--grape-soft);flex:none;animation:pw .45s var(--spring) both}
+.wk .col.today .bar{background:var(--sun)} .wk .col.today .pw{background:var(--sun)}
+.wk .l{font:800 14px var(--font-display);color:var(--ink-2)}
+.wk .col.today .l{color:var(--ink)}
+.wk .col[disabled] .l{opacity:.75}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+@keyframes pw{from{transform:scale(0) translateY(8px)}to{transform:scale(1) translateY(0)}}
+.tl{position:relative;padding-inline-start:26px}
+.tl::before{content:'';position:absolute;inset-inline-start:9px;top:6px;bottom:6px;width:3px;background:var(--ink);border-radius:2px;opacity:.15}
+.tl .item{margin-bottom:10px;position:relative}
+.tl .item::before{content:'';position:absolute;inset-inline-start:-25px;top:26px;width:12px;height:12px;border-radius:50%;background:var(--dot,var(--sun));border:2.5px solid var(--ink)}
+.tl .time{font:900 16px var(--font-display);color:var(--grape-deep);white-space:nowrap}
+.pick{display:flex;flex-wrap:wrap;gap:8px}
+.pick .chip-btn{min-width:60px}
+.big-in{font-size:26px;font-weight:900;text-align:center}
+.dstats{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin-bottom:12px}
+.dstats .chip{font-size:15px;padding:6px 12px}
 </style>
-
-<div class="page">
-
-  <!-- HEADER -->
-  <div class="pg-header fu d1">
-    <div class="hdr-glow"></div><div class="hdr-glow2"></div>
-
-    <!-- Title + date -->
-    <div class="hdr-top">
-      <div class="hdr-label">OurHome IL</div>
-      <div class="hdr-title-row">
-        <div class="hdr-title">👶 <span>מעקב תינוק</span></div>
-        <div class="hdr-date-pill"><span id="hdrDate">היום</span></div>
-      </div>
-    </div>
-
-    <!-- Last feeding hero -->
-    <div class="hdr-hero">
-      <div class="hhr-icon">⏰</div>
-      <div class="hhr-body">
-        <div class="hhr-label">האכלה אחרונה לפני</div>
-        <div class="hhr-val" id="lastFeedVal">--</div>
-        <div class="hhr-sub">מאז בקבוק / הנקה / מוצק</div>
-      </div>
-      <div class="hhr-alert" id="lfsAlert" style="display:none;">
-        <div class="av">⚠️</div>
-        <div class="al">רעב?</div>
-      </div>
-    </div>
-
-    <!-- Stats chips: bottles | diapers | sleep + extra -->
-    <div id="hdrChips" style="display:grid;grid-template-columns:repeat(3,1fr);gap:7px;position:relative;z-index:1;"></div>
-  </div>
-
-  <div class="content">
-
-    <!-- QUICK ADD -->
-    <div class="qa-card fu d2">
-      <div class="qa-label">הוסף אירוע</div>
-      <div class="qa-grid">
-        <div class="qa-item" data-t="bottle"       onclick="openAdd('bottle')">      <span class="qi">🍼</span><span class="ql">בקבוק</span></div>
-        <div class="qa-item" data-t="breastfeeding" onclick="openAdd('breastfeeding')"><span class="qi">🤱</span><span class="ql">הנקה</span></div>
-        <div class="qa-item" data-t="solid"         onclick="openAdd('solid')">       <span class="qi">🥣</span><span class="ql">מוצק</span></div>
-        <div class="qa-item" data-t="diaper"        onclick="openAdd('diaper')">      <span class="qi">🧷</span><span class="ql">חיתול</span></div>
-        <div class="qa-item" data-t="medication"    onclick="openAdd('medication')">  <span class="qi">💊</span><span class="ql">תרופה</span></div>
-        <div class="qa-item" data-t="sleep"         onclick="openAdd('sleep')">       <span class="qi">😴</span><span class="ql">שינה</span></div>
-      </div>
-    </div>
-
-    <!-- TIMELINE VISUAL -->
-    <div class="sec-card fu d3">
-      <div class="sec-hdr"><span class="sec-dot"></span><span class="sec-title">ציר זמן יומי</span></div>
-      <div class="day-tl">
-        <div class="day-tl-hours"><span>00</span><span>03</span><span>06</span><span>09</span><span>12</span><span>15</span><span>18</span><span>21</span><span>24</span></div>
-        <div id="dayTlRows"></div>
-      </div>
-      <div class="day-tl-legend" id="dayTlLegend"></div>
-    </div>
-
-    <!-- DAILY AMOUNTS -->
-    <div class="sec-card fu d4">
-      <div class="sec-hdr"><span class="sec-dot"></span><span class="sec-title">כמויות היום</span></div>
-      <div class="chart-types">
-        <button class="ct-btn active" data-d="bottle"        onclick="setDayChart('bottle')">🍼 מ"ל</button>
-        <button class="ct-btn"        data-d="breastfeeding" onclick="setDayChart('breastfeeding')">🤱 דק'</button>
-        <button class="ct-btn"        data-d="solid"         onclick="setDayChart('solid')">🥣 גרם</button>
-        <button class="ct-btn"        data-d="sleep"         onclick="setDayChart('sleep')">😴 דק'</button>
-      </div>
-      <div class="amounts-wrap"><canvas id="dayAmountChart"></canvas></div>
-    </div>
-
-    <!-- WEEKLY CHART -->
-    <div class="sec-card fu d5">
-      <div class="week-nav">
-        <button class="wn-btn" onclick="changeWeek(1)">→</button>
-        <div style="text-align:center;">
-          <div class="wn-label">סיכום שבועי</div>
-          <div id="weekRangeLabel" style="font-size:.72rem;color:var(--text3);margin-top:2px;"></div>
-        </div>
-        <button class="wn-btn" onclick="changeWeek(-1)">←</button>
-      </div>
-      <div class="chart-types">
-        <button class="ct-btn active" data-f="bottle"        onclick="setChart('bottle')">🍼 בקבוק</button>
-        <button class="ct-btn"        data-f="breastfeeding" onclick="setChart('breastfeeding')">🤱 הנקה</button>
-        <button class="ct-btn"        data-f="diaper"        onclick="setChart('diaper')">🧷 חיתולים</button>
-        <button class="ct-btn"        data-f="sleep"         onclick="setChart('sleep')">😴 שינה</button>
-        <button class="ct-btn"        data-f="all"           onclick="setChart('all')">📊 סה"כ</button>
-      </div>
-      <div class="chart-hint">לחץ על עמודה לפירוט</div>
-      <div class="chart-wrap"><canvas id="weeklyChart"></canvas></div>
-    </div>
-
-    <!-- EVENT LOG -->
-    <div class="sec-card fu d6">
-      <div class="sec-hdr"><span class="sec-dot"></span><span class="sec-title">אירועי היום</span></div>
-      <div id="timeline"><div class="tl-empty"><div class="te-icon">👶</div><div class="te-txt">אין אירועים היום</div></div></div>
-    </div>
-
-  </div>
-</div>
-
-<!-- ADD SHEET -->
-<div class="sheet-ov" id="addModal" onclick="if(event.target===this)closeAdd()">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title" id="modalTitle">הוספה</div>
-    <div id="modalFields"></div>
-    <div class="sheet-row">
-      <div><label>שעה</label><input type="time" id="addTime"></div>
-      <div><label>הערות</label><input type="text" id="addNotes" placeholder="אופציונלי..." dir="rtl"></div>
-    </div>
-    <button class="sheet-save" onclick="submitAdd()">שמור</button>
-    <button class="sheet-cancel" onclick="closeAdd()">ביטול</button>
-  </div>
-</div>
-
-<!-- EDIT SHEET -->
-<div class="sheet-ov" id="editModal" onclick="if(event.target===this)closeEdit()">
-  <div class="sheet">
-    <div class="sheet-handle"></div>
-    <div class="sheet-title" id="editTitle">✏️ עריכה</div>
-    <div id="editAmountRow"><label>כמות</label><input type="number" id="editAmount" min="0" step="10" inputmode="numeric"></div>
-    <div class="sheet-row">
-      <div><label>שעה</label><input type="time" id="editTime"></div>
-      <div><label>הערות</label><input type="text" id="editNotes" placeholder="הערות..." dir="rtl"></div>
-    </div>
-    <button class="sheet-save" onclick="submitEdit()">עדכן</button>
-    <button class="sheet-cancel" onclick="closeEdit()">ביטול</button>
-  </div>
-</div>
-
-<!-- DAY POPUP SHEET -->
-<div class="sheet-ov" id="dayPopup" onclick="if(event.target===this)closePopup()">
-  <div class="sheet" style="max-height:80vh;display:flex;flex-direction:column;padding-bottom:0;">
-    <div class="sheet-handle"></div>
-    <div style="padding:0 0 12px;flex-shrink:0;">
-      <div class="sheet-title" id="popupTitle"></div>
-      <div class="pop-chips" id="popupChips"></div>
-    </div>
-    <div class="pop-scroll" id="dayPopupContent"></div>
-  </div>
-</div>
-
 {% endblock %}
+{% block content %}
+<header class="hero hero-grape pop">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="row between" style="position:relative;z-index:1;align-items:flex-start">
+    <div class="grow">
+      <p class="sub" id="dateLine" style="margin:0 0 4px"></p>
+      <h1>👶 מעקב תינוק</h1>
+      <div class="hero-chips" id="todayChips"></div>
+    </div>
+    <svg class="baby-ill float" viewBox="0 0 100 100" aria-hidden="true">
+      <g transform="rotate(-14 50 50)">
+        <rect x="34" y="30" width="32" height="56" rx="10" fill="#fff" stroke="#1E1633" stroke-width="3"/>
+        <rect x="37" y="52" width="26" height="30" rx="7" fill="#3E9BFF"/>
+        <rect x="30" y="24" width="40" height="10" rx="5" fill="#FFC531" stroke="#1E1633" stroke-width="3"/>
+        <path d="M42 24 q8 -18 16 0" fill="#FF9E64" stroke="#1E1633" stroke-width="3"/>
+        <g stroke="#1E1633" stroke-width="2" stroke-linecap="round"><line x1="60" y1="60" x2="63" y2="60"/><line x1="60" y1="68" x2="63" y2="68"/><line x1="60" y1="76" x2="63" y2="76"/></g>
+        <circle cx="45" cy="64" r="2" fill="#1E1633"/><circle cx="55" cy="64" r="2" fill="#1E1633"/><path d="M45 70q5 4 10 0" stroke="#1E1633" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      </g>
+    </svg>
+  </div>
+  <div class="timer-card">
+    <span class="e" aria-hidden="true">🍼</span>
+    <div class="grow"><div class="eyebrow">מאז האכלה אחרונה</div><div class="big num" id="feedTimer" role="timer" aria-live="off">--:--:--</div></div>
+    <div class="next" id="nextBox"><b id="nextTime">–</b><small id="nextLbl">צפי להאכלה</small></div>
+  </div>
+</header>
+
+<main class="content">
+  <div class="section-title pop d1"><span>✍️ רישום מהיר</span><small>מה קרה עכשיו?</small></div>
+  <div class="ql pop d1" id="ql">
+    <button type="button" data-t="bottle" style="background:var(--sky-soft)"><span aria-hidden="true">🍼</span>בקבוק</button>
+    <button type="button" data-t="breastfeeding" style="background:var(--coral-soft)"><span aria-hidden="true">🤱</span>הנקה</button>
+    <button type="button" data-t="solid" style="background:var(--mint-soft)"><span aria-hidden="true">🥣</span>מוצקים</button>
+    <button type="button" data-t="diaper" style="background:var(--sun-soft)"><span aria-hidden="true">🧷</span>חיתול</button>
+    <button type="button" data-t="sleep" style="background:var(--grape-soft)"><span aria-hidden="true">😴</span>שינה</button>
+    <button type="button" data-t="medication" style="background:var(--peach-soft)"><span aria-hidden="true">💊</span>תרופה</button>
+  </div>
+
+  <!-- rhythm + reminder (Concept A's "smart pattern", backed by the family's feeding reminder) -->
+  <section class="sticker pattern tilt-l pop d2 mt-4">
+    <div class="eyebrow">🔮 הקצב של הימים האחרונים</div>
+    <h3 id="rhythmText">טוען…</h3>
+    <button type="button" class="toggle-row" role="switch" aria-checked="false" id="remSw">
+      <span class="grow"><span class="t" style="display:block">🔔 תזכורת להאכלה</span><span class="d" style="display:block" id="remDesc">כבויה</span></span>
+      <span class="sw-state" id="remState">כבוי</span>
+      <span class="switch" aria-hidden="true"><span class="track"><i></i></span></span>
+    </button>
+    <div class="cat-wrap hidden" id="remHours" role="radiogroup" aria-label="אחרי כמה שעות להזכיר"></div>
+  </section>
+
+  <div class="section-title pop d3"><span>🕐 היום במעגל</span><small>24 שעות</small></div>
+  <section class="sticker clock-wrap pop d3">
+    <svg class="clock ltr" viewBox="-16 -16 292 292" id="clock" role="img" aria-label=""></svg>
+    <div class="legend" id="clockLegend"></div>
+  </section>
+
+  <div class="section-title pop d4"><span>⏱️ מרווחים בין האכלות</span><small>היום</small></div>
+  <section class="sticker pad pop d4">
+    <p style="font:700 16px/1.45 var(--font-display);margin:0 0 8px" id="gapText"></p>
+    <div id="gaps"></div>
+  </section>
+
+  <div class="section-title pop d5"><span>📅 השבוע</span><small>גע ביום לפירוט</small></div>
+  <section class="sticker pad pop d5">
+    <b class="wk-label" id="wkLabel" aria-live="polite"></b>
+    <div class="week-nav">
+      <button type="button" class="btn white sm" id="wkPrev"><svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;stroke:currentColor;stroke-width:3;fill:none"><path d="m9 18 6-6-6-6"/></svg>שבוע קודם</button>
+      <button type="button" class="btn white sm" id="wkNext">שבוע הבא<svg viewBox="0 0 24 24" aria-hidden="true" style="width:16px;height:16px;stroke:currentColor;stroke-width:3;fill:none"><path d="m15 18-6-6 6-6"/></svg></button>
+    </div>
+    <div class="seg wrap2" role="group" aria-label="מה להציג" id="wkType">
+      <button type="button" class="on" data-w="bottle" aria-pressed="true">🍼 מ״ל בבקבוק</button>
+      <button type="button" data-w="sleep" aria-pressed="false">😴 שעות שינה</button>
+      <button type="button" data-w="breastfeeding" aria-pressed="false">🤱 הנקות</button>
+      <button type="button" data-w="diaper" aria-pressed="false">🧷 חיתולים</button>
+    </div>
+    <div class="wk" id="wk"></div>
+    <p class="muted mt-2" id="wkNote"></p>
+  </section>
+
+  <div class="section-title pop d6"><span>📋 יומן היום</span><small id="tlCount"></small></div>
+  <div class="tl pop d6" id="tl"></div>
+  <div class="empty hidden" id="tlEmpty"><div class="e">👶</div><div class="t">עוד אין רישומים היום</div><p class="muted">בחרו למעלה מה קרה, וזה יופיע כאן.</p></div>
+</main>
+
+<!-- add an event -->
+<div class="sheet-ov" id="addSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="addTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="addTitle"></h3>
+    <div id="addFields"></div>
+    <div class="field-row">
+      <div class="field"><label class="label" for="addTime" id="addTimeLbl">שעה</label><input class="input" type="time" id="addTime"></div>
+      <div class="field"><label class="label" for="addNotes">הערה</label><input class="input" type="text" id="addNotes" maxlength="120" placeholder="לא חובה"></div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn block" id="addSave">💾 שמירה</button>
+      <button type="button" class="text-btn" data-close="addSheet">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- edit / delete an event -->
+<div class="sheet-ov" id="editSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="edTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="edTitle"></h3>
+    <div class="field" id="edAmtWrap"><label class="label" for="edAmt" id="edAmtLbl">כמות</label><input class="input big-in" type="number" id="edAmt" min="0" inputmode="numeric"></div>
+    <div class="field-row">
+      <div class="field"><label class="label" for="edTime" id="edTimeLbl">שעה</label><input class="input" type="time" id="edTime"></div>
+      <div class="field"><label class="label" for="edNotes">הערה</label><input class="input" type="text" id="edNotes" maxlength="120"></div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn block" id="edSave">💾 שמירה</button>
+      <button type="button" class="btn danger block" id="edDel">🗑️ מחיקת הרישום</button>
+      <button type="button" class="text-btn" data-close="editSheet">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- one day of the week -->
+<div class="sheet-ov" id="daySheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="dayTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="dayTitle"></h3>
+    <div class="dstats" id="dayStats"></div>
+    <div id="dayList"></div>
+    <div class="sheet-actions"><button type="button" class="btn white block" data-close="daySheet">סגירה</button></div>
+  </div>
+</div>
+{% endblock %}
+
 {% block scripts %}
 <script>
-const TYPES={
-  bottle:       {name:'בקבוק',     emoji:'🍼',unit:'מ"ל', color:'#3b82f6',chartLabel:'כמות מ"ל ליום',    metric:'amount'},
-  breastfeeding:{name:'הנקה',      emoji:'🤱',unit:"דק'",color:'#ec4899',chartLabel:'דקות הנקה ליום',    metric:'amount'},
-  solid:        {name:'מזון מוצק', emoji:'🥣',unit:'גרם', color:'#10b981',chartLabel:'גרם ליום',          metric:'amount'},
-  diaper:       {name:'חיתול',     emoji:'🧷',unit:'',    color:'#f59e0b',chartLabel:'חיתולים ליום',      metric:'count'},
-  medication:   {name:'תרופה',     emoji:'💊',unit:'',    color:'#6366f1',chartLabel:'תרופות ליום',       metric:'count'},
-  sleep:        {name:'שינה',      emoji:'😴',unit:"דק'",color:'#6b7280',chartLabel:'דקות שינה ליום',    metric:'amount'},
-};
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = Pop.esc;
+  var T = {
+    bottle: { name: 'בקבוק', e: '🍼', unit: 'מ״ל', col: '#3E9BFF', soft: 'var(--sky-soft)', btn: 'sky', feed: true },
+    breastfeeding: { name: 'הנקה', e: '🤱', unit: 'דק׳', col: '#FF5C6C', soft: 'var(--coral-soft)', btn: 'coral', feed: true },
+    solid: { name: 'מזון מוצק', e: '🥣', unit: 'גרם', col: '#2FD59A', soft: 'var(--mint-soft)', btn: 'mint', feed: true },
+    diaper: { name: 'חיתול', e: '🧷', unit: '', col: '#FFC531', soft: 'var(--sun-soft)', btn: '' },
+    sleep: { name: 'שינה', e: '😴', unit: 'דק׳', col: '#8F6BFF', soft: 'var(--grape-soft)', btn: 'grape' },
+    medication: { name: 'תרופה', e: '💊', unit: '', col: '#FF9E64', soft: 'var(--peach-soft)', btn: 'peach' }
+  };
+  var D = null, events = [], weekOffset = 0, weekType = 'bottle', addType = null, editing = null, reminderH = 0, loadedAt = 0, lastSecs = null;
 
-let weekOffset=0,currentChart='bottle',dayChartType='bottle';
-let addType=null,chartInstance=null,dayChartInstance=null,editId=null;
-let todayFeedings=[];
+  function toMin(t) { var p = String(t || '0:0').split(':'); return parseInt(p[0], 10) * 60 + parseInt(p[1], 10); }
+  function clockStr(m) { m = ((Math.round(m) % 1440) + 1440) % 1440; return Pop.pad2(Math.floor(m / 60)) + ':' + Pop.pad2(m % 60); }
+  function nowMin() { var n = new Date(); return n.getHours() * 60 + n.getMinutes() + n.getSeconds() / 60; }
+  function detail(f) {
+    var t = T[f.feeding_type] || { unit: '' }, d = f.notes || '';
+    if (f.feeding_type === 'sleep' && f.amount > 0) return Pop.minutesToWords(f.amount) + ' · ' + clockStr(toMin(f.time) - f.amount) + '–' + f.time + (d ? ' · ' + d : '');
+    if (f.amount > 0 && t.unit) d = Math.round(f.amount) + ' ' + t.unit + (d ? ' · ' + d : '');
+    return d;
+  }
+  function isoDate(s) { return s.split('/').reverse().join('-'); }
 
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  /* ── hero ── */
+  (function () { var n = new Date(); $('dateLine').textContent = Pop.longDate(n); })();
+  function heroChips(s) {
+    var c = ['<span class="chip">🍼 ' + s.bottles + (s.bottle_ml ? ' · ' + Math.round(s.bottle_ml) + ' מ״ל' : '') + '</span>'];
+    if (s.breastfeedings) c.push('<span class="chip">🤱 ' + s.breastfeedings + ' הנקות</span>');
+    c.push('<span class="chip">🧷 ' + s.diapers + ' חיתולים</span>');
+    if (s.sleep_mins) c.push('<span class="chip mint">😴 ' + Pop.hm(s.sleep_mins) + ' ש׳ שינה</span>');
+    if (s.solids) c.push('<span class="chip">🥣 ' + s.solids + '</span>');
+    if (s.medications) c.push('<span class="chip">💊 ' + s.medications + '</span>');
+    $('todayChips').innerHTML = c.join('');
+  }
+  function tick() {
+    if (lastSecs == null) { $('feedTimer').textContent = '--:--:--'; return; }
+    var secs = lastSecs + (performance.now() - loadedAt) / 1000;
+    $('feedTimer').textContent = Pop.hms(secs);
+    var s = D && D.stats, late = s && s.typical_gap_min && secs / 60 > s.typical_gap_min + 15;
+    $('nextBox').classList.toggle('late', !!late);
+    $('nextLbl').textContent = late ? 'עבר הזמן הצפוי' : 'צפי להאכלה';
+  }
+  setInterval(tick, 1000);
 
-// Date
-const days=['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-const n=new Date();
-document.getElementById('hdrDate').textContent=`יום ${days[n.getDay()]}, ${n.getDate()}/${n.getMonth()+1}`;
-
-/* ── ADD ── */
-function setDefaultTime(){document.getElementById('addTime').value=new Date().toTimeString().slice(0,5);}
-function openAdd(type){
-  addType=type;const t=TYPES[type];
-  document.getElementById('modalTitle').textContent=t.emoji+' '+t.name;
-  setDefaultTime();document.getElementById('addNotes').value='';
-  let f='';
-  if(type==='bottle')      f='<label>כמות</label><input type="number" id="addAmount" placeholder="מ&quot;ל" min="0" step="10" inputmode="numeric">';
-  else if(type==='breastfeeding') f='<div class="sheet-row"><div><label>דקות</label><input type="number" id="addAmount" placeholder="דק\'"></div><div><label>צד</label><select id="addSide"><option>שתי צדדים</option><option>ימין</option><option>שמאל</option></select></div></div>';
-  else if(type==='solid')  f='<label>כמות (גרם)</label><input type="number" id="addAmount" min="0" step="10" inputmode="numeric">';
-  else if(type==='diaper') f='<label>סוג</label><select id="addDiaperType"><option value="רטוב">💧 רטוב</option><option value="מלוכלך">💩 מלוכלך</option><option value="שניהם">💧💩 שניהם</option></select>';
-  else if(type==='medication') f='<label>שם תרופה</label><input type="text" id="addMedName" placeholder="שם..." dir="rtl"><label>מינון</label><input type="text" id="addMedDose" placeholder="5 מ&quot;ל..." dir="rtl">';
-  else if(type==='sleep')  f='<label>דקות שינה</label><input type="number" id="addAmount" min="0" inputmode="numeric">';
-  document.getElementById('modalFields').innerHTML=f;
-  document.getElementById('addModal').classList.add('open');
-}
-function closeAdd(){document.getElementById('addModal').classList.remove('open');}
-async function submitAdd(){
-  const time=document.getElementById('addTime').value;
-  let notes=document.getElementById('addNotes').value,amount=0;
-  if(['bottle','solid','sleep'].includes(addType))amount=parseFloat(document.getElementById('addAmount').value)||0;
-  else if(addType==='breastfeeding'){amount=parseFloat(document.getElementById('addAmount').value)||0;notes=document.getElementById('addSide').value+(notes?' • '+notes:'');}
-  else if(addType==='diaper')notes=document.getElementById('addDiaperType').value+(notes?' • '+notes:'');
-  else if(addType==='medication'){const mn=document.getElementById('addMedName').value||'';const md=document.getElementById('addMedDose').value||'';notes=mn+(md?' - '+md:'')+(notes?' • '+notes:'');}
-  await fetch('/api/feedings',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({feeding_type:addType,amount,notes,custom_time:time})});
-  closeAdd();loadData();
-}
-
-/* ── EDIT / DELETE ── */
-function editEvent(id,type,amount,notes,time){
-  editId=id;const t=TYPES[type];
-  document.getElementById('editTitle').textContent='✏️ עריכת '+t.name;
-  document.getElementById('editAmount').value=amount||'';
-  document.getElementById('editAmount').placeholder=t.unit?'כמות ('+t.unit+')':'כמות';
-  document.getElementById('editNotes').value=notes||'';
-  document.getElementById('editTime').value=time||'';
-  document.getElementById('editAmountRow').style.display=['diaper','medication'].includes(type)?'none':'block';
-  document.getElementById('editModal').classList.add('open');
-}
-function closeEdit(){document.getElementById('editModal').classList.remove('open');}
-async function submitEdit(){
-  await fetch('/api/feedings/'+editId,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({amount:parseFloat(document.getElementById('editAmount').value)||0,notes:document.getElementById('editNotes').value,time:document.getElementById('editTime').value})});
-  closeEdit();loadData();
-}
-async function deleteEvent(id){if(!confirm('למחוק?'))return;await fetch('/api/feedings/'+id,{method:'DELETE'});loadData();}
-
-/* ── CHARTS ── */
-function setChart(f){currentChart=f;document.querySelectorAll('.ct-btn[data-f]').forEach(b=>b.classList.toggle('active',b.dataset.f===f));loadData();}
-function setDayChart(t){dayChartType=t;document.querySelectorAll('.ct-btn[data-d]').forEach(b=>b.classList.toggle('active',b.dataset.d===t));loadData();}
-function changeWeek(dir){const nw=weekOffset+dir;if(nw>0)return;weekOffset=nw;loadData();}
-
-function getWeekLabel(weekly){
-  if(!weekly||weekly.length===0)return'';
-  return weekly[weekly.length-1].short+' — '+weekly[0].short;
-}
-
-function renderChart(weekly){
-  const ctx=document.getElementById('weeklyChart').getContext('2d');
-  if(chartInstance)chartInstance.destroy();
-  const today=new Date().toISOString().split('T')[0];
-  const col=currentChart==='all'?'#d4356a':(TYPES[currentChart]?.color||'#d4356a');
-  const data=weekly.map(w=>currentChart==='all'||TYPES[currentChart]?.metric==='count'?w.count:w.total_amount);
-  chartInstance=new Chart(ctx,{
-    type:'bar',
-    data:{labels:weekly.map(w=>w.label),datasets:[{data,backgroundColor:weekly.map(w=>w.date===today?col:col+'55'),borderRadius:8,borderSkipped:false}]},
-    options:{responsive:true,maintainAspectRatio:false,
-      onClick:(_,els)=>{if(els.length>0)showDayPopup(weekly[els[0].index].date);},
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:v=>v.raw+(currentChart==='bottle'?' מ"ל':currentChart==='breastfeeding'||currentChart==='sleep'?" דק'":'')}}},
-      scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11},color:'#94a3b8'}},x:{grid:{display:false},ticks:{font:{size:11},color:'#94a3b8'}}}}
+  /* ── rhythm + reminder ── */
+  function rhythm() {
+    var s = D.stats, txt;
+    if (s.typical_gap_min) txt = 'בדרך כלל עוברות <b>' + Pop.hm(s.typical_gap_min) + ' שעות</b> בין האכלות. האכלה הבאה צפויה בסביבות <b>' + s.next_expected + '</b>.';
+    else txt = 'אחרי כמה האכלות נוספות נזהה את הקצב ונציע מתי צפויה האכלה הבאה.';
+    $('rhythmText').innerHTML = txt;
+    $('nextTime').textContent = s.next_expected || '–';
+  }
+  function reminderUI() {
+    var on = reminderH > 0;
+    $('remSw').setAttribute('aria-checked', on); $('remState').textContent = on ? 'פעיל' : 'כבוי';
+    $('remDesc').textContent = on ? 'התראה לבני המשפחה אם עברו ' + String(reminderH) + ' שעות בלי האכלה' : 'כבויה — אפשר להפעיל ולבחור אחרי כמה שעות';
+    $('remHours').classList.toggle('hidden', !on);
+    $('remHours').innerHTML = [2, 2.5, 3, 3.5, 4, 5].map(function (h) { var sel = h === reminderH; return '<button type="button" class="chip-btn' + (sel ? ' on' : '') + '" role="radio" aria-checked="' + sel + '" data-h="' + h + '">' + h + ' שעות</button>'; }).join('');
+  }
+  async function saveReminder(h) {
+    var r = await Pop.api('PUT', '/api/family/settings', { feeding_reminder_hours: h });
+    if (!r.ok) { Pop.toast('לא הצלחנו לשמור את התזכורת', 'error'); return; }
+    reminderH = h; reminderUI();
+    Pop.toast(h ? '🔔 תזכורת אחרי ' + h + ' שעות בלי האכלה' : 'התזכורת כובתה', 'success');
+  }
+  $('remSw').addEventListener('click', function () {
+    if (reminderH > 0) { saveReminder(0); return; }
+    var g = D && D.stats.typical_gap_min, h = g ? Math.min(5, Math.max(2, Math.ceil((g + 20) / 30) / 2)) : 3;
+    saveReminder(h);
   });
-}
+  $('remHours').addEventListener('click', function (e) { var b = e.target.closest('[data-h]'); if (b) saveReminder(parseFloat(b.dataset.h)); });
 
-function renderDayAmountChart(feedings){
-  const ctx=document.getElementById('dayAmountChart').getContext('2d');
-  if(dayChartInstance)dayChartInstance.destroy();
-  const t=TYPES[dayChartType];
-  const filtered=(feedings||[]).filter(f=>f.feeding_type===dayChartType&&f.amount>0&&f.time).reverse();
-  const wrap=ctx.canvas.parentElement;
-  if(filtered.length===0){wrap.style.height='70px';dayChartInstance=new Chart(ctx,{type:'bar',data:{labels:['אין נתונים'],datasets:[{data:[0],backgroundColor:'#fce7f3'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{display:false}}}}});return;}
-  wrap.style.height=Math.max(80,filtered.length*36+30)+'px';
-  dayChartInstance=new Chart(ctx,{type:'bar',
-    data:{labels:filtered.map(f=>f.time),datasets:[{data:filtered.map(f=>f.amount),backgroundColor:t.color+'cc',borderRadius:6,borderSkipped:false,barThickness:22}]},
-    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>c.raw+' '+t.unit}}},
-      scales:{x:{beginAtZero:true,ticks:{callback:v=>v+' '+t.unit,font:{size:9},color:'#94a3b8'},grid:{color:'#fce7f3'}},y:{grid:{display:false},ticks:{font:{size:10},color:'#94a3b8'}}}}
+  /* ── 24h radial clock (Concept A) ── */
+  var NS = 'http://www.w3.org/2000/svg', C = 130;
+  function polar(r, deg) { var a = (deg - 90) * Math.PI / 180; return [C + r * Math.cos(a), C + r * Math.sin(a)]; }
+  function arcD(r, a1, a2) { var p1 = polar(r, a1), p2 = polar(r, a2); return 'M' + p1[0] + ' ' + p1[1] + ' A' + r + ' ' + r + ' 0 ' + (a2 - a1 > 180 ? 1 : 0) + ' 1 ' + p2[0] + ' ' + p2[1]; }
+  function el(n, a) { var e = document.createElementNS(NS, n); for (var k in a) e.setAttribute(k, a[k]); return e; }
+  function drawClock() {
+    var svg = $('clock'); svg.innerHTML = '';
+    svg.appendChild(el('circle', { cx: C, cy: C, r: 118, fill: '#FFF6E9', stroke: '#1E1633', 'stroke-width': 3 }));
+    svg.appendChild(el('circle', { cx: C, cy: C, r: 96, fill: 'none', stroke: '#FFEFD6', 'stroke-width': 16 }));
+    for (var h = 0; h < 24; h++) {
+      var p1 = polar(112, h * 15), p2 = polar(h % 6 ? 108 : 103, h * 15);
+      svg.appendChild(el('line', { x1: p1[0], y1: p1[1], x2: p2[0], y2: p2[1], stroke: '#1E1633', 'stroke-width': h % 6 ? 1.5 : 3, 'stroke-linecap': 'round' }));
+      if (h % 6 === 0) { var tp = polar(126, h * 15), tx = el('text', { x: tp[0], y: tp[1] + 5, 'text-anchor': 'middle', 'font-family': 'Rubik', 'font-weight': '900', 'font-size': '14', fill: '#1E1633' }); tx.textContent = h; svg.appendChild(tx); }
+    }
+    var nm = nowMin(), sleeps = events.filter(function (f) { return f.feeding_type === 'sleep' && f.amount > 0 && f.time; });
+    sleeps.forEach(function (f, i) {   // logged when the sleep ended: the arc runs back from that time
+      var end = toMin(f.time), start = Math.max(0, end - f.amount);
+      var a = el('path', { d: arcD(96, start / 4, Math.max(start / 4 + 1, end / 4)), class: 'arc ol', pathLength: 1 }), b = el('path', { d: arcD(96, start / 4, Math.max(start / 4 + 1, end / 4)), class: 'arc', stroke: T.sleep.col, pathLength: 1 });
+      svg.append(a, b); setTimeout(function () { a.style.strokeDashoffset = 0; b.style.strokeDashoffset = 0; }, 400 + i * 160);
+    });
+    events.filter(function (f) { return f.feeding_type !== 'sleep' && f.time; }).forEach(function (f, i) {
+      var p = polar(f.feeding_type === 'diaper' || f.feeding_type === 'medication' ? 58 : 74, toMin(f.time) / 4);
+      var d = el('circle', { cx: p[0], cy: p[1], r: 7.5, fill: T[f.feeding_type].col, stroke: '#1E1633', 'stroke-width': 2.5, class: 'cdot' }); d.style.animationDelay = (0.8 + i * 0.06) + 's'; svg.appendChild(d);
+    });
+    var hand = el('line', { x1: C, y1: C, x2: C, y2: C - 104, stroke: '#C8283E', 'stroke-width': 4, 'stroke-linecap': 'round', class: 'hand' }); hand.style.transform = 'rotate(0deg)'; svg.appendChild(hand);
+    setTimeout(function () { hand.style.transform = 'rotate(' + (nm / 4) + 'deg)'; }, 250);
+    svg.appendChild(el('circle', { cx: C, cy: C, r: 42, fill: '#fff', stroke: '#1E1633', 'stroke-width': 3 }));
+    var np = polar(104, nm / 4);
+    svg.appendChild(el('circle', { cx: np[0], cy: np[1], r: 8, fill: '#FF5C6C', opacity: .5, class: 'now-ring' }));
+    svg.appendChild(el('circle', { cx: np[0], cy: np[1], r: 6, fill: '#FF5C6C', stroke: '#1E1633', 'stroke-width': 2.5 }));
+    var t1 = el('text', { x: C, y: C + 2, 'text-anchor': 'middle', 'font-family': 'Rubik', 'font-weight': '900', 'font-size': '22', fill: '#1E1633' }); t1.textContent = clockStr(nm);
+    var t2 = el('text', { x: C, y: C + 20, 'text-anchor': 'middle', 'font-family': 'Rubik', 'font-weight': '800', 'font-size': '13', fill: '#4A4260' }); t2.textContent = 'עכשיו';
+    svg.append(t1, t2);
+    var s = D.stats, feeds = s.bottles + s.breastfeedings + s.solids;
+    svg.setAttribute('aria-label', 'היום עד עכשיו: ' + feeds + ' האכלות, ' + s.diapers + ' חיתולים, ' + Pop.minutesToWords(s.sleep_mins) + ' שינה');
+    var present = Object.keys(T).filter(function (k) { return events.some(function (f) { return f.feeding_type === k; }); });
+    $('clockLegend').innerHTML = present.map(function (k) { var n = events.filter(function (f) { return f.feeding_type === k; }).length; return '<span class="chip flat"><i style="background:' + T[k].col + '"></i>' + T[k].name + ' · ' + n + '</span>'; }).join('') || '<span class="muted">עוד אין רישומים היום</span>';
+  }
+
+  /* ── feeding intervals (Concept C, Pop skin) ── */
+  function drawGaps() {
+    var feeds = events.filter(function (f) { return T[f.feeding_type] && T[f.feeding_type].feed && f.time; }).map(function (f) { return toMin(f.time); }).sort(function (a, b) { return a - b; });
+    var typical = D.stats.typical_gap_min, rows = [], sum = 0;
+    for (var i = 1; i < feeds.length; i++) rows.push({ a: feeds[i - 1], b: feeds[i], g: feeds[i] - feeds[i - 1] });
+    rows.forEach(function (r) { sum += r.g; });
+    var open = feeds.length ? { a: feeds[feeds.length - 1], b: nowMin(), g: nowMin() - feeds[feeds.length - 1], open: true } : null;
+    var all = rows.concat(open && open.g > 0 ? [open] : []), max = Math.max.apply(null, all.map(function (r) { return r.g; }).concat([typical || 0, 240]));
+    $('gaps').innerHTML = all.map(function (r) {
+      var long = !r.open && typical && r.g > typical + 45;
+      return '<div class="gap-row' + (long ? ' long' : '') + (r.open ? ' open' : '') + '"><span class="when">' + clockStr(r.a) + ' ← ' + (r.open ? 'עכשיו' : clockStr(r.b)) + '</span><span class="trk"><i style="width:' + (r.g / max * 100).toFixed(1) + '%"></i></span><b class="num">' + Pop.hm(r.g) + '</b></div>';
+    }).join('') || '<div class="empty" style="padding:8px"><div class="t">עוד אין האכלות היום</div></div>';
+    var t = !rows.length ? (feeds.length === 1 ? 'האכלה אחת היום עד עכשיו.' : 'כשיהיו שתי האכלות היום נראה כאן את המרווחים.') :
+      'היום המרווח הממוצע הוא <b>' + Pop.hm(sum / rows.length) + '</b>' + (typical ? ' (בדרך כלל ' + Pop.hm(typical) + ').' : '.');
+    var longs = rows.filter(function (r) { return typical && r.g > typical + 45; }).length;
+    if (longs) t += ' ' + (longs === 1 ? 'מרווח אחד ארוך מהרגיל מסומן באדום.' : longs + ' מרווחים ארוכים מהרגיל מסומנים באדום.');
+    $('gapText').innerHTML = t;
+  }
+
+  /* ── week: pillows for sleep (Concept A), chunky bars for the rest ── */
+  function drawWeek() {
+    var w = D.weekly, isSleep = weekType === 'sleep';
+    var val = function (d) { return weekType === 'diaper' || weekType === 'breastfeeding' ? d.count : isSleep ? d.total_amount / 60 : d.total_amount; };
+    var fmt = function (v) { return isSleep ? (Math.round(v * 10) / 10) + '' : Math.round(v) + ''; };
+    var unit = { bottle: 'מ״ל', sleep: 'שעות שינה', breastfeeding: 'הנקות', diaper: 'חיתולים' }[weekType];
+    var max = Math.max.apply(null, w.map(val).concat([isSleep ? 12 : 1]));
+    var todayIso = Pop.iso(new Date());
+    $('wk').innerHTML = w.map(function (d, i) {
+      var v = val(d), future = d.date > todayIso, today = d.date === todayIso, inner;
+      if (isSleep) { var n = Math.round(v), ph = Math.max(4, Math.min(9, 150 / Math.max(12, Math.ceil(max)) - 2)); inner = ''; for (var k = 0; k < n; k++) inner += '<span class="pw" style="height:' + ph + 'px;animation-delay:' + (i * .05 + k * .02).toFixed(2) + 's"></span>'; }
+      else inner = '<span class="bar" style="height:calc((100% - 22px) * ' + (v ? Math.max(.04, v / max) : 0).toFixed(3) + ');animation-delay:' + (i * .05) + 's' + (v ? '' : ';border:0;box-shadow:none') + '"></span>';
+      return '<button type="button" class="col' + (today ? ' today' : '') + '" data-date="' + d.date + '"' + (future ? ' disabled' : '') + ' aria-label="' + esc((today ? 'היום' : 'יום ' + d.label) + ' ' + d.short.replace('/', '.').replace(/^0/, '').replace('.0', '.') + ': ' + (future ? 'עוד לא הגיע' : fmt(v) + ' ' + unit)) + '">' +
+        '<span class="area"><span class="v">' + (future ? '' : fmt(v)) + '</span>' + (isSleep ? '<span style="display:flex;flex-direction:column-reverse;gap:2px;align-items:center">' + inner + '</span>' : inner) + '</span>' +
+        '<span class="l">' + (today ? 'היום' : Pop.HE_DAYS_SHORT[i]) + '</span></button>';
+    }).join('');
+    var past = w.filter(function (d) { return d.date <= todayIso; }), tot = past.reduce(function (s, d) { return s + val(d); }, 0);
+    $('wkNote').textContent = past.length ? 'בממוצע ' + fmt(tot / past.length) + ' ' + unit + ' ביום' + (weekOffset ? '' : ' השבוע') + '.' : '';
+    var a = w[0].short.split('/'), b = w[6].short.split('/');
+    $('wkLabel').textContent = (+a[0]) + '.' + (+a[1]) + '–' + (+b[0]) + '.' + (+b[1]);
+    $('wkNext').classList.toggle('hide', weekOffset >= 0); $('wkNext').disabled = weekOffset >= 0;
+  }
+
+  /* ── day log ── */
+  function drawLog() {
+    $('tlCount').textContent = events.length ? events.length + ' רישומים · גע לעריכה' : '';
+    $('tlEmpty').classList.toggle('hidden', events.length > 0);
+    $('tl').innerHTML = events.map(function (f) {
+      var t = T[f.feeding_type] || { name: f.feeding_type, e: '❓', col: '#999', soft: '#eee' }, d = detail(f);
+      return '<button type="button" class="sticker item pressable" style="--dot:' + t.col + '" data-id="' + f.id + '" aria-label="' + esc(t.name + ' ב־' + f.time + (d ? ', ' + d : '') + ' — עריכה') + '">' +
+        '<span class="ico" style="background:' + t.soft + '">' + t.e + '</span><span class="grow"><span class="t" style="display:block">' + esc(t.name) + '</span>' + (d ? '<span class="s">' + esc(d) + '</span>' : '') + '</span><span class="time num">' + esc(f.time) + '</span></button>';
+    }).join('');
+  }
+
+  async function load() {
+    var r = await Pop.api('GET', '/api/feedings/data?week_offset=' + weekOffset + '&chart_type=' + weekType);
+    if (!r.ok || !r.data) { Pop.toast('לא הצלחנו לטעון את הנתונים', 'error'); return; }
+    D = r.data; events = D.today_feedings;
+    lastSecs = D.stats.last_feed_secs; loadedAt = performance.now(); tick();
+    heroChips(D.stats); rhythm(); drawClock(); drawGaps(); drawWeek(); drawLog();
+  }
+  async function loadWeek() {
+    var r = await Pop.api('GET', '/api/feedings/data?week_offset=' + weekOffset + '&chart_type=' + weekType);
+    if (r.ok && r.data) { D.weekly = r.data.weekly; drawWeek(); }
+  }
+
+  /* ── add ── */
+  var AMOUNTS = { bottle: [60, 90, 120, 150, 180, 210], breastfeeding: [5, 10, 15, 20, 30], solid: [30, 60, 90, 120], sleep: [30, 60, 90, 120, 180] };
+  function lastAmount(type) { var f = events.find(function (x) { return x.feeding_type === type && x.amount > 0; }); return f ? Math.round(f.amount) : null; }
+  function chipsHTML(id, list, sel, fmt) { return '<div class="pick" id="' + id + '" role="radiogroup">' + list.map(function (v) { var on = v === sel; return '<button type="button" class="chip-btn' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" data-v="' + v + '">' + fmt(v) + '</button>'; }).join('') + '</div>'; }
+  function segHTML(id, opts, sel) { return '<div class="seg" id="' + id + '" role="group">' + opts.map(function (o) { var on = o[0] === sel; return '<button type="button" class="' + (on ? 'on' : '') + '" aria-pressed="' + on + '" data-v="' + esc(o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>'; }
+  function openAdd(type) {
+    addType = type; var t = T[type], f = '';
+    $('addTitle').textContent = t.e + ' ' + t.name;
+    if (AMOUNTS[type]) {
+      var dflt = lastAmount(type) || { bottle: 150, breastfeeding: 15, solid: 60, sleep: 60 }[type];
+      var lbl = { bottle: 'כמה מ״ל?', breastfeeding: 'כמה דקות?', solid: 'כמה גרם?', sleep: 'כמה זמן?' }[type];
+      f += '<div class="field"><span class="label" id="amtLbl">' + lbl + '</span>' + chipsHTML('amtChips', AMOUNTS[type], dflt, function (v) { return type === 'sleep' ? Pop.minutesToWords(v) : v; }) +
+        '<label class="label mt-2" for="addAmt">' + (type === 'sleep' ? 'או הקלידו דקות' : 'או הקלידו כמות') + '</label><input class="input big-in" type="number" id="addAmt" min="0" max="2000" inputmode="numeric" value="' + dflt + '"></div>';
+    }
+    if (type === 'breastfeeding') f += '<div class="field"><span class="label">צד</span>' + segHTML('sideSeg', [['שני הצדדים', 'שני הצדדים'], ['ימין', 'ימין'], ['שמאל', 'שמאל']], 'שני הצדדים') + '</div>';
+    if (type === 'diaper') f += '<div class="field"><span class="label">מה היה?</span>' + segHTML('diaperSeg', [['רטוב', '💧 רטוב'], ['מלוכלך', '💩 מלוכלך'], ['שניהם', 'שניהם']], 'רטוב') + '</div>';
+    if (type === 'medication') f += '<div class="field"><label class="label" for="medName">שם התרופה</label><input class="input" type="text" id="medName" maxlength="60" placeholder="למשל: אקמול"></div><div class="field"><label class="label" for="medDose">מינון</label><input class="input" type="text" id="medDose" maxlength="40" placeholder="למשל: 2.5 מ״ל"></div>';
+    $('addFields').innerHTML = f;
+    $('addTimeLbl').textContent = type === 'sleep' ? 'מתי השינה הסתיימה' : 'שעה';
+    $('addTime').value = clockStr(nowMin()); $('addNotes').value = '';
+    $('addSave').className = 'btn block ' + t.btn; $('addSave').textContent = '💾 שמירת ' + t.name;
+    Pop.openSheet('addSheet');
+  }
+  $('addFields').addEventListener('click', function (e) {
+    var c = e.target.closest('#amtChips [data-v]');
+    if (c) { $('amtChips').querySelectorAll('[data-v]').forEach(function (x) { var on = x === c; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); }); $('addAmt').value = c.dataset.v; return; }
+    var s = e.target.closest('.seg [data-v]');
+    if (s) s.parentElement.querySelectorAll('[data-v]').forEach(function (x) { var on = x === s; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on); });
   });
-}
+  $('addFields').addEventListener('input', function (e) {
+    if (e.target.id !== 'addAmt') return;
+    $('amtChips').querySelectorAll('[data-v]').forEach(function (x) { var on = x.dataset.v === e.target.value; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); });
+  });
+  function segVal(id) { var b = document.querySelector('#' + id + ' .on'); return b ? b.dataset.v : ''; }
+  $('addSave').addEventListener('click', async function () {
+    var notes = $('addNotes').value.trim(), amount = 0, pre = '';
+    if (AMOUNTS[addType]) { amount = parseFloat($('addAmt').value) || 0; if (amount < 0 || amount > 2000) { Pop.toast('הכמות לא נראית תקינה', 'error'); return; } }
+    if (addType === 'breastfeeding') pre = segVal('sideSeg');
+    if (addType === 'diaper') pre = segVal('diaperSeg');
+    if (addType === 'medication') { var mn = $('medName').value.trim(), md = $('medDose').value.trim(); pre = mn + (md ? ' - ' + md : ''); }
+    notes = pre + (pre && notes ? ' • ' : '') + notes;
+    var t = $('addTime').value;
+    if (t && toMin(t) > nowMin() + 1) { Pop.toast('השעה עוד לא הגיעה — בחרו שעה מוקדמת יותר', 'error'); return; }
+    var btn = this; btn.disabled = true;
+    var r = await Pop.api('POST', '/api/feedings', { feeding_type: addType, amount: amount, notes: notes, custom_time: t });
+    btn.disabled = false;
+    if (!r.ok) { Pop.toast((r.data && r.data.error) || 'לא הצלחנו לשמור', 'error'); return; }
+    Pop.closeSheet('addSheet'); Pop.toast(T[addType].e + ' ' + T[addType].name + ' נרשם', 'success');
+    var qb = document.querySelector('#ql [data-t="' + addType + '"]'); if (qb) { Pop.squish(qb); Pop.confetti(qb, 24); }
+    load();
+  });
+  $('ql').addEventListener('click', function (e) { var b = e.target.closest('[data-t]'); if (b) openAdd(b.dataset.t); });
 
-function renderDayTimeline(feedings){
-  const rows=document.getElementById('dayTlRows'),legend=document.getElementById('dayTlLegend');
-  if(!feedings||feedings.length===0){rows.innerHTML='<p style="text-align:center;color:var(--text3);font-size:.78rem;padding:10px;">אין אירועים להצגה</p>';legend.innerHTML='';return;}
-  const byType={};feedings.forEach(f=>{if(!byType[f.feeding_type])byType[f.feeding_type]=[];byType[f.feeding_type].push(f);});
-  const active=['bottle','breastfeeding','solid','diaper','medication','sleep'].filter(t=>byType[t]);
-  const now=new Date();const nowPct=((now.getHours()*60+now.getMinutes())/1440*100).toFixed(1);
-  rows.innerHTML=active.map(type=>{
-    const t=TYPES[type];
-    const dots=byType[type].map(f=>{if(!f.time)return'';const p=f.time.split(':');const mins=parseInt(p[0])*60+parseInt(p[1]);const pct=(mins/1440*100).toFixed(1);let tip=f.time;if(f.amount>0&&t.unit)tip+=` • ${f.amount} ${t.unit}`;if(f.notes)tip+=` • ${f.notes}`;return`<div class="day-tl-dot ${esc(type)}" style="left:calc(${pct}% - 8px);"><span class="day-tl-tooltip">${esc(tip)}</span></div>`;}).join('');
-    return`<div class="day-tl-row"><div class="day-tl-label">${t.emoji}</div><div class="day-tl-track"><div class="day-tl-now" style="left:${nowPct}%"></div>${dots}</div></div>`;
-  }).join('');
-  legend.innerHTML=active.map(type=>{const t=TYPES[type];return`<span><span class="ldot" style="background:${t.color}"></span>${t.name} (${byType[type].length})</span>`;}).join('')+`<span style="color:#ef4444;">| קו אדום = עכשיו</span>`;
-}
+  /* ── edit / delete ── */
+  $('tl').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-id]'); if (!b) return;
+    editing = events.find(function (f) { return String(f.id) === b.dataset.id; }); if (!editing) return;
+    var t = T[editing.feeding_type] || { name: '', unit: '', btn: '' }, hasAmt = !!AMOUNTS[editing.feeding_type];
+    $('edTitle').textContent = '✏️ עריכת ' + t.name;
+    $('edAmtWrap').classList.toggle('hidden', !hasAmt);
+    $('edAmtLbl').textContent = hasAmt ? 'כמות (' + t.unit + ')' : 'כמות';
+    $('edAmt').value = editing.amount ? Math.round(editing.amount) : '';
+    $('edTime').value = editing.time || ''; $('edNotes').value = editing.notes || '';
+    $('edTimeLbl').textContent = editing.feeding_type === 'sleep' ? 'מתי השינה הסתיימה' : 'שעה';
+    $('edSave').className = 'btn block ' + t.btn;
+    Pop.openSheet('editSheet');
+  });
+  $('edSave').addEventListener('click', async function () {
+    var body = { notes: $('edNotes').value.trim(), time: $('edTime').value };
+    if (AMOUNTS[editing.feeding_type]) { var a = parseFloat($('edAmt').value) || 0; if (a < 0 || a > 2000) { Pop.toast('הכמות לא נראית תקינה', 'error'); return; } body.amount = a; }
+    var r = await Pop.api('PUT', '/api/feedings/' + editing.id, body);
+    if (!r.ok) { Pop.toast('לא הצלחנו לשמור', 'error'); return; }
+    Pop.closeSheet('editSheet'); Pop.toast('עודכן ✓', 'success'); load();
+  });
+  $('edDel').addEventListener('click', async function () {
+    var t = T[editing.feeding_type] || { name: '' };
+    if (!(await Pop.confirm({ title: 'למחוק את ה' + t.name + ' מ־' + editing.time + '?', ok: '🗑️ מחיקה', danger: true }))) return;
+    var r = await Pop.api('DELETE', '/api/feedings/' + editing.id);
+    if (r.ok) { Pop.closeSheet('editSheet'); Pop.toast('הרישום נמחק', 'success'); load(); } else Pop.toast('לא הצלחנו למחוק', 'error');
+  });
 
-/* ── DAY POPUP ── */
-function closePopup(){document.getElementById('dayPopup').classList.remove('open');}
-async function showDayPopup(date){
-  try{
-    const r=await fetch(`/api/feedings/data?date=${date}`);const d=await r.json();const s=d.stats;
-    const dt=new Date(date);
-    document.getElementById('popupTitle').textContent=`יום ${days[dt.getDay()]}, ${dt.getDate()}/${dt.getMonth()+1}/${dt.getFullYear()}`;
-    document.getElementById('popupChips').innerHTML=`
-      <div class="pop-chip"><span class="cv">🍼 ${s.bottles}</span><span class="cl">${Math.round(s.bottle_ml)} מ"ל</span></div>
-      <div class="pop-chip"><span class="cv">🧷 ${s.diapers}</span><span class="cl">חיתולים</span></div>
-      <div class="pop-chip"><span class="cv">😴 ${Math.round(s.sleep_mins)}</span><span class="cl">דק' שינה</span></div>`;
-    document.getElementById('dayPopupContent').innerHTML=d.today_feedings.length>0?
-      d.today_feedings.map(f=>{const t=TYPES[f.feeding_type]||{name:f.feeding_type,emoji:'❓',unit:''};let detail=f.notes||'';if(f.amount>0&&t.unit)detail=f.amount+' '+t.unit+(detail?' • '+detail:'');return`<div class="pop-event"><span class="pe-icon">${t.emoji}</span><div style="flex:1"><div class="pe-name">${esc(t.name)}</div><div class="pe-detail">${esc(detail)}</div></div><span class="pe-time">${esc(f.time)}</span></div>`;}).join(''):
-      '<p style="text-align:center;color:var(--text3);padding:20px;">אין אירועים</p>';
-    document.getElementById('dayPopup').classList.add('open');
-  }catch(e){console.error(e);}
-}
+  /* ── week controls + day sheet ── */
+  $('wkPrev').addEventListener('click', function () { weekOffset--; loadWeek(); });
+  $('wkNext').addEventListener('click', function () { if (weekOffset < 0) { weekOffset++; loadWeek(); } });
+  $('wkType').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-w]'); if (!b) return; weekType = b.dataset.w;
+    this.querySelectorAll('[data-w]').forEach(function (x) { var on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-pressed', on); });
+    loadWeek();
+  });
+  $('wk').addEventListener('click', async function (e) {
+    var b = e.target.closest('.col[data-date]'); if (!b || b.disabled) return;
+    var r = await Pop.api('GET', '/api/feedings/data?date=' + b.dataset.date); if (!r.ok) { Pop.toast('לא הצלחנו לטעון את היום', 'error'); return; }
+    var d = r.data, s = d.stats, dt = new Date(b.dataset.date + 'T12:00:00');
+    $('dayTitle').textContent = Pop.dayLabel(b.dataset.date) === 'היום' ? 'היום' : 'יום ' + Pop.HE_DAYS[dt.getDay()] + ' ' + dt.getDate() + '.' + (dt.getMonth() + 1);
+    $('dayStats').innerHTML = '<span class="chip">🍼 ' + s.bottles + ' · ' + Math.round(s.bottle_ml) + ' מ״ל</span><span class="chip">🤱 ' + s.breastfeedings + '</span><span class="chip">🧷 ' + s.diapers + '</span><span class="chip">😴 ' + Pop.hm(s.sleep_mins) + ' ש׳</span>';
+    $('dayList').innerHTML = d.today_feedings.length ? d.today_feedings.map(function (f) {
+      var t = T[f.feeding_type] || { name: f.feeding_type, e: '❓', soft: '#eee' }, de = detail(f);
+      return '<div class="item" style="padding:10px 2px;min-height:0;border-bottom:2px dashed var(--cream-2)"><span class="ico" style="background:' + t.soft + '">' + t.e + '</span><span class="grow"><span class="t" style="display:block">' + esc(t.name) + '</span>' + (de ? '<span class="s">' + esc(de) + '</span>' : '') + '</span><span class="time num" style="font:900 16px var(--font-display);color:var(--grape-deep)">' + esc(f.time) + '</span></div>';
+    }).join('') : '<div class="empty"><div class="t">אין רישומים ביום הזה</div></div>';
+    Pop.openSheet('daySheet');
+  });
 
-/* ── LOAD DATA ── */
-async function loadData(){
-  try{
-    const r=await fetch(`/api/feedings/data?week_offset=${weekOffset}&chart_type=${currentChart}`);
-    const d=await r.json();const s=d.stats;
-
-    // Header
-    document.getElementById('lastFeedVal').textContent=s.last_feeding;
-const chipsData=[
-      {v:s.bottles,   l:'🍼 בקבוקים', s:s.bottle_ml>0?Math.round(s.bottle_ml)+' מ"ל':'', show:true},
-      {v:s.breastfeedings,l:'🤱 הנקות',  s:'',              show:true},
-      {v:s.diapers,   l:'🧷 חיתולים', s:'',              show:true},
-      {v:s.solids,    l:'🥣 מוצקים',   s:'',              show:s.solids>0},
-      {v:s.medications,l:'💊 תרופות',  s:'',              show:s.medications>0},
-      {v:s.sleep_mins>0?Math.round(s.sleep_mins):0,l:"😴 שינה",s:s.sleep_mins>0?"דק'":'' ,show:s.sleeps>0},
-    ].filter(c=>c.show);
-    const cols=chipsData.length<=3?chipsData.length:3;
-    document.getElementById('hdrChips').style.gridTemplateColumns=`repeat(${cols},1fr)`;
-    document.getElementById('hdrChips').innerHTML=chipsData.map(c=>`
-      <div class="hdr-chip">
-        <span class="cv">${c.v}</span>
-        <span class="cl">${c.l}</span>
-        ${c.s?`<span class="cs">${c.s}</span>`:''}
-      </div>`).join('');
-
-    // Alert
-    const alertEl=document.getElementById('lfsAlert');
-    if(s.last_feeding&&s.last_feeding!=='--'){
-      const parts=s.last_feeding.match(/(\d+)/);
-      if(parts){const mins=s.last_feeding.includes('h')?parseInt(parts[1])*60:parseInt(parts[1]);alertEl.style.display=mins>=180?'flex':'none';}
-    }
-
-    renderDayTimeline(d.today_feedings);
-    renderDayAmountChart(d.today_feedings);
-
-    // Event log
-    todayFeedings=d.today_feedings;
-    const tl=document.getElementById('timeline');
-    if(d.today_feedings.length===0){tl.innerHTML='<div class="tl-empty"><div class="te-icon">👶</div><div class="te-txt">אין אירועים היום</div></div>';}
-    else{
-      tl.innerHTML=d.today_feedings.map(f=>{
-        const t=TYPES[f.feeding_type]||{name:f.feeding_type,emoji:'❓',unit:''};
-        let detail=f.notes||'';if(f.amount>0&&t.unit)detail=f.amount+' '+t.unit+(detail?' • '+detail:'');
-        return`<div class="tl-item">
-          <div class="tl-icon ${esc(f.feeding_type)}">${t.emoji}</div>
-          <div class="tl-info"><div class="tl-name">${esc(t.name)}</div><div class="tl-detail">${esc(detail)}</div></div>
-          <span class="tl-time">${esc(f.time)}</span>
-          <div class="tl-acts">
-            <button class="te" data-act="edit" data-id="${f.id}"><i class="fas fa-pen"></i></button>
-            <button class="td" data-act="del" data-id="${f.id}"><i class="fas fa-trash"></i></button>
-          </div>
-        </div>`;
-      }).join('');
-    }
-    renderChart(d.weekly);
-    document.getElementById('weekRangeLabel').textContent=getWeekLabel(d.weekly);
-  }catch(e){console.error(e);}
-}
-
-// Event-log actions (delegated — the list is re-rendered on every loadData)
-document.getElementById('timeline').addEventListener('click',e=>{
-  const b=e.target.closest('button[data-act]');
-  if(!b)return;
-  const f=todayFeedings.find(x=>String(x.id)===b.dataset.id);
-  if(!f)return;
-  if(b.dataset.act==='edit')editEvent(f.id,f.feeding_type,f.amount,f.notes||'',f.time);
-  else deleteEvent(f.id);
-});
-
-loadData();
-setInterval(loadData,30000);
-document.addEventListener('visibilitychange',()=>{if(!document.hidden)loadData();});
+  /* ── start ── */
+  var anyOpen = function () { return !!document.querySelector('.sheet-ov.open, .dialog-ov'); };
+  setInterval(function () { if (!document.hidden && !anyOpen()) load(); }, 30000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && !anyOpen()) load(); });
+  Pop.api('GET', '/api/family/settings').then(function (r) { if (r.ok && r.data) { reminderH = parseFloat(r.data.feeding_reminder_hours) || 0; reminderUI(); } });
+  load().then(function () {
+    var m = /[?&]add=(\w+)/.exec(location.search);
+    if (m && T[m[1]]) openAdd(m[1]);
+  });
+})();
 </script>
 {% endblock %}

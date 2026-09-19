@@ -1,188 +1,110 @@
 {% extends "base.html" %}
-{% block title %}Admin — OurHome IL{% endblock %}
-{% block content %}
+{% block title %}לוח ניהול - OurHome IL{% endblock %}
+{% block head %}
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
-*{font-family:'Heebo',sans-serif;box-sizing:border-box;}
-.back-bar{display:none!important;}
-.adm{max-width:860px;margin:0 auto;direction:rtl;padding:0 14px 40px;}
-
-.adm-header{
-  background:linear-gradient(150deg,#06122a 0%,#0d2248 55%,#112d5e 100%);
-  border-radius:0 0 24px 24px;padding:22px 22px 28px;
-  margin:-10px -14px 20px;position:relative;overflow:hidden;
-}
-.adm-header::after{content:'';position:absolute;bottom:-1px;left:0;right:0;height:24px;background:#f6f7fb;border-radius:24px 24px 0 0;}
-.adm-glow{position:absolute;top:-60px;right:-40px;width:220px;height:220px;border-radius:50%;background:radial-gradient(circle,rgba(37,99,235,.2) 0%,transparent 65%);pointer-events:none;}
-.adm-title{color:#fff;position:relative;z-index:1;}
-.adm-label{font-size:.62rem;color:rgba(255,255,255,.38);font-weight:300;letter-spacing:.07em;margin-bottom:4px;}
-.adm-h1{font-size:1.5rem;font-weight:900;letter-spacing:-.5px;}
-.adm-h1 span{color:#60a5fa;}
-.adm-sub{font-size:.72rem;color:rgba(255,255,255,.38);margin-top:3px;}
-
-.sec-label{font-size:.66rem;font-weight:700;color:#94a3b8;letter-spacing:.09em;text-transform:uppercase;margin:0 0 10px 2px;}
-
-/* KPI grid */
-.kpi-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:20px;}
-.kpi{background:#fff;border-radius:18px;padding:16px;box-shadow:0 2px 16px rgba(0,0,0,.06);border:1.5px solid #eef0f5;}
-.kpi .kv{font-size:2rem;font-weight:900;color:#0f172a;letter-spacing:-1px;line-height:1;}
-.kpi .kl{font-size:.7rem;color:#94a3b8;margin-top:4px;}
-.kpi .ks{font-size:.72rem;font-weight:700;margin-top:6px;}
-.kpi .ks.up{color:#10b981;}
-.kpi .ks.warn{color:#f59e0b;}
-.kpi.blue .kv{color:#2563eb;}
-.kpi.green .kv{color:#10b981;}
-.kpi.pink .kv{color:#e83e8c;}
-.kpi.amber .kv{color:#f59e0b;}
-
-/* Chart cards */
-.chart-card{background:#fff;border-radius:20px;padding:18px;box-shadow:0 2px 16px rgba(0,0,0,.06);border:1.5px solid #eef0f5;margin-bottom:14px;}
-.chart-card h3{font-size:.82rem;font-weight:800;color:#0f172a;margin:0 0 14px;display:flex;align-items:center;gap:7px;}
-.chart-card h3::before{content:'';width:8px;height:8px;border-radius:50%;background:#2563eb;flex-shrink:0;}
-.ch{position:relative;height:200px;}
-
-/* Family size */
-.fam-bars{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px;}
-.fb{background:#f8fafc;border-radius:14px;padding:14px;text-align:center;border:1.5px solid #eef0f5;}
-.fb .fv{font-size:1.8rem;font-weight:900;color:#2563eb;line-height:1;}
-.fb .fl{font-size:.68rem;color:#94a3b8;margin-top:4px;}
-.fb.solo{border-color:#bfdbfe;background:#eff6ff;}
-.fb.pair{border-color:#a7f3d0;background:#ecfdf5;} .fb.pair .fv{color:#10b981;}
-.fb.lg{border-color:#fde68a;background:#fffbeb;} .fb.lg .fv{color:#f59e0b;}
+/* ── System admin. Concept A skin on an ink hero; charts are HTML sticker bars (no chart library). ── */
+.hero-ink{background:var(--ink);color:#fff} .hero-ink .b1{background:var(--grape-deep)} .hero-ink .b2{background:var(--sky-deep)}
+.hero-ink .sub{color:#E3DAFF}
+.kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.kpi{padding:14px 12px;min-width:0}
+.kpi .e{font-size:24px;line-height:1}
+.kpi b{display:block;font:900 32px/1.1 var(--font-display);margin-top:8px;letter-spacing:-.02em}
+.kpi small{display:block;font:800 15px var(--font-display);margin-top:2px}
+.kpi .s{display:block;font-size:14px;color:var(--ink-2);margin-top:6px}
+.spark{display:flex;align-items:flex-end;gap:2px;height:120px;padding-top:6px}
+.spark i{flex:1;background:var(--sky);border:1.5px solid var(--ink);border-radius:4px 4px 2px 2px;min-height:3px;transform-origin:bottom;animation:grow .6s var(--spring) both}
+.spark i.z{background:var(--cream-2);border-color:var(--cream-2)}
+.spark-axis{display:flex;justify-content:space-between;font:800 13px var(--font-display);color:var(--ink-2);margin-top:6px}
+@keyframes grow{from{transform:scaleY(0)}to{transform:scaleY(1)}}
+.hrow{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:2px dashed var(--cream-2)}
+.hrow:last-child{border-bottom:0}
+.hrow .nm{flex:0 0 112px;font:800 15px var(--font-display);white-space:nowrap}
+.hrow .trk{flex:1;height:18px;border:2px solid var(--ink);border-radius:99px;background:#fff;overflow:hidden}
+.hrow .trk i{display:block;height:100%;border-inline-end:2px solid var(--ink)}
+.hrow .v{flex:0 0 auto;min-width:40px;text-align:end;font:900 16px var(--font-display);white-space:nowrap}
+.hrow .v small{font:700 13px var(--font-display);color:var(--ink-2)}
+.sizes{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.sizes .stat3 b{font-size:26px}
+.stack{display:flex;height:22px;border:2.5px solid var(--ink);border-radius:99px;overflow:hidden;margin-top:14px}
+.stack i{display:block;height:100%}
+.stack i+i{border-inline-start:2px solid var(--ink)}
 </style>
+{% endblock %}
+{% block content %}
+<header class="hero hero-ink pop">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="hero-top">
+    <a href="{{ url_for('settings') }}" class="back-btn"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>חזרה להגדרות</a>
+  </div>
+  <h1 style="position:relative;z-index:1">🛠️ לוח ניהול</h1>
+  <p class="sub" style="position:relative;z-index:1">נכון ל־{{ now_israel().strftime('%d.%m.%Y, %H:%M') }} · נתונים מצטברים בלבד, בלי פרטי תשלומים</p>
+</header>
 
-<div class="adm">
-  <!-- Header -->
-  <div class="adm-header">
-    <div class="adm-glow"></div>
-    <div class="adm-title">
-      <div class="adm-label">OurHome IL</div>
-      <div class="adm-h1">🛠️ <span>Admin</span> Dashboard</div>
-      <div class="adm-sub">{{ now_israel().strftime('%d/%m/%Y %H:%M') }}</div>
-    </div>
+<main class="content">
+  <div class="section-title pop d1"><span>📌 במבט אחד</span></div>
+  <div class="kpis pop d1">
+    <div class="sticker kpi soft-sky"><div class="e">👥</div><b class="num" id="kUsers">{{ total_users }}</b><small>משתמשים</small><span class="s">+{{ new_week }} השבוע · +{{ new_month }} ב־30 יום</span></div>
+    <div class="sticker kpi soft-mint"><div class="e">🏠</div><b class="num" id="kFamilies">{{ total_families }}</b><small>משפחות</small><span class="s">{{ active_families }} עם שני חברים או יותר</span></div>
+    <div class="sticker kpi soft-sun"><div class="e">💳</div><b class="num" id="kPayments">{{ payments_month }}</b><small>תשלומים ב־30 יום</small><span class="s">מכל המשפחות יחד</span></div>
+    <div class="sticker kpi soft-coral"><div class="e">🙋</div><b class="num" id="kNoFamily">{{ no_family }}</b><small>בלי משפחה</small><span class="s">נרשמו ועוד לא הצטרפו</span></div>
   </div>
 
-  <!-- KPIs -->
-  <div class="sec-label">סיכום כללי</div>
-  <div class="kpi-grid">
-    <div class="kpi blue">
-      <div class="kv">{{ total_users }}</div>
-      <div class="kl">משתמשים רשומים</div>
-      <div class="ks up">+{{ new_week }} השבוע · +{{ new_month }} החודש</div>
-    </div>
-    <div class="kpi green">
-      <div class="kv">{{ total_families }}</div>
-      <div class="kl">משפחות</div>
-      <div class="ks up">{{ active_families }} עם 2+ חברים</div>
-    </div>
-    <div class="kpi pink">
-      <div class="kv">{{ payments_month }}</div>
-      <div class="kl">תשלומים נרשמו החודש</div>
-      <div class="ks up">אגרגט — ללא פרטים</div>
-    </div>
-    <div class="kpi amber">
-      <div class="kv">{{ no_family }}</div>
-      <div class="kl">משתמשים ללא משפחה</div>
-      <div class="ks warn">נרשמו ולא השלימו הגדרה</div>
-    </div>
-  </div>
+  <div class="section-title pop d2"><span>📈 הרשמות ב־30 הימים האחרונים</span></div>
+  <section class="sticker pad pop d2">
+    <p style="font:700 16px/1.45 var(--font-display);margin:0 0 10px" id="dailyText"></p>
+    <div class="spark" id="daily" role="img" aria-labelledby="dailyText"></div>
+    <div class="spark-axis"><span id="dFrom"></span><span id="dTo"></span></div>
+  </section>
 
-  <!-- Registration chart -->
-  <div class="chart-card">
-    <h3>הרשמות — 30 ימים אחרונים</h3>
-    <div class="ch"><canvas id="regDailyChart"></canvas></div>
-  </div>
+  <div class="section-title pop d3"><span>🗓️ הרשמות לפי חודש</span></div>
+  <section class="sticker pad pop d3"><div id="monthly"></div></section>
 
-  <!-- Monthly registrations -->
-  <div class="chart-card">
-    <h3>הרשמות חודשיות — 12 חודשים</h3>
-    <div class="ch"><canvas id="regMonthlyChart"></canvas></div>
-  </div>
+  <div class="section-title pop d4"><span>💳 תשלומים לפי מחזור</span><small>ומכמה משפחות</small></div>
+  <section class="sticker pad pop d4"><div id="payments"></div></section>
 
-  <!-- Payments activity -->
-  <div class="chart-card">
-    <h3>פעילות תשלומים לפי חודש</h3>
-    <div class="ch"><canvas id="paymentsChart"></canvas></div>
-  </div>
-
-  <!-- Family size breakdown -->
-  <div class="chart-card">
-    <h3>גודל משפחות</h3>
-    <div class="fam-bars">
-      <div class="fb solo">
-        <div class="fv">{{ solo }}</div>
-        <div class="fl">👤 יחיד</div>
-      </div>
-      <div class="fb pair">
-        <div class="fv">{{ pairs }}</div>
-        <div class="fl">👫 זוג</div>
-      </div>
-      <div class="fb lg">
-        <div class="fv">{{ large }}</div>
-        <div class="fl">👨‍👩‍👧 3+</div>
-      </div>
+  <div class="section-title pop d5"><span>👪 גודל המשפחות</span></div>
+  <section class="sticker pad pop d5">
+    <div class="sizes">
+      <div class="stat3"><b class="num" id="sSolo">{{ solo }}</b><small>משתמש/ת אחד/ת</small></div>
+      <div class="stat3 hot"><b class="num" id="sPairs">{{ pairs }}</b><small>שני חברים</small></div>
+      <div class="stat3"><b class="num" id="sLarge">{{ large }}</b><small>3 ומעלה</small></div>
     </div>
-  </div>
-</div>
+    <div class="stack" id="stack" aria-hidden="true"></div>
+  </section>
+</main>
 {% endblock %}
 
 {% block scripts %}
 <script>
-const regDaily   = {{ reg_daily | tojson }};
-const regMonthly = {{ reg_monthly | tojson }};
-const payMonthly = {{ payments_by_month | tojson }};
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var regDaily = {{ reg_daily | tojson }}, regMonthly = {{ reg_monthly | tojson }}, payMonthly = {{ payments_by_month | tojson }};
+  var solo = {{ solo }}, pairs = {{ pairs }}, large = {{ large }};
+  function monthName(ym) { var p = String(ym || '').split('-'); return p.length === 2 ? Pop.HE_MONTHS[parseInt(p[1], 10) - 1] + ' ' + p[0] : (ym || '—'); }
 
-const chartOpts = (label, color) => ({
-  responsive: true, maintainAspectRatio: false,
-  plugins: { legend: { display: false }, tooltip: { callbacks: { label: v => ' ' + v.raw + ' ' + label } } },
-  scales: {
-    y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 9 }, color: '#94a3b8', stepSize: 1 } },
-    x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94a3b8' } }
+  /* daily registrations: fill the 30 days, zeros included */
+  var by = {}; regDaily.forEach(function (r) { by[r.day] = r.cnt; });
+  var days = [], total = 0, best = null;
+  for (var i = 29; i >= 0; i--) { var d = new Date(); d.setDate(d.getDate() - i); var k = Pop.iso(d), n = by[k] || 0; days.push({ k: k, n: n, d: d }); total += n; if (!best || n > best.n) best = { k: k, n: n, d: d }; }
+  var max = Math.max.apply(null, days.map(function (x) { return x.n; }).concat([1]));
+  $('daily').innerHTML = days.map(function (x, j) { return '<i class="' + (x.n ? '' : 'z') + '" style="height:' + (x.n ? Math.max(6, x.n / max * 100) : 3) + '%;animation-delay:' + (j * .015).toFixed(3) + 's"></i>'; }).join('');
+  $('dFrom').textContent = days[0].d.getDate() + '.' + (days[0].d.getMonth() + 1);
+  $('dTo').textContent = 'היום';
+  $('dailyText').textContent = total ? total + ' הרשמות חדשות בחודש האחרון. היום הכי עמוס: ' + best.d.getDate() + '.' + (best.d.getMonth() + 1) + ' עם ' + best.n + '.' : 'אין הרשמות חדשות בחודש האחרון.';
+
+  /* monthly rows */
+  function rows(list, val, sub, color) {
+    var m = Math.max.apply(null, list.map(val).concat([1]));
+    return list.map(function (r) {
+      return '<div class="hrow"><span class="nm">' + Pop.esc(monthName(r.month)) + '</span><span class="trk"><i style="width:' + (val(r) / m * 100).toFixed(1) + '%;background:' + color + '"></i></span><span class="v num">' + val(r) + (sub ? ' <small>' + sub(r) + '</small>' : '') + '</span></div>';
+    }).join('') || '<div class="empty" style="padding:6px"><div class="t">אין נתונים עדיין</div></div>';
   }
-});
+  $('monthly').innerHTML = rows(regMonthly, function (r) { return r.cnt; }, null, 'var(--grape-soft)');
+  $('payments').innerHTML = rows(payMonthly, function (r) { return r.cnt; }, function (r) { return '· ' + (r.families === 1 ? 'משפחה אחת' : r.families + ' משפחות'); }, 'var(--sun)');
 
-// הרשמות יומיות
-new Chart(document.getElementById('regDailyChart'), {
-  type: 'bar',
-  data: {
-    labels: regDaily.map(r => r.day.slice(5)),
-    datasets: [{ data: regDaily.map(r => r.cnt),
-      backgroundColor: 'rgba(37,99,235,0.7)', borderRadius: 5, borderSkipped: false }]
-  },
-  options: chartOpts('משתמשים', '#2563eb')
-});
-
-// הרשמות חודשיות
-new Chart(document.getElementById('regMonthlyChart'), {
-  type: 'bar',
-  data: {
-    labels: regMonthly.map(r => r.month),
-    datasets: [{ data: regMonthly.map(r => r.cnt),
-      backgroundColor: 'rgba(16,185,129,0.7)', borderRadius: 5, borderSkipped: false }]
-  },
-  options: chartOpts('משתמשים', '#10b981')
-});
-
-// פעילות תשלומים
-new Chart(document.getElementById('paymentsChart'), {
-  type: 'bar',
-  data: {
-    labels: payMonthly.map(r => r.month),
-    datasets: [
-      { label: 'תשלומים', data: payMonthly.map(r => r.cnt),
-        backgroundColor: 'rgba(232,62,140,0.7)', borderRadius: 5, borderSkipped: false },
-      { label: 'משפחות פעילות', data: payMonthly.map(r => r.families),
-        backgroundColor: 'rgba(245,158,11,0.7)', borderRadius: 5, borderSkipped: false }
-    ]
-  },
-  options: {
-    responsive: true, maintainAspectRatio: false,
-    plugins: { legend: { display: true, position: 'top', labels: { font: { size: 10 }, color: '#64748b' } } },
-    scales: {
-      y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.04)' }, ticks: { font: { size: 9 }, color: '#94a3b8' } },
-      x: { grid: { display: false }, ticks: { font: { size: 9 }, color: '#94a3b8' } }
-    }
-  }
-});
+  /* family sizes stack */
+  var all = solo + pairs + large || 1;
+  $('stack').innerHTML = [[solo, 'var(--cream-2)'], [pairs, 'var(--sun)'], [large, 'var(--mint)']].filter(function (x) { return x[0]; }).map(function (x) { return '<i style="width:' + (x[0] / all * 100).toFixed(1) + '%;background:' + x[1] + '"></i>'; }).join('');
+})();
 </script>
 {% endblock %}

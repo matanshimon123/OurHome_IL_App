@@ -1,718 +1,474 @@
 {% extends "base.html" %}
 {% block title %}הגדרות - OurHome IL{% endblock %}
-{% block content %}
+{% block head %}
 <style>
-    .settings-container { max-width: 600px; margin: 0 auto; direction: rtl; }
-    .s-card { background: white; border-radius: 15px; padding: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); margin-bottom: 15px; }
-    .s-card h3 { font-size: 1rem; font-weight: 700; margin: 0 0 15px; color: #333; display: flex; align-items: center; gap: 8px; }
-
-    /* Profile */
-    .profile-header { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
-    .profile-avatar { width: 60px; height: 60px; border-radius: 50%; background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; display: flex; align-items: center; justify-content: center; font-size: 1.5rem; font-weight: 700; }
-    .profile-info h2 { font-size: 1.2rem; margin: 0; color: #333; }
-    .profile-info p { font-size: 0.8rem; color: #888; margin: 2px 0 0; }
-
-    /* Family */
-    .invite-box { background: linear-gradient(135deg, #f0f4ff, #e8ecff); border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
-    .invite-code { font-size: 2rem; font-weight: 800; letter-spacing: 4px; color: #2563eb; margin: 5px 0; }
-    .invite-label { font-size: 0.8rem; color: #888; }
-    .invite-copy { padding: 8px 20px; background: #2563eb; color: white; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; font-size: 0.85rem; margin-top: 8px; }
-    .invite-copy.copied { background: #10b981; }
-
-    .member-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
-    .member-item:last-child { border-bottom: none; }
-    .member-avatar { width: 38px; height: 38px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.85rem; }
-    .member-info { flex: 1; }
-    .member-name { font-weight: 600; font-size: 0.9rem; color: #333; }
-    .member-role { font-size: 0.75rem; color: #888; }
-    .member-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
-    .member-badge.admin { background: #dbeafe; color: #2563eb; }
-    .member-badge.member { background: #f0f0f0; color: #888; }
-
-    /* Settings rows */
-    .s-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
-    .s-row:last-child { border-bottom: none; }
-    .s-row-info { flex: 1; }
-    .s-row-label { font-weight: 600; font-size: 0.9rem; color: #333; }
-    .s-row-desc { font-size: 0.75rem; color: #888; margin-top: 2px; }
-    .s-row-action { flex-shrink: 0; }
-    .s-btn { padding: 8px 16px; border-radius: 8px; font-weight: 600; font-size: 0.8rem; cursor: pointer; border: none; transition: all 0.2s; }
-    .s-btn.primary { background: #2563eb; color: white; }
-    .s-btn.danger { background: #fee2e2; color: #ef4444; }
-    .s-btn.outline { background: none; border: 2px solid #e0e0e0; color: #555; }
-    .s-btn:hover { transform: translateY(-1px); }
-
-    /* Forms */
-    .s-form input { width: 100%; padding: 10px; border: 2px solid #e0e0e0; border-radius: 8px; font-size: 0.9rem; margin-bottom: 10px; box-sizing: border-box; }
-    .s-form input:focus { outline: none; border-color: #2563eb; }
-
-    /* Version */
-    .version { text-align: center; color: #ccc; font-size: 0.75rem; padding: 10px 0; }
-
-    /* Toggle switch */
-    .toggle-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid #f5f5f5; }
-    .toggle-row:last-child { border-bottom: none; }
-
-    /* Select dropdown */
-    .s-select {
-        padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px;
-        font-size: 0.85rem; font-weight: 600; color: #333; background: white;
-        cursor: pointer; min-width: 120px; direction: rtl;
-    }
-    .s-select:focus { outline: none; border-color: #2563eb; }
-
-    /* Budget inputs */
-    .budget-row { display: flex; align-items: center; gap: 10px; padding: 12px 0; border-bottom: 1px solid #f5f5f5; }
-    .budget-row:last-child { border-bottom: none; }
-    .budget-label { flex: 1; }
-    .budget-label-text { font-weight: 600; font-size: 0.9rem; color: #333; }
-    .budget-label-desc { font-size: 0.75rem; color: #888; margin-top: 2px; }
-    .budget-input {
-        width: 130px; padding: 8px 12px; border: 2px solid #e0e0e0; border-radius: 8px;
-        font-size: 0.95rem; font-weight: 700; color: #333; text-align: center;
-        direction: ltr;
-    }
-    .budget-input:focus { outline: none; border-color: #2563eb; }
-    .budget-input::placeholder { color: #ccc; font-weight: 400; }
-    .budget-currency { font-size: 0.85rem; color: #888; font-weight: 600; }
-
-    /* Status indicator */
-    .setting-status {
-        font-size: 0.75rem; padding: 3px 10px; border-radius: 12px; font-weight: 600;
-    }
-    .setting-status.active { background: #dcfce7; color: #16a34a; }
-    .setting-status.off { background: #f3f4f6; color: #9ca3af; }
-
-    /* Save button */
-    .save-row { padding-top: 15px; }
-    .save-btn {
-        width: 100%; padding: 12px; background: linear-gradient(135deg, #2563eb, #3b82f6);
-        color: white; border: none; border-radius: 10px; font-size: 0.95rem;
-        font-weight: 700; cursor: pointer; transition: all 0.2s;
-    }
-    .save-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(37,99,235,0.3); }
-    .save-btn.saved { background: #10b981; }
+/* ── Settings. A short hub (profile + one row per category, each with a live summary) and one screen per category.
+      Screens are #family / #notifications / #finance / #account, so the phone's back button and reload work. ── */
+.me{display:flex;align-items:center;gap:14px;position:relative;z-index:1}
+.me .grow{min-width:0}
+.me .at{font:700 15px var(--font-display);direction:ltr;text-align:end;margin-top:2px}
+.hub-list{display:flex;flex-direction:column;gap:12px}
+.sticker.hub-row{display:flex;align-items:center;gap:14px;min-height:78px;color:var(--ink)}   /* beats a.sticker{display:block} */
+.hub-row .ico{width:52px;height:52px;font-size:25px;border-radius:16px}
+.hub-row .t{font-size:18px}
+.hub-row .s{white-space:normal;display:block;line-height:1.4}
+.hub-row .chev{width:22px;height:22px;stroke:var(--ink)}
+.panel-sub{position:relative;z-index:1;margin-top:6px}
+.set-row{display:flex;align-items:center;gap:12px;min-height:64px;padding:10px 0;border-bottom:2px dashed var(--cream-2)}
+.set-row:last-child{border-bottom:0}
+.set-row .grow{min-width:0}
+.set-row .t{display:block;font:800 17px var(--font-display)}
+.set-row .d{display:block;font-size:14px;color:var(--ink-2);margin-top:2px;overflow-wrap:anywhere}
+.set-row .btn{flex:none}
+.money-in{position:relative}
+.money-in .input{padding-inline-start:44px;font-size:22px;font-weight:900}
+.money-in span{position:absolute;inset-inline-start:16px;top:50%;transform:translateY(-50%);font:900 20px var(--font-display);color:var(--ink-2);pointer-events:none}
+.range-note{margin-top:8px}
+.cat-row{display:flex;align-items:center;gap:10px;min-height:56px;padding:6px 0;border-bottom:2px dashed var(--cream-2)}
+.cat-row:last-child{border-bottom:0}
+.cat-row .dot{width:20px;height:20px;border-radius:50%;border:2.5px solid var(--ink);flex:none}
+.cat-row .n{flex:1;min-width:0;font:800 16px var(--font-display);overflow-wrap:anywhere}
+.cat-wrap .chip i{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);display:inline-block}
+.color-in{width:64px;height:54px;padding:4px;border:var(--line) solid var(--ink);border-radius:16px;background:#fff;box-shadow:3px 3px 0 var(--ink);flex:none}
+.panel > .section-title:first-child{margin-top:18px}
 </style>
-
-<div class="settings-container">
-    <!-- Profile Card -->
-    <div class="s-card">
-        <div class="profile-header">
-            <div class="profile-avatar">{{ session.display_name[0] if session.display_name else 'U' }}</div>
-            <div class="profile-info">
-                <h2>{{ session.display_name }}</h2>
-                <p>@{{ session.username }}</p>
-            </div>
-        </div>
+{% endblock %}
+{% block content %}
+{% set dn = session.display_name or session.username %}
+<!-- hub header: who you are -->
+<header class="hero hero-mint pop" id="hubHero">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <h1 style="position:relative;z-index:1;margin-bottom:14px">⚙️ הגדרות</h1>
+  <div class="me">
+    <span class="avatar lg {{ ['sun','coral','sky','grape','peach'][(dn|length) % 5] }}" aria-hidden="true">{{ dn[0] }}</span>
+    <div class="grow">
+      <div style="font:900 22px var(--font-display);overflow-wrap:anywhere" id="meName">{{ dn }}</div>
+      <div class="at">@{{ session.username }}</div>
+      {% if family %}<span class="chip mt-1">🏠 {{ family.name }}{% if is_family_admin %} · מנהל/ת{% endif %}</span>{% endif %}
     </div>
+  </div>
+</header>
 
-    <!-- Family Card -->
-    <div class="s-card">
-        <h3>👨‍👩‍👧 המשפחה שלי</h3>
-        {% if family %}
-        <div class="invite-box">
-            <div class="invite-label">קוד הזמנה למשפחה</div>
-            <div class="invite-code" id="inviteCode">{{ family.invite_code }}</div>
-            <div class="invite-label">שתף עם בן/בת הזוג כדי להצטרף</div>
-            <button class="invite-copy" onclick="copyCode()">📋 העתק קוד</button>
-        </div>
+<!-- category header: shown on each category screen -->
+<header class="hero hero-mint hidden" id="panelHero">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="hero-top">
+    <button type="button" class="back-btn" id="panelBack"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>חזרה להגדרות</button>
+  </div>
+  <h1 style="position:relative;z-index:1" id="panelTitle" tabindex="-1"></h1>
+  <p class="sub panel-sub" id="panelSub"></p>
+</header>
 
-        <h4 style="font-size:0.9rem; font-weight:700; margin:0 0 10px; color:#555;">חברי המשפחה:</h4>
-        {% for member in members %}
-        <div class="member-item">
-            <div class="member-avatar">{{ member.display_name[0] if member.display_name else '?' }}</div>
-            <div class="member-info">
-                <div class="member-name">{{ member.display_name or member.username }}</div>
-                <div class="member-role">@{{ member.username }}</div>
-            </div>
-            <span class="member-badge {{ 'admin' if member.id == family.created_by else 'member' }}">
-                {{ 'מנהל' if member.id == family.created_by else 'חבר' }}
-            </span>
-            {% if session.user_id == family.created_by and member.id != family.created_by %}
-            <button class="s-btn danger" style="padding:4px 10px; font-size:0.7rem; margin-right:5px;"
-                    data-remove-member="{{ member.id }}" data-member-name="{{ member.display_name or member.username }}">
-                <i class="fas fa-user-minus"></i>
-            </button>
-            {% endif %}
-        </div>
-        {% endfor %}
+<main class="content">
+  <!-- ═══ hub ═══ -->
+  <div id="hubView">
+    <nav class="hub-list mt-3" aria-label="קטגוריות ההגדרות">
+      <a href="#family" class="sticker item hub-row pressable pop d1" data-go="family">
+        <span class="ico" style="background:var(--mint-soft)" aria-hidden="true">🏠</span>
+        <span class="grow"><span class="t">המשפחה</span>
+          <span class="s" id="sumFamily">{% if family %}{{ family.name }} · {% if members|length == 1 %}רק את/ה כרגע{% else %}{{ members|length }} חברים{% endif %} · קוד {{ family.invite_code }}{% else %}עוד לא הצטרפת למשפחה{% endif %}</span></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </a>
+      {% if family %}
+      <a href="#notifications" class="sticker item hub-row pressable pop d2" data-go="notifications">
+        <span class="ico" style="background:var(--sun-soft)" aria-hidden="true">🔔</span>
+        <span class="grow"><span class="t">התראות</span><span class="s" id="sumNotif">מה יגיע לטלפון שלך</span></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </a>
+      <a href="#finance" class="sticker item hub-row pressable pop d3" data-go="finance">
+        <span class="ico" style="background:var(--sky-soft)" aria-hidden="true">💰</span>
+        <span class="grow"><span class="t">כספים</span><span class="s" id="sumFinance">תקציב, מחזור וקטגוריות הוצאה</span></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </a>
+      {% endif %}
+      <a href="#account" class="sticker item hub-row pressable pop d4" data-go="account">
+        <span class="ico" style="background:var(--grape-soft)" aria-hidden="true">👤</span>
+        <span class="grow"><span class="t">החשבון והנתונים</span><span class="s" id="sumAccount">{{ dn }} · שם, סיסמה{% if family %}, ייצוא ל־Excel{% endif %}</span></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </a>
+      {% if session.get('is_admin') %}
+      <a href="{{ url_for('admin_dashboard') }}" class="sticker item hub-row pressable pop d5" id="adminLink">
+        <span class="ico" style="background:var(--peach-soft)" aria-hidden="true">🛠️</span>
+        <span class="grow"><span class="t">לוח ניהול</span><span class="s">כל המשתמשים, המשפחות והנתונים</span></span>
+        <svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>
+      </a>
+      {% endif %}
+    </nav>
+    <a href="{{ url_for('logout') }}" class="btn danger block mt-4" id="logoutBtn">🚪 התנתקות</a>
+    <div class="version">OurHome IL · ניהול הבית של המשפחה</div>
+  </div>
 
-        <!-- Share & Leave -->
-        <div style="margin-top:15px; display:flex; gap:8px; flex-wrap:wrap;">
-            <button class="s-btn primary" style="flex:1;" onclick="shareInvite()">
-                <i class="fas fa-share-alt"></i> שתף קוד הזמנה
-            </button>
-            {% if session.user_id != family.created_by %}
-            <button class="s-btn danger" style="flex:1;" onclick="leaveFamily()">
-                <i class="fas fa-door-open"></i> עזוב משפחה
-            </button>
-            {% endif %}
-            {% if session.user_id == family.created_by and members|length == 1 %}
-            <button class="s-btn danger" style="flex:1;" data-delete-family="1">
-                <i class="fas fa-trash"></i> מחק משפחה
-            </button>
-            {% endif %}
-        </div>
-        {% else %}
-        <div style="padding:10px 0;">
-            <p style="color:#888; margin-bottom:15px; text-align:center;">לא שייך למשפחה</p>
-
-            <!-- Join existing family -->
-            <div style="background:#f0f4ff; border-radius:12px; padding:15px; margin-bottom:12px;">
-                <div style="font-weight:700; font-size:0.9rem; margin-bottom:10px; color:#2563eb;">🔗 הצטרף למשפחה קיימת</div>
-                <div style="display:flex; gap:8px;">
-                    <input type="text" id="joinCode" placeholder="הכנס קוד הזמנה" dir="ltr"
-                           style="flex:1; padding:10px; border:2px solid #bfdbfe; border-radius:8px; font-size:1.1rem;
-                                  text-align:center; letter-spacing:3px; text-transform:uppercase; font-weight:700;">
-                    <button class="s-btn primary" onclick="joinFamily()" style="padding:10px 20px;">הצטרף</button>
-                </div>
-            </div>
-
-            <!-- Create new family -->
-            <div style="background:#f0fdf4; border-radius:12px; padding:15px;">
-                <div style="font-weight:700; font-size:0.9rem; margin-bottom:10px; color:#16a34a;">➕ צור משפחה חדשה</div>
-                <div style="display:flex; gap:8px;">
-                    <input type="text" id="newFamilyName" placeholder="שם המשפחה" dir="rtl"
-                           style="flex:1; padding:10px; border:2px solid #bbf7d0; border-radius:8px; font-size:0.9rem;">
-                    <button class="s-btn primary" onclick="createFamily()" style="padding:10px 20px; background:#16a34a;">צור</button>
-                </div>
-            </div>
-        </div>
-        {% endif %}
-    </div>
-
+  <!-- ═══ family ═══ -->
+  <div class="panel hidden" id="panel-family">
     {% if family %}
-    <!-- ══════ NOTIFICATIONS SETTINGS ══════ -->
-    <div class="s-card">
-        <h3>🔔 התראות</h3>
+    <section class="sticker pad mt-3 pop">
+      <div class="ticket">
+        <div class="eyebrow">קוד ההזמנה של המשפחה</div>
+        <div class="code" id="inviteCode">{{ family.invite_code }}</div>
+        <div class="small muted">מי שמקליד אותו מצטרף מיד</div>
+      </div>
+      <div class="btn-row mt-3">
+        <button type="button" class="btn sky" id="shareBtn">📤 שליחה</button>
+        <button type="button" class="btn white" id="copyBtn">📋 העתקה</button>
+      </div>
+    </section>
+    <div class="section-title pop d1"><span>👥 מי במשפחה</span><small>{{ members|length }}</small></div>
+    <section class="sticker pad pop d1">
+      {% for member in members %}
+      {% set mn = member.display_name or member.username %}
+      <div class="set-row">
+        <span class="avatar {{ ['sun','coral','sky','grape','peach'][loop.index0 % 5] }}" aria-hidden="true">{{ mn[0] }}</span>
+        <span class="grow"><span class="t">{{ mn }}{% if member.id == session.user_id %} (את/ה){% endif %}</span><span class="d ltr" style="text-align:end">@{{ member.username }}</span></span>
+        {% if member.id == family.created_by %}<span class="chip sun">מנהל/ת</span>
+        {% elif is_family_admin %}<button type="button" class="btn white sm" data-remove-member="{{ member.id }}" data-member-name="{{ mn }}">🚪 הסרה</button>
+        {% else %}<span class="chip">חבר/ה</span>{% endif %}
+      </div>
+      {% endfor %}
+    </section>
+    {% if not is_family_admin %}
+    <button type="button" class="btn danger block mt-4" id="leaveBtn">🚪 יציאה מהמשפחה</button>
+    {% elif members|length == 1 %}
+    <button type="button" class="btn danger block mt-4" id="deleteFamilyBtn">🗑️ מחיקת המשפחה</button>
+    <p class="hint">אפשר למחוק רק כשאין במשפחה אף אחד מלבדך. הכול יימחק לצמיתות.</p>
+    {% endif %}
+    {% else %}
+    <section class="sticker pad mt-3 pop">
+      <div class="empty" style="padding:6px 0"><div class="e">🏠</div><div class="t">עוד לא הצטרפת למשפחה</div><p class="muted">יוצרים משפחה חדשה, או מצטרפים עם קוד הזמנה.</p></div>
+      <a href="{{ url_for('family_setup') }}" class="btn coral block">🏠 הצטרפות או יצירת משפחה</a>
+    </section>
+    {% endif %}
+  </div>
 
-        <!-- Feeding Reminder -->
-        <div class="toggle-row">
-            <div class="s-row-info">
-                <div class="s-row-label">🍼 תזכורת האכלה</div>
-                <div class="s-row-desc">התראה כשעובר זמן מהאכלה אחרונה</div>
-            </div>
-            <select class="s-select" id="feedingReminder" onchange="markSettingsChanged()">
-                <option value="0">כבוי</option>
-                <option value="2">כל 2 שעות</option>
-                <option value="3">כל 3 שעות</option>
-                <option value="4">כל 4 שעות</option>
-                <option value="5">כל 5 שעות</option>
-            </select>
-        </div>
+  {% if family %}
+  <!-- ═══ notifications ═══ -->
+  <div class="panel hidden" id="panel-notifications">
+    <div class="section-title pop"><span>🔔 ההתראות שלי</span><small>אישי לכל אחד</small></div>
+    <section class="sticker pad pop">
+      <p class="hint" style="margin-top:0">מה יגיע לטלפון שלך. כל אחד במשפחה בוחר לעצמו. על פעולות שעשית בעצמך לא נשלחת אליך התראה.</p>
+      <div id="prefList" aria-busy="true"></div>
+    </section>
+    <div class="section-title pop d1"><span>🍼 תזכורת האכלה</span><small>משותף למשפחה</small></div>
+    <section class="sticker pad pop d1">
+      <button type="button" class="toggle-row" role="switch" aria-checked="false" id="remSw">
+        <span class="grow"><span class="t" style="display:block">⏰ שליחת תזכורת</span><span class="d" style="display:block" id="remDesc">התראה לבני המשפחה כשעובר זמן מהאכלה אחרונה</span></span>
+        <span class="sw-state" id="remState">כבוי</span>
+        <span class="switch" aria-hidden="true"><span class="track"><i></i></span></span>
+      </button>
+      <div class="cat-wrap hidden mt-2" id="remHours" role="radiogroup" aria-label="אחרי כמה שעות להזכיר"></div>
+    </section>
+  </div>
 
-        <div style="padding:8px 0;">
-            <span class="setting-status" id="feedingStatus">טוען...</span>
-        </div>
-    </div>
-
-    <!-- ══════ BUDGET SETTINGS ══════ -->
-    <div class="s-card">
-        <h3>💰 תקציב</h3>
-
+  <!-- ═══ finance ═══ -->
+  <div class="panel hidden" id="panel-finance">
+    <div class="section-title pop"><span>📅 תקציב ומחזור</span></div>
+    <section class="sticker pad pop">
+      <div class="field">
+        <label class="label" for="cycleDay">באיזה יום בחודש מתחיל מחזור חדש?</label>
         {% if is_family_admin %}
-        <div class="budget-row">
-            <div class="budget-label">
-                <div class="budget-label-text">📅 יום איפוס חודשי</div>
-                <div class="budget-label-desc">באיזה יום בחודש מתחיל מחזור הוצאות חדש</div>
-            </div>
-            <select class="s-select" id="cycleDay" onchange="markSettingsChanged(); updateCycleRange()" style="width:80px;text-align:center;">
-                <option value="1">1</option>
-                <option value="2">2</option>
-                <option value="3">3</option>
-                <option value="4">4</option>
-                <option value="5">5</option>
-                <option value="6">6</option>
-                <option value="7">7</option>
-                <option value="8">8</option>
-                <option value="9">9</option>
-                <option value="10">10</option>
-                <option value="11">11</option>
-                <option value="12">12</option>
-                <option value="13">13</option>
-                <option value="14">14</option>
-                <option value="15">15</option>
-                <option value="16">16</option>
-                <option value="17">17</option>
-                <option value="18">18</option>
-                <option value="19">19</option>
-                <option value="20">20</option>
-                <option value="21">21</option>
-                <option value="22">22</option>
-                <option value="23">23</option>
-                <option value="24">24</option>
-                <option value="25">25</option>
-                <option value="26">26</option>
-                <option value="27">27</option>
-                <option value="28">28</option>
-            </select>
-        </div>
-
-        <div id="cycleDateRange" style="font-size:0.78rem; color:#888; padding:4px 0 12px; display:none;"></div>
+        <select class="select" id="cycleDay">{% for d in range(1, 29) %}<option value="{{ d }}">{{ d }}{% if d == 1 %} (חודש קלנדרי){% endif %}</option>{% endfor %}</select>
         {% else %}
-        <div id="cycleDay" style="display:none;" data-value="1"></div>
-        <div id="cycleDateRange" style="display:none;"></div>
+        <div class="input" id="cycleDayRO" style="display:flex;align-items:center" aria-readonly="true">–</div>
+        <p class="hint">רק מנהל/ת המשפחה יכול/ה לשנות את יום האיפוס.</p>
         {% endif %}
+        <div class="note sky range-note" id="cycleRange" aria-live="polite"><span class="e">🗓️</span><span id="cycleRangeT"></span></div>
+      </div>
+      <div class="field">
+        <label class="label" for="budgetMonthly">תקציב חודשי</label>
+        <div class="money-in"><span aria-hidden="true">₪</span><input class="input" type="number" id="budgetMonthly" min="0" step="100" inputmode="numeric" placeholder="0"></div>
+        <p class="hint">נשלח התראה לכל המשפחה ב־80% וב־100% מהתקציב.</p>
+      </div>
+      <div class="field">
+        <label class="label" for="budgetDaily">תקציב יומי</label>
+        <div class="money-in"><span aria-hidden="true">₪</span><input class="input" type="number" id="budgetDaily" min="0" step="10" inputmode="numeric" placeholder="0"></div>
+        <p class="hint">התראה כשההוצאות של יום אחד עוברות את הסכום. 0 = בלי.</p>
+      </div>
+      <button type="button" class="btn mint block" id="saveBudget">💾 שמירת התקציב</button>
+    </section>
 
-        <div class="budget-row">
-            <div class="budget-label">
-                <div class="budget-label-text">תקציב חודשי</div>
-                <div class="budget-label-desc">התראה ב-80% וב-100% מהתקציב</div>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px;">
-                <span class="budget-currency">₪</span>
-                <input type="number" class="budget-input" id="budgetMonthly" placeholder="0" min="0" step="100" onchange="markSettingsChanged()">
-            </div>
+    <div class="section-title pop d1"><span>🏷️ קטגוריות הוצאה</span><small id="catCount"></small></div>
+    <section class="sticker pad pop d1">
+      <div class="day-h" style="margin-top:0"><span>מובנות</span><small>לא ניתן למחוק</small></div>
+      <div class="cat-wrap" id="catDefaults"></div>
+      <div class="day-h"><span>של המשפחה</span></div>
+      <div id="catList"></div>
+      <div class="day-h"><span>קטגוריה חדשה</span></div>
+      <form id="catForm" autocomplete="off" novalidate>
+        <div style="display:flex;gap:8px;align-items:flex-end">
+          <div style="flex:1;min-width:0"><label class="label" for="newCatName">שם</label><input class="input" type="text" id="newCatName" maxlength="40" placeholder="למשל: חוגים"></div>
+          <div><label class="label" for="newCatColor">צבע</label><input class="color-in" type="color" id="newCatColor" value="#3E9BFF"></div>
         </div>
+        <button type="submit" class="btn sun block mt-3" id="catAdd">➕ הוספת קטגוריה</button>
+      </form>
+    </section>
+  </div>
+  {% endif %}
 
-        <div class="budget-row">
-            <div class="budget-label">
-                <div class="budget-label-text">תקציב יומי</div>
-                <div class="budget-label-desc">התראה כשחורגים מהתקציב היומי</div>
-            </div>
-            <div style="display:flex; align-items:center; gap:6px;">
-                <span class="budget-currency">₪</span>
-                <input type="number" class="budget-input" id="budgetDaily" placeholder="0" min="0" step="10" onchange="markSettingsChanged()">
-            </div>
-        </div>
+  <!-- ═══ account + data ═══ -->
+  <div class="panel hidden" id="panel-account">
+    <div class="section-title pop"><span>👤 החשבון שלי</span></div>
+    <section class="sticker pad pop">
+      <div class="set-row">
+        <span class="grow"><span class="t">שם תצוגה</span><span class="d">{{ dn }}</span></span>
+        <button type="button" class="btn white sm" id="nameBtn">✏️ שינוי</button>
+      </div>
+      <div class="set-row">
+        <span class="grow"><span class="t">סיסמה</span><span class="d">לפחות 6 תווים</span></span>
+        <button type="button" class="btn white sm" id="passBtn">🔑 החלפה</button>
+      </div>
+    </section>
+    {% if family %}
+    <div class="section-title pop d1"><span>📊 נתונים</span></div>
+    <section class="sticker pad pop d1">
+      <div class="set-row">
+        <span class="grow"><span class="t">ייצוא ל־Excel</span><span class="d">כל התשלומים של המחזור הנוכחי</span></span>
+        <a href="{{ url_for('export_xlsx') }}" class="btn white sm" id="exportBtn">📥 הורדה</a>
+      </div>
+      <div class="set-row">
+        <span class="grow"><span class="t">ארכיון המחזורים</span><span class="d">מבט לאחור, שנה אחרי שנה</span></span>
+        <a href="{{ url_for('history') }}" class="btn white sm">📅 לארכיון</a>
+      </div>
+    </section>
+    {% endif %}
+  </div>
+</main>
 
-        <div class="save-row">
-            <button class="save-btn" id="saveSettingsBtn" onclick="saveSettings()">💾 שמור הגדרות</button>
-        </div>
-    </div>
-{% endif %}
-
-    <!-- Account Settings -->
-    <div class="s-card">
-        <h3>⚙️ הגדרות חשבון</h3>
-
-        <div class="s-row">
-            <div class="s-row-info">
-                <div class="s-row-label">שינוי שם תצוגה</div>
-                <div class="s-row-desc">השם שמוצג באפליקציה</div>
-            </div>
-            <div class="s-row-action">
-                <button class="s-btn outline" onclick="toggleEdit('nameEdit')">ערוך</button>
-            </div>
-        </div>
-        <div id="nameEdit" style="display:none; padding:10px 0;">
-            <form method="POST" action="{{ url_for('update_profile') }}" class="s-form">
-                <input type="text" name="display_name" value="{{ session.display_name }}" placeholder="שם תצוגה" dir="rtl">
-                <button type="submit" class="s-btn primary" style="width:100%;">שמור</button>
-            </form>
-        </div>
-
-        <div class="s-row">
-            <div class="s-row-info">
-                <div class="s-row-label">שינוי סיסמה</div>
-                <div class="s-row-desc">עדכן את הסיסמה שלך</div>
-            </div>
-            <div class="s-row-action">
-                <button class="s-btn outline" onclick="toggleEdit('passEdit')">שנה</button>
-            </div>
-        </div>
-        <div id="passEdit" style="display:none; padding:10px 0;">
-            <form method="POST" action="{{ url_for('change_password') }}" class="s-form">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="password" name="current_password" placeholder="סיסמה נוכחית">
-                <input type="password" name="new_password" placeholder="סיסמה חדשה (לפחות 6 תווים)" minlength="6">
-                <button type="submit" class="s-btn primary" style="width:100%;">עדכן סיסמה</button>
-            </form>
-        </div>
-    </div>
-
-    <!-- Data -->
-    <div class="s-card">
-        <h3>📊 נתונים</h3>
-
-        <div class="s-row">
-            <div class="s-row-info">
-                <div class="s-row-label">ייצוא נתונים</div>
-                <div class="s-row-desc">הורד את התשלומים של החודש כ-CSV</div>
-            </div>
-            <div class="s-row-action">
-                <a href="{{ url_for('export_xlsx') }}" class="s-btn outline" style="text-decoration:none;">📥 הורד</a>
-            </div>
-        </div>
-
-        <div class="s-row">
-            <div class="s-row-info">
-                <div class="s-row-label">ניהול קטגוריות</div>
-                <div class="s-row-desc">הוסף או ערוך קטגוריות תשלום</div>
-            </div>
-            <div class="s-row-action">
-                <button class="s-btn outline" onclick="toggleEdit('catEdit')">ערוך</button>
-            </div>
-        </div>
-        <div id="catEdit" style="display:none; padding:10px 0;">
-            <div id="catList" style="margin-bottom:10px;"></div>
-            <div style="display:flex; gap:8px;">
-                <input type="text" id="newCatName" placeholder="שם קטגוריה חדשה" dir="rtl" style="flex:1; padding:8px; border:2px solid #e0e0e0; border-radius:8px;">
-                <input type="color" id="newCatColor" value="#2563eb" style="width:40px; height:38px; border:none; border-radius:8px; cursor:pointer;">
-                <button class="s-btn primary" onclick="addCategory()">הוסף</button>
-            </div>
-        </div>
-    </div>
-
-    {% if session.get('is_admin') %}
-<div class="s-card">
-    <h3>🛠️ ניהול מערכת</h3>
-    <div class="s-row">
-        <div class="s-row-info">
-            <div class="s-row-label">דשבורד אדמין</div>
-            <div class="s-row-desc">צפייה בכל המשתמשים והסטטיסטיקות</div>
-        </div>
-        <div class="s-row-action">
-            <a href="{{ url_for('admin_dashboard') }}" class="s-btn primary" style="text-decoration:none;">
-                כניסה
-            </a>
-        </div>
-    </div>
+<!-- display name -->
+<div class="sheet-ov" id="nameSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="nameTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="nameTitle">✏️ שם תצוגה</h3>
+    <form method="POST" action="{{ url_for('update_profile') }}" id="nameForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label class="label" for="displayName">איך לקרוא לך באפליקציה?</label><input class="input" type="text" name="display_name" id="displayName" maxlength="40" value="{{ session.display_name or '' }}" required></div>
+      <div class="sheet-actions">
+        <button type="submit" class="btn mint block">💾 שמירה</button>
+        <button type="button" class="text-btn" data-close="nameSheet">ביטול</button>
+      </div>
+    </form>
+  </div>
 </div>
-{% endif %}
 
-    <!-- About -->
-    <div class="s-card">
-        <h3>ℹ️ אודות</h3>
-        <div class="s-row">
-            <div class="s-row-info">
-                <div class="s-row-label">OurHome IL</div>
-                <div class="s-row-desc">ניהול משק בית חכם למשפחה הישראלית</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Logout -->
-    <div style="text-align:center; margin:15px 0;">
-        <a href="{{ url_for('logout') }}" class="s-btn danger" style="text-decoration:none; display:inline-block; padding:12px 40px; font-size:0.95rem;">
-            🚪 התנתק
-        </a>
-    </div>
-
-    <div class="version">OurHome IL v1.0 | Built with ❤️</div>
+<!-- password -->
+<div class="sheet-ov" id="passSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="passTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="passTitle">🔑 החלפת סיסמה</h3>
+    <form method="POST" action="{{ url_for('change_password') }}" id="passForm" novalidate>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field"><label class="label" for="curPw">הסיסמה הנוכחית</label>
+        <div class="input-wrap"><input class="input" type="password" name="current_password" id="curPw" autocomplete="current-password" required><button type="button" class="pw-toggle" data-toggle-pw="curPw">👁 <span>הצג</span></button></div></div>
+      <div class="field"><label class="label" for="newPw">סיסמה חדשה</label>
+        <div class="input-wrap"><input class="input" type="password" name="new_password" id="newPw" minlength="6" autocomplete="new-password" required><button type="button" class="pw-toggle" data-toggle-pw="newPw">👁 <span>הצג</span></button></div>
+        <p class="hint" id="pwHint">לפחות 6 תווים</p></div>
+      <div class="sheet-actions">
+        <button type="submit" class="btn mint block">🔑 עדכון הסיסמה</button>
+        <button type="button" class="text-btn" data-close="passSheet">ביטול</button>
+      </div>
+    </form>
+  </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-let _settingsChanged = false;
-let _originalCycleDay = 1;
-let _categories = [];
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = Pop.esc, HAS_FAMILY = {{ 'true' if family else 'false' }}, IS_ADMIN = {{ 'true' if is_family_admin else 'false' }};
+  var settings = null, origCycle = 1, reminderH = 0;
 
-function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  /* ── hub ↔ category screens (hash = which screen; the phone's back button returns to the hub) ── */
+  var PANELS = {
+    family: ['🏠 המשפחה', 'קוד ההזמנה ומי במשפחה'],
+    notifications: ['🔔 התראות', 'מה יגיע לטלפון שלך ותזכורת ההאכלה'],
+    finance: ['💰 כספים', 'תקציב, מחזור וקטגוריות הוצאה'],
+    account: ['👤 החשבון והנתונים', 'שם, סיסמה, ייצוא וארכיון']
+  };
+  var fromHub = false, lastRow = null;
+  function show() {
+    var v = location.hash.slice(1);
+    if (!PANELS[v] || !$('panel-' + v)) v = '';
+    $('hubHero').classList.toggle('hidden', !!v); $('hubView').classList.toggle('hidden', !!v);
+    $('panelHero').classList.toggle('hidden', !v);
+    Object.keys(PANELS).forEach(function (k) { var p = $('panel-' + k); if (p) p.classList.toggle('hidden', k !== v); });
+    document.title = (v ? PANELS[v][0].replace(/^\S+\s/, '') + ' · ' : '') + 'הגדרות - OurHome IL';
+    window.scrollTo(0, 0);
+    if (v) { $('panelTitle').textContent = PANELS[v][0]; $('panelSub').textContent = PANELS[v][1]; $('panelTitle').focus({ preventScroll: true }); }
+    else if (lastRow) { lastRow.focus({ preventScroll: true }); lastRow = null; }
+  }
+  document.querySelectorAll('[data-go]').forEach(function (a) { a.addEventListener('click', function () { fromHub = true; lastRow = a; }); });
+  $('panelBack').addEventListener('click', function () {
+    if (fromHub) { fromHub = false; history.back(); }                        // same as the phone's back button
+    else { history.replaceState(null, '', location.pathname + location.search); show(); }   // opened directly by link
+  });
+  window.addEventListener('hashchange', show);
+  // after saving the display name the server sends us to /settings: come back to the account screen
+  try { if (sessionStorage.getItem('settingsBack') && !location.hash) history.replaceState(null, '', '#' + sessionStorage.getItem('settingsBack')); sessionStorage.removeItem('settingsBack'); } catch (e) {}
+  show();
 
-function toggleEdit(id) {
-    const el = document.getElementById(id);
-    el.style.display = el.style.display === 'none' ? 'block' : 'none';
-    if (id === 'catEdit' && el.style.display === 'block') loadCategories();
-}
+  /* ── account sheets ── */
+  $('nameBtn').addEventListener('click', function () { Pop.openSheet('nameSheet'); setTimeout(function () { $('displayName').focus(); }, 300); });
+  $('passBtn').addEventListener('click', function () { $('curPw').value = ''; $('newPw').value = ''; Pop.openSheet('passSheet'); });
+  $('nameForm').addEventListener('submit', function (e) {
+    if (!$('displayName').value.trim()) { e.preventDefault(); Pop.toast('צריך שם', 'error'); return; }
+    try { sessionStorage.setItem('settingsBack', 'account'); } catch (x) {}
+  });
+  $('passForm').addEventListener('submit', function (e) {
+    if (!$('curPw').value) { e.preventDefault(); Pop.toast('צריך את הסיסמה הנוכחית', 'error'); $('curPw').focus(); return; }
+    if ($('newPw').value.length < 6) { e.preventDefault(); $('pwHint').className = 'hint bad'; $('pwHint').textContent = 'הסיסמה החדשה קצרה מדי — לפחות 6 תווים'; $('newPw').focus(); }
+  });
+  if (!HAS_FAMILY) return;
 
-function copyCode() {
-    const code = document.getElementById('inviteCode').textContent.trim();
-    copyToClipboard(code).then(() => {
-        const btn = document.querySelector('.invite-copy');
-        btn.textContent = '✓ הועתק!';
-        btn.classList.add('copied');
-        setTimeout(() => { btn.textContent = '📋 העתק קוד'; btn.classList.remove('copied'); }, 2000);
-    });
-}
+  /* ── hub summaries ── */
+  var PREF_COUNT = 7, catTotal = null;
+  function sumNotif() {
+    if (!prefsLoaded) return;
+    var on = Object.keys(prefs).filter(function (k) { return prefs[k] !== false; }).length;
+    $('sumNotif').textContent = (on === PREF_COUNT ? 'כל ההתראות פעילות' : on === 0 ? 'כל ההתראות כבויות' : on + ' מתוך ' + PREF_COUNT + ' סוגי התראות פעילים') +
+      ' · ' + (reminderH > 0 ? 'תזכורת האכלה אחרי ' + reminderH + ' שעות' : 'תזכורת האכלה כבויה');
+  }
+  function sumFinance() {
+    if (!settings) return;
+    var b = parseInt(settings.budget_monthly, 10) || 0;
+    $('sumFinance').textContent = (b ? 'תקציב ' + Pop.money0(b) : 'בלי תקציב חודשי') + ' · ' + (origCycle === 1 ? 'חודש קלנדרי' : 'מחזור מה־' + origCycle + ' בחודש') +
+      (catTotal != null ? ' · ' + catTotal + ' קטגוריות' : '');
+  }
 
-// Clipboard fallback for WebView
-function copyToClipboard(text) {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-        return navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  /* ── family ── */
+  var code = $('inviteCode').textContent.trim();
+  $('copyBtn').addEventListener('click', function () { Pop.copyText(code).then(function () { Pop.toast('הקוד ' + code + ' הועתק', 'success'); }); });
+  $('shareBtn').addEventListener('click', function () { Pop.share('OurHome IL', 'הצטרפו למשפחה שלנו ב-OurHome IL!\nקוד הזמנה: ' + code); });
+  document.addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-remove-member]'); if (!b) return;
+    if (!(await Pop.confirm({ title: 'להסיר את ' + b.dataset.memberName + ' מהמשפחה?', text: 'הם יאבדו גישה לנתונים המשותפים ויוכלו להצטרף שוב רק עם הקוד.', ok: '🚪 הסרה', danger: true }))) return;
+    var r = await Pop.api('POST', '/api/family/remove-member', { user_id: parseInt(b.dataset.removeMember, 10) });
+    if (r.ok) { Pop.toast('הוסר מהמשפחה', 'success'); setTimeout(function () { location.reload(); }, 600); } else Pop.toast((r.data && r.data.error) || 'לא הצלחנו להסיר', 'error');
+  });
+  if ($('leaveBtn')) $('leaveBtn').addEventListener('click', async function () {
+    if (!(await Pop.confirm({ title: 'לצאת מהמשפחה?', text: 'לא תהיה לך יותר גישה להוצאות, לרשימת הקניות ולמעקב התינוק של המשפחה.', ok: '🚪 יציאה', danger: true }))) return;
+    var r = await Pop.api('POST', '/api/family/leave');
+    if (r.ok) location.href = '/family'; else Pop.toast((r.data && r.data.error) || 'לא הצלחנו לצאת', 'error');
+  });
+  if ($('deleteFamilyBtn')) $('deleteFamilyBtn').addEventListener('click', async function () {
+    if (!(await Pop.confirm({ title: 'למחוק את המשפחה לצמיתות?', text: 'כל התשלומים, הקטגוריות, רשימת הקניות, ההאכלות, הארכיון וההגדרות יימחקו. אי אפשר לשחזר.', ok: '🗑️ מחיקה סופית', danger: true }))) return;
+    var r = await Pop.api('POST', '/api/family/delete');
+    if (r.ok) location.href = '/family'; else Pop.toast((r.data && r.data.error) || 'לא הצלחנו למחוק', 'error');
+  });
+
+  /* ── budget + cycle ── */
+  function cycleText(day) {
+    if (day === 1) return 'כל מחזור הוא חודש קלנדרי רגיל: מה־1 ועד סוף החודש.';
+    var now = new Date(), sm = now.getMonth(), sy = now.getFullYear();
+    if (now.getDate() < day) { sm--; if (sm < 0) { sm = 11; sy--; } }
+    var em = (sm + 1) % 12;
+    return 'המחזור הנוכחי: ' + day + '.' + (sm + 1) + '–' + (day - 1) + '.' + (em + 1) + '. כל מחזור רץ מה־' + day + ' ועד ה־' + (day - 1) + ' בחודש הבא.';
+  }
+  function showCycle(day) { $('cycleRangeT').textContent = cycleText(day); }
+  if (IS_ADMIN) $('cycleDay').addEventListener('change', function () { showCycle(parseInt(this.value, 10)); });
+  $('saveBudget').addEventListener('click', async function () {
+    var monthly = parseInt($('budgetMonthly').value, 10) || 0, daily = parseInt($('budgetDaily').value, 10) || 0;
+    if (monthly < 0 || daily < 0) { Pop.toast('סכום לא יכול להיות שלילי', 'error'); return; }
+    var body = { budget_monthly: monthly, budget_daily: daily };
+    if (IS_ADMIN) {
+      var cd = parseInt($('cycleDay').value, 10) || 1; body.cycle_day = cd;
+      if (cd !== origCycle && !(await Pop.confirm({ title: 'לשנות את יום האיפוס ל־' + cd + '?',
+        text: cd === 1 ? 'מהמחזור הבא כל מחזור יהיה חודש קלנדרי רגיל. המחזור הנוכחי ממשיך כרגיל.' : 'המחזור הנוכחי ממשיך כרגיל, ומחזור חדש יתחיל ב־' + cd + ' הקרוב. ייתכן מחזור מעבר קצר או ארוך מהרגיל.',
+        ok: '✓ לשנות' }))) return;
     }
-    return fallbackCopy(text);
-}
-function fallbackCopy(text) {
-    return new Promise((resolve) => {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.cssText = 'position:fixed;opacity:0;left:-9999px;';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        document.body.removeChild(ta);
-        resolve();
-    });
-}
+    var b = this; b.disabled = true;
+    var r = await Pop.api('PUT', '/api/family/settings', body);
+    b.disabled = false;
+    if (!r.ok) { Pop.toast((r.data && r.data.error) || 'לא הצלחנו לשמור', 'error'); return; }
+    if (body.cycle_day) origCycle = body.cycle_day;
+    settings.budget_monthly = monthly; settings.budget_daily = daily; sumFinance();
+    Pop.toast('התקציב נשמר ✓', 'success');
+  });
 
-async function loadCategories() {
-    try {
-        const r = await fetch('/api/categories');
-        const cats = await r.json();
-        _categories = cats;
-        document.getElementById('catList').innerHTML = cats.map(c =>
-            `<div style="display:flex; align-items:center; gap:8px; padding:6px 0; border-bottom:1px solid #f0f0f0;">
-                <div style="width:16px;height:16px;border-radius:50%;background:${esc(c.color)};flex-shrink:0;"></div>
-                <span style="flex:1;font-size:0.85rem;">${esc(c.name)}</span>
-                ${c.is_default
-                    ? '<span style="font-size:0.7rem;color:#999;background:#f5f5f5;padding:2px 6px;border-radius:4px;">ברירת מחדל</span>'
-                    : `<button data-cat-del="${c.id}" style="background:none;border:none;color:#dc3545;font-size:1rem;cursor:pointer;padding:2px 6px;">✕</button>`
-                }
-            </div>`
-        ).join('');
-    } catch(e) { console.error(e); }
-}
+  /* ── feeding reminder (family-wide, saved immediately, same control as the baby screen) ── */
+  function reminderUI() {
+    var on = reminderH > 0;
+    $('remSw').setAttribute('aria-checked', on); $('remState').textContent = on ? 'פעיל' : 'כבוי';
+    $('remDesc').textContent = on ? 'התראה לבני המשפחה אם עברו ' + reminderH + ' שעות בלי האכלה' : 'התראה לבני המשפחה כשעובר זמן מהאכלה אחרונה';
+    $('remHours').classList.toggle('hidden', !on);
+    $('remHours').innerHTML = [2, 2.5, 3, 3.5, 4, 5].map(function (h) { var s = h === reminderH; return '<button type="button" class="chip-btn' + (s ? ' on' : '') + '" role="radio" aria-checked="' + s + '" data-h="' + h + '">' + h + ' שעות</button>'; }).join('');
+    sumNotif();
+  }
+  async function saveReminder(h) {
+    var r = await Pop.api('PUT', '/api/family/settings', { feeding_reminder_hours: h });
+    if (!r.ok) { Pop.toast('לא הצלחנו לשמור', 'error'); return; }
+    reminderH = h; reminderUI(); Pop.toast(h ? '🔔 תזכורת אחרי ' + h + ' שעות' : 'תזכורת ההאכלה כובתה', 'success');
+  }
+  $('remSw').addEventListener('click', function () { saveReminder(reminderH > 0 ? 0 : 3); });
+  $('remHours').addEventListener('click', function (e) { var b = e.target.closest('[data-h]'); if (b) saveReminder(parseFloat(b.dataset.h)); });
 
-// Category delete (delegated — the list is re-rendered after every change)
-document.getElementById('catList').addEventListener('click', e => {
-    const b = e.target.closest('button[data-cat-del]');
-    if (!b) return;
-    const c = _categories.find(x => String(x.id) === b.dataset.catDel);
-    if (!c) return;
-    deleteCategory(c.id, c.name);
-});
+  /* ── my notifications (per person, saved immediately) ── */
+  var PREFS = [
+    ['expenses', '💳 הוצאות', 'כשמישהו מוסיף, עורך או מוחק תשלום'],
+    ['budget', '🚨 תקציב', 'כשמתקרבים לתקציב החודשי או עוברים אותו, וכשעוברים את התקציב היומי'],
+    ['cycle', '📊 מחזורים', 'כשמחזור נסגר ומתחיל מחזור חדש'],
+    ['shopping', '🛒 קניות', 'כשמישהו מוסיף פריטים לרשימה או מנקה אותה'],
+    ['baby', '👶 תינוק', 'כשמישהו רושם האכלה, חיתול, שינה או תרופה'],
+    ['feeding_reminder', '🍼 תזכורות האכלה', 'כשעובר זמן מההאכלה האחרונה (לפי ההגדרה המשותפת למטה)'],
+    ['family', '🏠 משפחה', 'כשמישהו מצטרף למשפחה']
+  ];
+  var prefs = {}, prefsLoaded = false;
+  function prefRow(p) {
+    var on = prefs[p[0]] !== false;
+    return '<button type="button" class="toggle-row" role="switch" aria-checked="' + on + '" data-pref="' + p[0] + '">' +
+      '<span class="grow"><span class="t" style="display:block">' + p[1] + '</span><span class="d" style="display:block">' + p[2] + '</span></span>' +
+      '<span class="sw-state">' + (on ? 'פעיל' : 'כבוי') + '</span><span class="switch" aria-hidden="true"><span class="track"><i></i></span></span></button>';
+  }
+  function renderPrefs() { $('prefList').innerHTML = PREFS.map(prefRow).join(''); $('prefList').setAttribute('aria-busy', 'false'); sumNotif(); }
+  $('prefList').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-pref]'); if (!b || b.disabled) return;
+    var key = b.dataset.pref, on = prefs[key] === false, p = PREFS.find(function (x) { return x[0] === key; });
+    prefs[key] = on; renderPrefs();   // show the new state right away
+    var body = {}; body[key] = on;
+    var r = await Pop.api('PUT', '/api/notifications/prefs', body);
+    if (!r.ok) { prefs[key] = !on; renderPrefs(); Pop.toast('לא הצלחנו לשמור — נסו שוב', 'error'); return; }
+    prefs = r.data; renderPrefs();
+    Pop.toast((on ? '🔔 ' : '🔕 ') + p[1].replace(/^\S+\s/, '') + ': ' + (on ? 'יגיעו אליך התראות' : 'לא יגיעו אליך התראות'), 'success');
+  });
+  Pop.api('GET', '/api/notifications/prefs').then(function (r) { prefs = (r.ok && r.data) || {}; prefsLoaded = true; renderPrefs(); });
 
-async function deleteCategory(id, name) {
-    if (!confirm('למחוק את הקטגוריה "' + name + '"?')) return;
-    const r = await fetch('/api/categories/' + id, { method: 'DELETE' });
-    if (r.ok) {
-        loadCategories();
-    } else {
-        const d = await r.json();
-        alert(d.error || 'שגיאה במחיקה');
-    }
-}
+  /* ── categories ── */
+  var cats = [];
+  async function loadCats() {
+    var r = await Pop.api('GET', '/api/categories'); if (!r.ok) return;
+    cats = r.data; catTotal = cats.length;
+    $('catCount').textContent = cats.length + ' קטגוריות';
+    $('catDefaults').innerHTML = cats.filter(function (c) { return c.is_default; }).map(function (c) {
+      return '<span class="chip flat"><i style="background:' + esc(c.color) + '"></i>' + esc(c.name) + '</span>';
+    }).join('');
+    $('catList').innerHTML = cats.filter(function (c) { return !c.is_default; }).map(function (c) {
+      return '<div class="cat-row"><i class="dot" style="background:' + esc(c.color) + '"></i><span class="n">' + esc(c.name) + '</span><button type="button" class="btn white sm" data-cat-del="' + c.id + '">🗑️ מחיקה</button></div>';
+    }).join('') || '<p class="muted" style="margin:4px 2px">עוד לא הוספתם קטגוריות משלכם.</p>';
+    sumFinance();
+  }
+  $('catList').addEventListener('click', async function (e) {
+    var b = e.target.closest('[data-cat-del]'); if (!b) return;
+    var c = cats.find(function (x) { return String(x.id) === b.dataset.catDel; }); if (!c) return;
+    if (!(await Pop.confirm({ title: 'למחוק את הקטגוריה "' + c.name + '"?', text: 'תשלומים שכבר נרשמו בה נשארים כמו שהם.', ok: '🗑️ מחיקה', danger: true }))) return;
+    var r = await Pop.api('DELETE', '/api/categories/' + c.id);
+    if (r.ok) { Pop.toast('הקטגוריה נמחקה', 'success'); loadCats(); } else Pop.toast((r.data && r.data.error) || 'לא הצלחנו למחוק', 'error');
+  });
+  $('catForm').addEventListener('submit', async function (e) {
+    e.preventDefault();
+    var name = $('newCatName').value.trim(); if (!name) { Pop.toast('צריך שם לקטגוריה', 'error'); $('newCatName').focus(); return; }
+    if (cats.some(function (c) { return c.name.trim() === name; })) { Pop.toast('קטגוריה בשם "' + name + '" כבר קיימת', 'error'); $('newCatName').select(); return; }
+    var r = await Pop.api('POST', '/api/categories', { name: name, color: $('newCatColor').value });
+    if (!r.ok) { Pop.toast((r.data && r.data.error) || 'לא הצלחנו להוסיף', 'error'); return; }
+    $('newCatName').value = ''; Pop.toast('"' + name + '" נוספה', 'success'); loadCats();
+  });
 
-async function addCategory() {
-    const name = document.getElementById('newCatName').value.trim();
-    const color = document.getElementById('newCatColor').value;
-    if (!name) return;
-    await fetch('/api/categories', { method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({name, color})});
-    document.getElementById('newCatName').value = '';
-    loadCategories();
-}
-
-// Remove-member (delegated — keeps the member name out of an inline onclick string)
-document.addEventListener('click', e => {
-    const b = e.target.closest('button[data-remove-member]');
-    if (!b) return;
-    removeMember(parseInt(b.dataset.removeMember, 10), b.dataset.memberName);
-});
-
-async function removeMember(id, name) {
-    if (!confirm(`להסיר את ${name} מהמשפחה?`)) return;
-    const r = await fetch('/api/family/remove-member', {
-        method: 'POST', headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({user_id: id})
-    });
-    if (r.ok) { location.reload(); }
-    else { alert('שגיאה בהסרת חבר'); }
-}
-
-async function joinFamily() {
-    const code = document.getElementById('joinCode').value.trim().toUpperCase();
-    if (!code) { if (typeof showToast === 'function') showToast('הכנס קוד הזמנה', 'error'); return; }
-    try {
-        const r = await fetch('/family/join', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'invite_code=' + encodeURIComponent(code)
-        });
-        if (r.redirected || r.ok) {
-            window.location.href = '/settings';
-        } else {
-            if (typeof showToast === 'function') showToast('קוד הזמנה לא נמצא', 'error');
-        }
-    } catch(e) {
-        if (typeof showToast === 'function') showToast('שגיאה בהצטרפות', 'error');
-    }
-}
-
-async function createFamily() {
-    const name = document.getElementById('newFamilyName').value.trim();
-    if (!name) { if (typeof showToast === 'function') showToast('הכנס שם משפחה', 'error'); return; }
-    try {
-        const r = await fetch('/family/create', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-            body: 'family_name=' + encodeURIComponent(name)
-        });
-        if (r.redirected || r.ok) {
-            window.location.href = '/settings';
-        }
-    } catch(e) {
-        if (typeof showToast === 'function') showToast('שגיאה ביצירת משפחה', 'error');
-    }
-}
-
-function shareInvite() {
-    const code = document.getElementById('inviteCode').textContent.trim();
-    const text = `הצטרף/י למשפחה שלי ב-OurHome IL!\nקוד הזמנה: ${code}`;
-
-    // Try Capacitor Share plugin first
-    if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Share) {
-        window.Capacitor.Plugins.Share.share({ title: 'OurHome IL', text: text }).catch(() => {});
-        return;
-    }
-    // Try native Web Share API
-    if (navigator.share) {
-        navigator.share({ title: 'OurHome IL - הזמנה למשפחה', text: text }).catch(() => {});
-        return;
-    }
-    // Fallback: copy to clipboard
-    copyToClipboard(text).then(() => {
-        if (typeof showToast === 'function') showToast('הקוד הועתק!', 'success');
-    });
-}
-
-async function leaveFamily() {
-    if (!confirm('בטוח שאתה רוצה לעזוב את המשפחה? תאבד גישה לכל הנתונים המשותפים.')) return;
-    const r = await fetch('/api/family/leave', { method: 'POST' });
-    if (r.ok) { window.location.href = '/settings'; }
-    else { alert('שגיאה'); }
-}
-
-// Delete-family (delegated — no inline onclick). The button only renders for a
-// creator who is the sole member; the server enforces both conditions again.
-document.addEventListener('click', e => {
-    const b = e.target.closest('button[data-delete-family]');
-    if (!b) return;
-    deleteFamily();
-});
-
-async function deleteFamily() {
-    if (!confirm('בטוח שאתה רוצה למחוק את המשפחה? כל הנתונים — תשלומים, קטגוריות, רשימת קניות, האכלות, ארכיון והגדרות — יימחקו לצמיתות ולא ניתן לשחזר אותם.')) return;
-    const r = await fetch('/api/family/delete', { method: 'POST' });
-    if (r.ok) { window.location.href = '/family'; }
-    else { alert('שגיאה במחיקת המשפחה'); }
-}
-
-// ══════ Family Settings (Notifications + Budget) ══════
-
-function markSettingsChanged() {
-    _settingsChanged = true;
-    const btn = document.getElementById('saveSettingsBtn');
-    btn.textContent = '💾 שמור הגדרות';
-    btn.classList.remove('saved');
-}
-
-function updateFeedingStatus() {
-    const val = document.getElementById('feedingReminder').value;
-    const el = document.getElementById('feedingStatus');
-    if (val === '0') {
-        el.textContent = 'כבוי — לא תקבלו תזכורות';
-        el.className = 'setting-status off';
-    } else {
-        el.textContent = `פעיל — תזכורת כל ${val} שעות`;
-        el.className = 'setting-status active';
-    }
-}
-
-function updateCycleRange() {
-    const cycleDayEl = document.getElementById('cycleDay');
-    if (!cycleDayEl || cycleDayEl.tagName !== 'SELECT') return;
-    const day = parseInt(cycleDayEl.value) || 1;
-    const el = document.getElementById('cycleDateRange');
-    if (day === 1) {
-        el.style.display = 'none';
-        return;
-    }
-    const now = new Date();
-    let startMonth, startYear, endMonth, endYear;
-    if (now.getDate() >= day) {
-        startMonth = now.getMonth();
-        startYear = now.getFullYear();
-    } else {
-        startMonth = now.getMonth() - 1;
-        startYear = now.getFullYear();
-        if (startMonth < 0) { startMonth = 11; startYear--; }
-    }
-    endMonth = startMonth + 1;
-    endYear = startYear;
-    if (endMonth > 11) { endMonth = 0; endYear++; }
-
-    const heMonths = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני',
-                      'יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-    const endDay = day - 1 || 28;
-    el.textContent = `📅 מחזור נוכחי: ${heMonths[startMonth]} ${startYear} (${day}.${startMonth+1}–${endDay}.${endMonth+1})`;
-    el.style.display = 'block';
-}
-
-async function loadSettings() {
-    try {
-        const r = await fetch('/api/family/settings');
-        if (!r.ok) return;
-        const data = await r.json();
-
-        document.getElementById('feedingReminder').value = data.feeding_reminder_hours || '0';
-        document.getElementById('budgetMonthly').value = data.budget_monthly || '';
-        document.getElementById('budgetDaily').value = data.budget_daily || '';
-        const cycleDayEl = document.getElementById('cycleDay');
-        if (cycleDayEl && cycleDayEl.tagName === 'SELECT') {
-            cycleDayEl.value = data.cycle_day || '1';
-            _originalCycleDay = parseInt(data.cycle_day) || 1;
-            updateCycleRange();
-        }
-        updateFeedingStatus();
-    } catch(e) {
-        console.error('Load settings error:', e);
-    }
-}
-
-async function saveSettings() {
-    const data = {
-        feeding_reminder_hours: parseFloat(document.getElementById('feedingReminder').value) || 0,
-        budget_monthly: parseInt(document.getElementById('budgetMonthly').value) || 0,
-        budget_daily: parseInt(document.getElementById('budgetDaily').value) || 0
-    };
-    const cycleDayEl = document.getElementById('cycleDay');
-    if (cycleDayEl && cycleDayEl.tagName === 'SELECT') {
-        const newCycleDay = parseInt(cycleDayEl.value) || 1;
-        data.cycle_day = newCycleDay;
-
-        // Confirmation if cycle_day changed
-        if (newCycleDay !== _originalCycleDay) {
-            let msg = '';
-            if (newCycleDay === 1) {
-                msg = 'יום האיפוס ישתנה ל-1 לחודש (חודש קלנדרי רגיל).\n\n' +
-                      'המחזור הנוכחי ימשיך כרגיל עד ה-1 לחודש הבא.';
-            } else {
-                const endDay = newCycleDay - 1;
-                msg = 'יום האיפוס ישתנה ל-' + newCycleDay + ' לחודש.\n\n' +
-                      '• המחזור הנוכחי ימשיך כרגיל\n' +
-                      '• מחזור חדש יתחיל ב-' + newCycleDay + ' הקרוב\n' +
-                      '• כל מחזור ייספר מה-' + newCycleDay + ' עד ה-' + endDay + ' לחודש הבא\n\n' +
-                      'ייתכן מחזור מעבר קצר או ארוך מהרגיל.';
-            }
-            if (!confirm(msg + '\n\nלהמשיך?')) return;
-        }
-    }
-
-    try {
-        const r = await fetch('/api/family/settings', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(data)
-        });
-
-        if (r.ok) {
-            const btn = document.getElementById('saveSettingsBtn');
-            btn.textContent = '✅ נשמר!';
-            btn.classList.add('saved');
-            _settingsChanged = false;
-            if (data.cycle_day) _originalCycleDay = data.cycle_day;
-            updateFeedingStatus();
-            if (typeof showToast === 'function') showToast('הגדרות נשמרו!', 'success');
-            setTimeout(() => {
-                btn.textContent = '💾 שמור הגדרות';
-                btn.classList.remove('saved');
-            }, 3000);
-        } else {
-            if (typeof showToast === 'function') showToast('שגיאה בשמירת הגדרות', 'error');
-        }
-    } catch(e) {
-        console.error('Save settings error:', e);
-        if (typeof showToast === 'function') showToast('שגיאה בשמירת הגדרות', 'error');
-    }
-}
-
-// Add change listener for feeding reminder select
-document.getElementById('feedingReminder').addEventListener('change', updateFeedingStatus);
-
-// Load settings on page load
-loadSettings();
+  /* ── load ── */
+  Pop.api('GET', '/api/family/settings').then(function (r) {
+    if (!r.ok || !r.data) return;
+    settings = r.data; origCycle = parseInt(settings.cycle_day, 10) || 1; reminderH = parseFloat(settings.feeding_reminder_hours) || 0;
+    $('budgetMonthly').value = settings.budget_monthly || ''; $('budgetDaily').value = settings.budget_daily || '';
+    if (IS_ADMIN) $('cycleDay').value = String(origCycle); else $('cycleDayRO').textContent = origCycle === 1 ? '1 (חודש קלנדרי)' : String(origCycle);
+    showCycle(origCycle); reminderUI(); sumFinance();
+  });
+  loadCats();
+})();
 </script>
 {% endblock %}

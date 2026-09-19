@@ -1,68 +1,72 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>OurHome IL</title>
 <style>
+/* Local fallback page bundled in the Android app (Capacitor webDir). Self-contained: no network needed. Concept A "Pop" tokens. */
+:root{--ink:#1E1633;--ink-2:#4A4260;--cream:#FFF6E9;--sun:#FFC531;--coral:#FF5C6C;--mint:#2FD59A;--sky:#3E9BFF;--grape:#8F6BFF;--spring:cubic-bezier(.34,1.56,.64,1)}
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,sans-serif;background:linear-gradient(135deg,#2563eb,#3b82f6);min-height:100vh;display:flex;align-items:center;justify-content:center;color:white}
-.wrap{text-align:center;padding:24px}
-.spinner{width:50px;height:50px;border:4px solid rgba(255,255,255,0.3);border-top-color:white;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px}
-@keyframes spin{to{transform:rotate(360deg)}}
-h2{font-size:1.4rem;font-weight:700;margin-bottom:8px}
-#status{font-size:0.9rem;opacity:0.75;margin-bottom:20px}
-#retryBtn{
-  display:none;
-  background:rgba(255,255,255,0.2);
-  border:2px solid rgba(255,255,255,0.6);
-  color:white;font-size:0.95rem;font-weight:600;
-  padding:10px 28px;border-radius:25px;cursor:pointer;
-  margin-top:8px;
-}
-#retryBtn:active{background:rgba(255,255,255,0.35)}
+body{font-family:'Rubik','Varela Round',system-ui,-apple-system,'Segoe UI',Arial,sans-serif;background:var(--cream);color:var(--ink);min-height:100vh;display:flex;align-items:center;justify-content:center;padding:calc(24px + env(safe-area-inset-top)) 20px calc(24px + env(safe-area-inset-bottom))}
+.card{width:100%;max-width:400px;background:#fff;border:3px solid var(--ink);border-radius:28px;box-shadow:5px 5px 0 var(--ink);padding:28px 22px;text-align:center;animation:pop .55s var(--spring) both}
+@keyframes pop{from{opacity:0;transform:translateY(16px) scale(.96)}to{opacity:1;transform:none}}
+.logo{width:84px;height:84px;margin:0 auto 14px;border-radius:24px;border:3px solid var(--ink);background:var(--sun);display:grid;place-items:center;font-size:44px;box-shadow:3px 3px 0 var(--ink);transform:rotate(-4deg)}
+h1{font-size:30px;font-weight:900;letter-spacing:-.02em}
+.sub{font-size:16px;color:var(--ink-2);margin-top:4px}
+.dots{display:flex;justify-content:center;gap:10px;margin:26px 0 12px}
+.dots i{width:18px;height:18px;border-radius:50%;border:3px solid var(--ink);animation:hop 1s var(--spring) infinite}
+.dots i:nth-child(1){background:var(--coral)} .dots i:nth-child(2){background:var(--sun);animation-delay:.15s} .dots i:nth-child(3){background:var(--mint);animation-delay:.3s}
+@keyframes hop{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-12px)}}
+#status{font-size:17px;font-weight:700;line-height:1.45;min-height:50px}
+#retryBtn{display:none;width:100%;min-height:56px;margin-top:16px;border:3px solid var(--ink);border-radius:999px;background:var(--coral);color:var(--ink);font-weight:800;font-size:18px;font-family:inherit;box-shadow:3px 3px 0 var(--ink);cursor:pointer}
+#retryBtn:active{transform:translate(3px,3px);box-shadow:none}
+.err .dots{display:none}
+.err #status{margin-top:20px}
+.err .logo{background:#fff}
+@media (prefers-reduced-motion:reduce){.card,.dots i{animation:none}}
 </style>
 </head>
 <body>
-<div class="wrap">
-  <div class="spinner" id="spinner"></div>
-  <h2>OurHome IL</h2>
-  <p id="status">מתחבר...</p>
-  <button id="retryBtn" onclick="retry()">נסה שוב</button>
-</div>
+<main class="card" id="card">
+  <div class="logo" aria-hidden="true">🏠</div>
+  <h1>OurHome IL</h1>
+  <p class="sub">ניהול הבית של המשפחה</p>
+  <div class="dots" aria-hidden="true"><i></i><i></i><i></i></div>
+  <p id="status" role="status" aria-live="polite">מתחברים…</p>
+  <button type="button" id="retryBtn">🔄 לנסות שוב</button>
+</main>
 <script>
-  var attempts = 0;
-  var timer;
+  // Keep in sync with "server.url" in capacitor.config.json.
+  var SERVER = 'https://new.matanshimonwebapp.online';
+  var attempts = 0, timer;
+  var $ = function (id) { return document.getElementById(id); };
 
   function showError() {
-    document.getElementById('spinner').style.display = 'none';
-    document.getElementById('status').textContent = 'לא ניתן להתחבר לשרת. בדוק חיבור אינטרנט.';
-    document.getElementById('retryBtn').style.display = 'inline-block';
+    $('card').className = 'card err';
+    $('status').textContent = navigator.onLine === false ? 'אין חיבור לאינטרנט. בדקו WiFi או דאטה ונסו שוב.' : 'השרת לא ענה. נסו שוב בעוד רגע.';
+    $('retryBtn').style.display = 'block';
   }
-
   function retry() {
+    // Actually reconnect: load the live app again (the old button only restarted a timer).
     attempts = 0;
-    document.getElementById('spinner').style.display = 'block';
-    document.getElementById('status').textContent = 'מתחבר...';
-    document.getElementById('retryBtn').style.display = 'none';
+    $('card').className = 'card';
+    $('status').textContent = 'מתחברים מחדש…';
+    $('retryBtn').style.display = 'none';
+    location.href = SERVER + '/home';
     startCheck();
   }
-
   function startCheck() {
     clearTimeout(timer);
-    timer = setTimeout(function() {
+    timer = setTimeout(function () {
       attempts++;
-      if (attempts >= 3) {
-        showError();
-      } else {
-        document.getElementById('status').textContent = 'מנסה שוב... (' + attempts + '/3)';
-        startCheck();
-      }
+      if (attempts >= 3) showError();
+      else { $('status').textContent = 'עוד רגע… (ניסיון ' + (attempts + 1) + ' מתוך 3)'; startCheck(); }
     }, 5000);
   }
-
-  // אם Capacitor מצליח לטעון את השרת – הדף הזה מוחלף אוטומטית
-  // אם לא – נציג שגיאה אחרי 15 שניות (3 ניסיונות)
+  $('retryBtn').addEventListener('click', retry);
+  window.addEventListener('online', function () { if ($('retryBtn').style.display === 'block') retry(); });
+  // If Capacitor loads the server, this page is replaced; otherwise show a clear error after ~15 s.
   startCheck();
 </script>
 </body>

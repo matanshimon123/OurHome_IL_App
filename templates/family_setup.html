@@ -1,88 +1,111 @@
 {% extends "base.html" %}
 {% block title %}הגדרת משפחה - OurHome IL{% endblock %}
 {% block content %}
-<style>
-    .family-setup { max-width: 500px; margin: 5% auto; direction: rtl; }
-    .fs-card { background: white; border-radius: 20px; padding: 30px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
-    .fs-card h2 { font-size: 1.3rem; font-weight: 700; color: #1e3a5f; margin-bottom: 8px; }
-    .fs-card p { color: #888; font-size: 0.85rem; margin-bottom: 20px; }
-    .fs-card .icon { font-size: 3rem; margin-bottom: 10px; }
-    .fs-card input { width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; margin-bottom: 12px; box-sizing: border-box; text-align: center; }
-    .fs-card input:focus { outline: none; border-color: #2563eb; }
-    .fs-btn { width: 100%; padding: 12px; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; margin-bottom: 8px; }
-    .fs-btn.primary { background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; }
-    .fs-btn.secondary { background: linear-gradient(135deg, #10b981, #059669); color: white; }
-    .fs-or { text-align: center; color: #aaa; font-size: 0.85rem; margin: 15px 0; }
-
-    /* Family info card */
-    .fi-card { background: white; border-radius: 20px; padding: 25px; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
-    .fi-card h2 { font-size: 1.2rem; font-weight: 700; color: #1e3a5f; margin-bottom: 15px; text-align: center; }
-    .fi-code { background: #f0f4ff; border-radius: 12px; padding: 15px; text-align: center; margin-bottom: 15px; }
-    .fi-code .code { font-size: 2rem; font-weight: 800; letter-spacing: 4px; color: #2563eb; }
-    .fi-code .label { font-size: 0.8rem; color: #888; margin-top: 5px; }
-    .fi-members { margin-bottom: 15px; }
-    .fi-member { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f0f0f0; }
-    .fi-member:last-child { border-bottom: none; }
-    .fi-avatar { width: 36px; height: 36px; border-radius: 50%; background: #2563eb; color: white; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; }
-    .fi-name { flex: 1; font-weight: 600; color: #333; }
-    .fi-role { font-size: 0.75rem; color: #888; background: #f0f4ff; padding: 2px 8px; border-radius: 10px; }
-    .fi-continue { width: 100%; padding: 12px; background: linear-gradient(135deg, #1e3a5f, #2563eb); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; text-decoration: none; display: block; text-align: center; }
-</style>
-
-<div class="family-setup">
-    {% if not family %}
-    <!-- No family yet - choose to create or join -->
-    <div class="fs-card">
-        <div class="icon">🏠</div>
-        <h2>ברוך הבא, {{ session.display_name }}!</h2>
-        <p>צור משפחה חדשה או הצטרף למשפחה קיימת</p>
+{% if not family %}
+<header class="hero hero-sun pop">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="row between">
+    <div class="grow">
+      <div class="eyebrow">עוד צעד אחד</div>
+      <h1 style="margin-top:6px">ברוכים הבאים, <em>{{ session.display_name.split()[0] if session.display_name else '' }}</em></h1>
+      <p class="sub">כדי להתחיל צריך להיות חלק ממשפחה: מצטרפים עם קוד, או פותחים משפחה חדשה.</p>
     </div>
+    <svg class="hero-ill float wiggle" viewBox="0 0 100 100" aria-hidden="true">
+      <path d="M18 50 L50 22 L82 50 V82 H18 Z" fill="#fff" stroke="#1E1633" stroke-width="3" stroke-linejoin="round"/>
+      <rect x="42" y="60" width="16" height="22" rx="3" fill="#FF9E64" stroke="#1E1633" stroke-width="3"/>
+      <path d="M50 44 c-6 -8 -16 0 0 10 c16 -10 6 -18 0 -10z" fill="#FF5C6C" stroke="#1E1633" stroke-width="2.5"/>
+    </svg>
+  </div>
+</header>
 
-    <div class="fs-card">
-        <h2>צור משפחה חדשה</h2>
-        <p>אתה תהיה מנהל המשפחה ותקבל קוד הזמנה לשיתוף</p>
-        <form method="POST" action="{{ url_for('create_family') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="text" name="family_name" placeholder="שם המשפחה (למשל: משפחת כהן)" required dir="rtl">
-            <button type="submit" class="fs-btn primary">צור משפחה</button>
-        </form>
+<main class="content">
+  <section class="sticker pad pop d1 mt-3">
+    <div class="card-head"><h3>🔑 יש לכם קוד הזמנה?</h3></div>
+    <form method="POST" action="{{ url_for('join_family') }}" id="joinForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label class="label" for="invite_code">קוד הזמנה (6 תווים)</label>
+        <input class="input code" type="text" id="invite_code" name="invite_code" placeholder="ABC123" maxlength="8" autocomplete="off" autocapitalize="characters" required>
+        <div class="hint">מקבלים אותו מבן משפחה שכבר באפליקציה (בהגדרות ← המשפחה)</div>
+      </div>
+      <button type="submit" class="btn coral block mt-2">הצטרפות למשפחה</button>
+    </form>
+  </section>
+
+  <div class="row mt-3 mb-2" aria-hidden="true" style="gap:12px"><span class="grow" style="height:3px;background:var(--ink);opacity:.15;border-radius:3px"></span><b class="display" style="font-size:16px">או</b><span class="grow" style="height:3px;background:var(--ink);opacity:.15;border-radius:3px"></span></div>
+
+  <section class="sticker soft-mint pad pop d2">
+    <div class="card-head"><h3>🏠 פתיחת משפחה חדשה</h3></div>
+    <p class="muted mb-2">אתם תהיו מנהלי המשפחה ותקבלו קוד לשתף עם כולם.</p>
+    <form method="POST" action="{{ url_for('create_family') }}" id="createForm">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field">
+        <label class="label" for="family_name">שם המשפחה</label>
+        <input class="input" type="text" id="family_name" name="family_name" placeholder="למשל: משפחת כהן" required>
+      </div>
+      <button type="submit" class="btn mint block mt-2">פתיחת המשפחה</button>
+    </form>
+  </section>
+
+  <div class="center mt-3"><a href="{{ url_for('logout') }}" class="btn ghost">🚪 התנתקות</a></div>
+</main>
+
+{% else %}
+<header class="hero hero-mint pop">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="eyebrow">המשפחה שלכם</div>
+  <h1 style="margin-top:6px">🏠 {{ family.name }}</h1>
+  <div class="row mt-2">
+    <div class="avatar-stack">
+      {% for m in members[:5] %}<span class="avatar sm {{ ['sun','coral','sky','grape','peach'][loop.index0 % 5] }}">{{ (m.display_name or m.username)[0] }}</span>{% endfor %}
     </div>
+    <span style="font:800 15px var(--font-display)">{{ members|length }} {% if members|length == 1 %}חבר{% else %}חברים{% endif %} במשפחה</span>
+  </div>
+</header>
 
-    <div class="fs-or">— או —</div>
-
-    <div class="fs-card">
-        <h2>הצטרף למשפחה קיימת</h2>
-        <p>קיבלת קוד הזמנה? הכנס אותו כאן</p>
-        <form method="POST" action="{{ url_for('join_family') }}">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-            <input type="text" name="invite_code" placeholder="קוד הזמנה" required style="letter-spacing:3px; font-size:1.2rem; font-weight:700;">
-            <button type="submit" class="fs-btn secondary">הצטרף</button>
-        </form>
+<main class="content">
+  <section class="sticker pad pop d1 mt-3">
+    <div class="ticket">
+      <div class="eyebrow">קוד ההזמנה של המשפחה</div>
+      <div class="code" id="inviteCode">{{ family.invite_code }}</div>
+      <div class="small muted">מי שמקליד אותו מצטרף מיד</div>
     </div>
-
-    {% else %}
-    <!-- Already in a family - show info -->
-    <div class="fi-card">
-        <h2>🏠 {{ family.name }}</h2>
-
-        <div class="fi-code">
-            <div class="code">{{ family.invite_code }}</div>
-            <div class="label">קוד הזמנה — שתף עם בן/בת הזוג</div>
-        </div>
-
-        <h3 style="font-size:0.95rem; font-weight:700; color:#333; margin-bottom:10px;">👥 חברי המשפחה:</h3>
-        <div class="fi-members">
-            {% for member in members %}
-            <div class="fi-member">
-                <div class="fi-avatar">{{ member.display_name[0] }}</div>
-                <div class="fi-name">{{ member.display_name }}</div>
-                <span class="fi-role">{{ 'מנהל' if member.id == family.created_by else 'חבר' }}</span>
-            </div>
-            {% endfor %}
-        </div>
-
-        <a href="{{ url_for('home') }}" class="fi-continue">המשך לאפליקציה →</a>
+    <div class="btn-row mt-3">
+      <button type="button" class="btn sky" id="shareBtn">📤 שליחה</button>
+      <button type="button" class="btn white" id="copyBtn">📋 העתקה</button>
     </div>
+  </section>
+
+  <div class="section-title pop d2"><span>👥 מי במשפחה</span></div>
+  <div class="list pop d2">
+    {% for member in members %}
+    <div class="sticker item">
+      <span class="avatar {{ ['sun','coral','sky','grape','peach'][loop.index0 % 5] }}">{{ (member.display_name or member.username)[0] }}</span>
+      <div class="grow"><div class="t">{{ member.display_name or member.username }}</div><div class="s ltr" style="justify-content:flex-end">@{{ member.username }}</div></div>
+      <span class="chip {% if member.id == family.created_by %}sun{% endif %}">{{ 'מנהל/ת' if member.id == family.created_by else 'חבר/ה' }}</span>
+    </div>
+    {% endfor %}
+  </div>
+
+  <a href="{{ url_for('home') }}" class="btn coral block lg mt-4 pop d3">המשך לאפליקציה 🚀</a>
+</main>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+(function () {
+  var codeEl = document.getElementById('inviteCode');
+  if (codeEl) {
+    var code = codeEl.textContent.trim();
+    document.getElementById('copyBtn').addEventListener('click', function () { Pop.copyText(code).then(function () { Pop.toast('הקוד ' + code + ' הועתק', 'success'); }); });
+    document.getElementById('shareBtn').addEventListener('click', function () { Pop.share('OurHome IL', 'הצטרפו למשפחה שלנו ב-OurHome IL!\nקוד הזמנה: ' + code); });
+    {% if get_flashed_messages(category_filter=['success']) %}
+    document.addEventListener('DOMContentLoaded', function () { setTimeout(function () { Pop.confetti(innerWidth / 2, 180, 70); }, 350); });
     {% endif %}
-</div>
+  }
+  var join = document.getElementById('invite_code');
+  if (join) join.addEventListener('input', function () { this.value = this.value.toUpperCase().replace(/\s/g, ''); });
+})();
+</script>
 {% endblock %}

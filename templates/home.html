@@ -1,385 +1,370 @@
 {% extends "base.html" %}
 {% block title %}OurHome IL{% endblock %}
-{% block content %}
+{% block head %}
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap');
-* { font-family: 'Heebo', sans-serif; box-sizing: border-box; }
-
-.hw {
-    max-width: 600px;
-    margin: 0 auto;
-    direction: rtl;
-    padding: 0 14px 24px;
-    overflow-x: hidden;
-}
-
-/* ── HERO ── */
-.hero {
-    background: linear-gradient(150deg, #0d1b2e 0%, #1a3050 60%, #1e3a6e 100%);
-    border-radius: 0 0 28px 28px;
-    padding: 20px 20px 26px;
-    margin: -48px -14px 20px;
-    padding-top: 52px;
-    position: relative;
-    overflow: hidden;
-}
-.hero::before {
-    content: '';
-    position: absolute; top: -50px; left: -50px;
-    width: 180px; height: 180px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(37,99,235,0.22) 0%, transparent 70%);
-    pointer-events: none;
-}
-.hero::after {
-    content: '';
-    position: absolute; bottom: -40px; right: -30px;
-    width: 150px; height: 150px; border-radius: 50%;
-    background: radial-gradient(circle, rgba(232,62,140,0.12) 0%, transparent 70%);
-    pointer-events: none;
-}
-.hero-inner {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    position: relative; z-index: 1;
-}
-.hero-text { color: white; }
-.hero-date { font-size: 0.72rem; color: rgba(255,255,255,0.38); font-weight: 300; margin-bottom: 5px; }
-.hero-name { font-size: 1.5rem; font-weight: 900; letter-spacing: -0.4px; line-height: 1.15; }
-.hero-name em { color: #60a5fa; font-style: normal; }
-.hero-tagline { font-size: 0.78rem; color: rgba(255,255,255,0.35); font-weight: 300; margin-top: 3px; }
-.hero-avatar {
-    width: 52px; height: 52px; border-radius: 50%;
-    background: linear-gradient(135deg, #2563eb, #7c3aed);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.35rem; font-weight: 900; color: white;
-    box-shadow: 0 0 0 3px rgba(96,165,250,0.25); flex-shrink: 0;
-}
-
-/* ── SECTION LABEL ── */
-.sec-label {
-    font-size: 0.7rem; font-weight: 700; color: #94a3b8;
-    letter-spacing: 0.09em; text-transform: uppercase; margin: 0 0 10px 2px;
-}
-
-/* ── FINANCE CARD ── */
-.fin-card {
-    background: white; border-radius: 22px;
-    padding: 20px 20px 16px;
-    box-shadow: 0 4px 24px rgba(37,99,235,0.1);
-    border: 1.5px solid #dbeafe;
-    margin-bottom: 14px;
-    text-decoration: none; color: inherit; display: block;
-    transition: transform 0.16s;
-}
-.fin-card:active { transform: scale(0.985); color: inherit; }
-.fin-card:hover { color: inherit; }
-.fin-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
-.fin-header-title { display: flex; align-items: center; gap: 7px; font-size: 0.82rem; font-weight: 700; color: #64748b; }
-.fin-dot { width: 8px; height: 8px; border-radius: 50%; background: linear-gradient(135deg,#2563eb,#3b82f6); flex-shrink: 0; }
-.fin-header-arrow { font-size: 0.65rem; color: #cbd5e1; }
-.fin-amount-row { margin-bottom: 16px; }
-.fin-amount { font-size: 2.8rem; font-weight: 900; color: #0f172a; letter-spacing: -2px; line-height: 1; display: flex; align-items: baseline; gap: 3px; }
-.fin-amount .sym { font-size: 1.4rem; font-weight: 600; color: #94a3b8; letter-spacing: 0; }
-.fin-chips { display: flex; gap: 10px; margin-bottom: 16px; }
-.fin-chip { flex: 1; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 14px; padding: 10px 12px; text-align: center; }
-.fin-chip .cv { font-size: 1.25rem; font-weight: 900; color: #1e293b; display: block; line-height: 1; }
-.fin-chip .cl { font-size: 0.68rem; color: #94a3b8; display: block; margin-top: 4px; }
-.fin-chip.blue { background: #eff6ff; border-color: #bfdbfe; }
-.fin-chip.blue .cv { color: #2563eb; }
-.fin-last {
-    padding-top: 12px; border-top: 1px solid #f1f5f9;
-    font-size: 0.78rem; color: #94a3b8;
-    display: flex; align-items: center; gap: 6px; overflow: hidden;
-}
-.fin-last i { font-size: 0.62rem; color: #93c5fd; flex-shrink: 0; }
-.fin-last span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-
-/* ── FULL-WIDTH MINI CARDS ── */
-.mini-card {
-    background: white; border-radius: 20px;
-    padding: 18px 18px 16px;
-    box-shadow: 0 2px 16px rgba(0,0,0,0.06);
-    text-decoration: none; color: inherit; display: block;
-    transition: transform 0.16s; margin-bottom: 14px;
-}
-.mini-card:active { transform: scale(0.985); color: inherit; }
-.mini-card:hover { color: inherit; }
-.shop-card { border: 1.5px solid #fed7aa; background: linear-gradient(150deg, #fff7ed 0%, #fff 60%); }
-.baby-card { border: 1.5px solid #fbcfe8; background: linear-gradient(150deg, #fdf4ff 0%, #fff 60%); }
-
-.mc-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.mc-title { font-size: 0.95rem; font-weight: 800; color: #1e293b; }
-.mc-arrow { font-size: 0.65rem; color: #d1d5db; }
-
-/* ── SHOPPING CARD — horizontal ── */
-.shop-body { display: flex; align-items: center; gap: 20px; }
-.ring-container { position: relative; width: 90px; height: 90px; flex-shrink: 0; }
-.ring-svg { width: 90px; height: 90px; transform: rotate(-90deg); }
-.ring-track { fill: none; stroke: #f3f4f6; stroke-width: 8; }
-.ring-fill {
-    fill: none; stroke: #f97316; stroke-width: 8; stroke-linecap: round;
-    stroke-dasharray: 219.9;
-    stroke-dashoffset: 219.9;
-    transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);
-}
-.ring-center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
-.ring-pct { font-size: 1.3rem; font-weight: 900; color: #f97316; line-height: 1; }
-.ring-sub { font-size: 0.6rem; color: #9ca3af; margin-top: 2px; }
-
-.shop-nums { flex: 1; }
-.shop-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-bottom: 1px solid #f9f0e8; }
-.shop-row:last-child { border-bottom: none; }
-.shop-row-lbl { font-size: 0.82rem; color: #9ca3af; }
-.shop-row-val { font-size: 1.1rem; font-weight: 900; color: #374151; }
-.shop-row-val.orange { color: #f97316; }
-.shop-row-val.green { color: #10b981; }
-
-/* ── BABY CARD ── */
-.baby-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
-.bstat {
-    background: rgba(255,255,255,0.85); border-radius: 14px;
-    padding: 12px 14px; border: 1px solid rgba(251,207,232,0.5);
-    display: flex; align-items: center; gap: 10px;
-}
-.bstat-icon { font-size: 1.3rem; flex-shrink: 0; }
-.bstat-info {}
-.bstat-val { font-size: 1.4rem; font-weight: 900; color: #1e293b; line-height: 1; }
-.bstat-lbl { font-size: 0.68rem; color: #9ca3af; margin-top: 2px; }
-.bstat.hi .bstat-val { color: #e83e8c; }
-.bstat.green .bstat-val { color: #10b981; }
-
-.baby-last-strip {
-    display: flex; align-items: center; justify-content: space-between;
-    background: rgba(255,255,255,0.9); border: 1px solid rgba(251,207,232,0.6);
-    border-radius: 14px; padding: 10px 14px; margin-top: 10px;
-}
-.bls-label { font-size: 0.75rem; color: #9ca3af; }
-.bls-val { font-size: 1.05rem; font-weight: 900; color: #e83e8c; }
-
-.baby-alert-strip {
-    background: #fef2f2; border: 1px solid #fecaca;
-    border-radius: 12px; padding: 8px 12px; margin-top: 8px;
-    font-size: 0.78rem; color: #ef4444; font-weight: 700;
-    display: none; align-items: center; gap: 6px;
-}
-
-/* ── ANIMATIONS ── */
-.fu { opacity: 0; transform: translateY(14px); animation: fu 0.42s ease forwards; }
-@keyframes fu { to { opacity:1; transform:translateY(0); } }
-.d1 { animation-delay: 0.04s; }
-.d2 { animation-delay: 0.11s; }
-.d3 { animation-delay: 0.18s; }
-.d4 { animation-delay: 0.25s; }
+/* ── Home (from concept-a/home.html, wired to /api/home-summary) ── */
+.hello{font:900 30px/1.1 var(--font-display);letter-spacing:-.02em}
+.pulse-row{display:flex;gap:8px;margin-top:16px;overflow-x:auto;scrollbar-width:none;padding:2px 4px 6px;margin-inline:-4px}
+.pulse-row::-webkit-scrollbar{display:none}
+.pulse{flex:none;display:flex;align-items:center;gap:8px;background:#fff;border:2.5px solid var(--ink);border-radius:16px;padding:8px 12px;box-shadow:3px 3px 0 var(--ink);min-height:52px}
+.pulse>span{font-size:20px}
+.pulse b{font:900 17px var(--font-display);display:block;line-height:1.1}
+.pulse small{font-size:13px;color:var(--ink-2);display:block;line-height:1.15}
+.smart{padding:14px 16px}
+.smart h3{font-size:17px;line-height:1.4;margin:6px 0 10px}
+.smart h3 b{color:var(--sun)}
+.spark{width:110px;height:50px;flex:none}
+.fin{padding:16px}
+.big{font:900 46px/1 var(--font-display);letter-spacing:-.03em;display:flex;align-items:baseline;gap:4px;margin-top:6px}
+.big .sym{font-size:24px;color:var(--ink-2);font-weight:700}
+.jar-row{display:flex;align-items:center;gap:14px;margin-top:10px}
+.jar{width:96px;flex:none}
+.jar svg{width:96px;height:112px}
+.jar .wave{animation:wave 2.4s linear infinite}
+.jar .wave.w2{animation-duration:3.1s;opacity:.55}
+@keyframes wave{to{transform:translateX(-50px)}}
+.jar-lift{transition:transform 1.4s var(--ease)}
+.jar small{display:block;text-align:center;font:800 13px var(--font-display);color:var(--ink-2);margin-top:2px}
+.coins{display:flex;justify-content:space-between;align-items:flex-end;margin-top:14px;padding-top:12px;border-top:2.5px solid var(--ink);direction:rtl}
+.coin{display:flex;flex-direction:column;align-items:center;gap:6px;width:44px}
+.coin i{display:block;border-radius:50%;border:2.5px solid var(--ink);background:var(--sun);width:var(--s);height:var(--s);transform:scale(0);animation:coinIn .6s var(--spring) forwards;box-shadow:2px 2px 0 var(--ink);position:relative}
+.coin i.zero{background:#fff;border-style:dashed;box-shadow:none}
+.coin i.hot{background:var(--coral)}
+.coin i.future{background:var(--cream-2);border-style:dotted;box-shadow:none}
+.coin i.today::after{content:'';position:absolute;inset:-7px;border-radius:50%;border:2.5px dashed var(--coral-ink);animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@keyframes coinIn{to{transform:scale(1)}}
+.coin small{font:800 13px var(--font-display);color:var(--ink-2)}
+.coin small.today{color:var(--coral-ink)}
+.coin em{font:800 13px var(--font-display);font-style:normal;color:var(--ink);min-height:16px;white-space:nowrap}
+.mod{padding:14px 16px 16px}
+.shop-body{display:flex;gap:14px;align-items:center}
+.baby-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.bstat{background:#fff;border:2.5px solid var(--ink);border-radius:16px;padding:10px 12px;box-shadow:2px 2px 0 var(--ink)}
+.bstat .v{font:900 22px/1 var(--font-display)} .bstat .l{font-size:13px;color:var(--ink-2);margin-top:5px}
+.bstat.timer .v{font-variant-numeric:tabular-nums;color:var(--grape-ink)}
+.band{position:relative;height:18px;border:2.5px solid var(--ink);border-radius:99px;overflow:hidden;margin-top:12px;direction:ltr;background:#fff}
+.band i{position:absolute;top:0;bottom:0}
+.band .now{width:3px;background:var(--coral-ink)}
+.band-lbl{display:flex;justify-content:space-between;font:800 13px var(--font-display);color:var(--ink-2);margin-top:4px;direction:ltr}
 </style>
-
-<div class="hw">
-
-    <!-- HERO -->
-    <div class="hero fu d1">
-        <div class="hero-inner">
-            <div class="hero-text">
-                <div class="hero-date" id="dateLine"></div>
-                <div class="hero-name">שלום, <em>{{ session.display_name.split()[0] if session.display_name else 'שלום' }}</em> 👋</div>
-                <div class="hero-tagline">הנה הסיכום שלך להיום</div>
-            </div>
-            <div class="hero-avatar">{{ session.display_name[0].upper() if session.display_name else 'U' }}</div>
+{% endblock %}
+{% block body_class %}has-fab{% endblock %}
+{% block content %}
+<header class="hero hero-sun pop">
+  <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="row between">
+    <div class="grow">
+      <div class="eyebrow" id="dateLine"></div>
+      <h1 class="hello" style="margin-top:6px"><span id="greet">שלום</span>, <em>{{ session.display_name.split()[0] if session.display_name else '' }}</em></h1>
+      <div class="row mt-2">
+        <div class="avatar-stack">
+          {% for m in members[:5] %}<span class="avatar sm {{ ['sun','coral','sky','grape','peach'][loop.index0 % 5] }}" title="{{ m.display_name or m.username }}">{{ (m.display_name or m.username)[0] }}</span>{% endfor %}
         </div>
+        <span style="font:800 14px var(--font-display)">{{ family_name }} · {{ members|length }} {% if members|length == 1 %}חבר{% else %}חברים{% endif %}</span>
+      </div>
     </div>
+    <svg class="hero-ill float wiggle" viewBox="0 0 100 100" aria-hidden="true">
+      <g stroke="#1E1633" stroke-width="3" stroke-linecap="round"><line x1="50" y1="6" x2="50" y2="16"/><line x1="50" y1="84" x2="50" y2="94"/><line x1="6" y1="50" x2="16" y2="50"/><line x1="84" y1="50" x2="94" y2="50"/><line x1="19" y1="19" x2="26" y2="26"/><line x1="74" y1="74" x2="81" y2="81"/><line x1="19" y1="81" x2="26" y2="74"/><line x1="74" y1="26" x2="81" y2="19"/></g>
+      <circle cx="50" cy="50" r="26" fill="#FF9E64" stroke="#1E1633" stroke-width="3"/>
+      <circle cx="41" cy="47" r="2.6" fill="#1E1633"/><circle cx="59" cy="47" r="2.6" fill="#1E1633"/>
+      <path d="M40 57 q10 9 20 0" stroke="#1E1633" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="34" cy="55" r="3.5" fill="#FF5C6C" opacity=".8"/><circle cx="66" cy="55" r="3.5" fill="#FF5C6C" opacity=".8"/>
+    </svg>
+  </div>
+  <div class="pulse-row" id="pulseRow" aria-label="סיכום מהיר">
+    <a class="pulse" href="{{ url_for('dashboard') }}"><span>💸</span><div><b class="num" id="pToday">–</b><small>הוצאות היום</small></div></a>
+    <a class="pulse" href="{{ url_for('shopping_list') }}"><span>🛒</span><div><b class="num" id="pShop">–</b><small>פריטים לקנות</small></div></a>
+    <a class="pulse" href="{{ url_for('baby_tracker') }}"><span>🍼</span><div><b class="num" id="pFeed">–</b><small>מאז האכלה</small></div></a>
+    <a class="pulse" href="{{ url_for('finance_analysis') }}"><span>📅</span><div><b class="num" id="pDays">–</b><small>ימים לסוף המחזור</small></div></a>
+  </div>
+</header>
 
-    <!-- FINANCE -->
-    <div class="sec-label fu d2">הוצאות החודש</div>
-    <a href="{{ url_for('dashboard') }}" class="fin-card fu d2">
-        <div class="fin-header">
-            <div class="fin-header-title">
-                <span class="fin-dot"></span>סה"כ חודש נוכחי
-            </div>
-            <i class="fas fa-chevron-left fin-header-arrow"></i>
-        </div>
-        <div class="fin-amount-row">
-            <div class="fin-amount">
-                <span class="sym">₪</span>
-                <span id="finTotal">---</span>
-            </div>
-        </div>
-        <div class="fin-chips">
-            <div class="fin-chip blue">
-                <span class="cv" id="finCount">-</span>
-                <span class="cl">תשלומים</span>
-            </div>
-            <div class="fin-chip">
-                <span class="cv" id="finDaily">-</span>
-                <span class="cl">ממוצע יומי</span>
-            </div>
-        </div>
-        <div class="fin-last" id="finLast">
-            <i class="fas fa-clock"></i><span>טוען...</span>
-        </div>
-    </a>
+<main class="content">
+  <!-- smart forecast -->
+  <section class="sticker ink smart tilt-l pop d1 mt-3" id="smartCard">
+    <div class="row between" style="align-items:flex-start">
+      <div class="grow">
+        <div class="eyebrow">🔮 תחזית חכמה · <span id="smartCycle"></span></div>
+        <h3 id="smartText">מחשבים…</h3>
+      </div>
+      <svg class="spark ltr" viewBox="0 0 110 50" id="spark" aria-hidden="true"></svg>
+    </div>
+    <div class="chip-row">
+      <button type="button" class="chip-btn" style="background:var(--sun)" id="howBtn">🧮 איך חישבנו?</button>
+      <a class="chip-btn" href="{{ url_for('finance_analysis') }}">📊 לניתוח המחזורים</a>
+    </div>
+  </section>
 
-    <!-- SHOPPING -->
-    <div class="sec-label fu d3">היום</div>
-    <a href="{{ url_for('shopping_list') }}" class="mini-card shop-card fu d3">
-        <div class="mc-head">
-            <span class="mc-title">🛒 רשימת קניות</span>
-            <i class="fas fa-chevron-left mc-arrow"></i>
-        </div>
-        <div class="shop-body">
-            <div class="ring-container">
-                <svg class="ring-svg" viewBox="0 0 90 90">
-                    <circle class="ring-track" cx="45" cy="45" r="35"/>
-                    <circle class="ring-fill" id="shopRing" cx="45" cy="45" r="35"/>
-                </svg>
-                <div class="ring-center">
-                    <div class="ring-pct" id="shopPct">0%</div>
-                    <div class="ring-sub">הושלם</div>
-                </div>
-            </div>
-            <div class="shop-nums">
-                <div class="shop-row">
-                    <span class="shop-row-lbl">נותרו</span>
-                    <span class="shop-row-val orange" id="shopLeft">-</span>
-                </div>
-                <div class="shop-row">
-                    <span class="shop-row-lbl">הושלמו</span>
-                    <span class="shop-row-val green" id="shopDone">-</span>
-                </div>
-                <div class="shop-row">
-                    <span class="shop-row-lbl">סה"כ</span>
-                    <span class="shop-row-val" id="shopTotal">-</span>
-                </div>
-            </div>
-        </div>
-    </a>
+  <!-- finance -->
+  <div class="section-title pop d2"><span>הוצאות המחזור</span><span class="chip cream flat" id="dayChip">–</span></div>
+  <a href="{{ url_for('dashboard') }}" class="sticker fin pressable pop d2" id="finCard">
+    <span class="eyebrow">סה״כ עד היום</span>
+    <div class="big"><span class="sym">₪</span><span id="finTotal" class="num">0</span></div>
+    <div class="mt-2"><span class="chip" id="vsChip">–</span></div>
+    <div class="jar-row">
+      <div class="jar" id="jarBox">
+        <svg class="ltr" viewBox="0 0 100 116" role="img" aria-labelledby="jarLbl">
+          <defs><clipPath id="jarClip"><path d="M16 18 H84 V26 Q84 32 78 34 V92 Q78 106 64 106 H36 Q22 106 22 92 V34 Q16 32 16 26 Z"/></clipPath></defs>
+          <g clip-path="url(#jarClip)">
+            <rect width="100" height="116" fill="#fff"/>
+            <g class="jar-lift" id="jarLift" style="transform:translateY(116px)">
+              <g class="wave w2"><path d="M-100 8 Q-87 0 -75 8 T-50 8 T-25 8 T0 8 T25 8 T50 8 T75 8 T100 8 T125 8 T150 8 T175 8 T200 8 V140 H-100 Z" fill="#8F6BFF"/></g>
+              <g class="wave"><path id="jarLiquid" d="M-100 12 Q-87 4 -75 12 T-50 12 T-25 12 T0 12 T25 12 T50 12 T75 12 T100 12 T125 12 T150 12 T175 12 T200 12 V140 H-100 Z" fill="#3E9BFF"/></g>
+            </g>
+          </g>
+          <path d="M16 18 H84 V26 Q84 32 78 34 V92 Q78 106 64 106 H36 Q22 106 22 92 V34 Q16 32 16 26 Z" fill="none" stroke="#1E1633" stroke-width="3.5" stroke-linejoin="round"/>
+          <rect x="12" y="8" width="76" height="12" rx="6" fill="#FFC531" stroke="#1E1633" stroke-width="3"/>
+          <text x="50" y="76" text-anchor="middle" font-family="Rubik, sans-serif" font-weight="900" font-size="19" fill="#1E1633" id="jarPct">0%</text>
+        </svg>
+        <small id="jarLbl">מהתקציב</small>
+      </div>
+      <div class="grow">
+        <div class="kv" id="kvBudgetRow"><span>תקציב חודשי</span><b class="num" id="kvBudget">–</b></div>
+        <div class="kv"><span id="kvLeftLbl">נשאר להוציא</span><b class="num" id="kvLeft">–</b></div>
+        <div class="kv"><span>משתנות ליום</span><b class="num" id="kvDaily">–</b></div>
+      </div>
+    </div>
+    <div class="coins" id="coins" aria-label="הוצאות לפי יום בשבוע הזה"></div>
+  </a>
 
-    <!-- BABY -->
-    <a href="{{ url_for('baby_tracker') }}" class="mini-card baby-card fu d4">
-        <div class="mc-head">
-            <span class="mc-title">👶 מעקב תינוק</span>
-            <i class="fas fa-chevron-left mc-arrow"></i>
-        </div>
-        <div class="baby-stats">
-            <div class="bstat hi">
-                <div class="bstat-icon">🍼</div>
-                <div class="bstat-info">
-                    <div class="bstat-val" id="babyMl">-</div>
-                    <div class="bstat-lbl">מ"ל בקבוק</div>
-                </div>
-            </div>
-            <div class="bstat">
-                <div class="bstat-icon">🤱</div>
-                <div class="bstat-info">
-                    <div class="bstat-val" id="babyBf">-</div>
-                    <div class="bstat-lbl">הנקות</div>
-                </div>
-            </div>
-            <div class="bstat">
-                <div class="bstat-icon">🚼</div>
-                <div class="bstat-info">
-                    <div class="bstat-val" id="babyDiapers">-</div>
-                    <div class="bstat-lbl">חיתולים</div>
-                </div>
-            </div>
-            <div class="bstat green">
-                <div class="bstat-icon">😴</div>
-                <div class="bstat-info">
-                    <div class="bstat-val" id="babySleep">-</div>
-                    <div class="bstat-lbl">שינה</div>
-                </div>
-            </div>
-        </div>
-        <div class="baby-last-strip">
-            <span class="bls-label">האכלה אחרונה לפני</span>
-            <span class="bls-val" id="babyLast">--</span>
-        </div>
-        <div class="baby-alert-strip" id="babyAlert">
-            <i class="fas fa-bell"></i>
-            <span id="babyAlertText"></span>
-        </div>
-    </a>
+  <!-- home modules -->
+  <div class="section-title pop d3"><span>היום בבית</span><small>גע בפריט כדי לסמן שנקנה</small></div>
+  <section class="sticker soft-peach mod pop d3">
+    <div class="card-head">
+      <h3>🛒 רשימת קניות</h3>
+      <a class="go" href="{{ url_for('shopping_list') }}">לרשימה<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    </div>
+    <div class="shop-body">
+      <div class="ring" role="img" aria-labelledby="shopLbl">
+        <svg viewBox="0 0 84 84"><circle class="tr" cx="42" cy="42" r="32"/><circle class="fl" id="shopRing" cx="42" cy="42" r="32"/><circle class="ol" cx="42" cy="42" r="38.5"/><circle class="ol" cx="42" cy="42" r="25.5"/></svg>
+        <b id="shopLbl">–</b>
+      </div>
+      <div class="pills" id="pills"></div>
+    </div>
+  </section>
 
+  <section class="sticker soft-grape mod pop d4" id="babyCard">
+    <div class="card-head">
+      <h3>👶 התינוק היום</h3>
+      <a class="go" href="{{ url_for('baby_tracker') }}">למעקב<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></a>
+    </div>
+    <div id="babyActive">
+      <div class="baby-grid">
+        <div class="bstat timer"><div class="v num" id="feedTimer">–</div><div class="l">מאז האכלה אחרונה</div></div>
+        <div class="bstat"><div class="v num" id="bNext">–</div><div class="l">האכלה הבאה בערך</div></div>
+        <div class="bstat"><div class="v num" id="bMl">–</div><div class="l">מ״ל בבקבוקים היום</div></div>
+        <div class="bstat"><div class="v num" id="bSleep">–</div><div class="l">שעות שינה היום</div></div>
+      </div>
+      <div class="band" id="band" role="img" aria-label="ציר היום: שינה וארוחות"></div>
+      <div class="band-lbl"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+      <a class="btn grape block mt-3" href="{{ url_for('baby_tracker') }}?add=bottle">🍼 רישום בקבוק</a>
+    </div>
+    <div id="babyIdle" class="hidden">
+      <p class="muted">אין רישומים בשבועיים האחרונים. כשיש תינוק בבית, אפשר לרשום האכלות, חיתולים ושינה בלחיצה.</p>
+      <a class="btn white block mt-2" href="{{ url_for('baby_tracker') }}">👶 להתחלת מעקב</a>
+    </div>
+  </section>
+</main>
+
+<!-- radial quick actions -->
+<div class="fab-scrim"></div>
+<div class="fab-wrap">
+  <button type="button" class="fab" aria-expanded="false" aria-haspopup="true"><span class="plus" aria-hidden="true">+</span><span class="lbl">הוספה</span></button>
+  <button type="button" class="fab-item" style="background:var(--sun)" id="fabExpense"><b>הוצאה</b>💸</button>
+  <button type="button" class="fab-item" style="background:var(--peach)" id="fabItem"><b>לקנות</b>🛒</button>
+  <a class="fab-item" style="background:var(--grape-soft)" href="{{ url_for('baby_tracker') }}?add=bottle"><b>האכלה</b>🍼</a>
 </div>
+
+<!-- quick shopping item -->
+<div class="sheet-ov" id="itemSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="itemTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="itemTitle">🛒 מה צריך לקנות?</h3>
+    <div class="field">
+      <label class="label" for="itemName">שם הפריט</label>
+      <input class="input" type="text" id="itemName" maxlength="80" placeholder="למשל: חלב" autocomplete="off" enterkeyhint="done">
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn peach block lg" id="itemSave">➕ הוספה לרשימה</button>
+      <button type="button" class="text-btn" data-close="itemSheet">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- how the forecast is calculated -->
+<div class="sheet-ov" id="howSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="howTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="howTitle">🧮 איך חישבנו את התחזית</h3>
+    <div class="sticker pad" style="box-shadow:none">
+      <div class="kv"><span>תשלומים קבועים שכבר נרשמו</span><b class="num" id="hFixed">–</b></div>
+      <div class="kv"><span>קבועים שעוד לא נרשמו החודש</span><b class="num" id="hPending">–</b></div>
+      <div class="kv"><span>הוצאות משתנות עד היום</span><b class="num" id="hVar">–</b></div>
+      <div class="kv"><span>קצב משתנות ליום</span><b class="num" id="hPace">–</b></div>
+      <div class="kv"><span>ימים שנשארו</span><b class="num" id="hLeft">–</b></div>
+      <div class="kv"><span><b style="font:inherit;color:var(--ink)">צפי לסוף המחזור</b></span><b class="num" id="hProj">–</b></div>
+    </div>
+    <p class="muted mt-2">הצפי = מה שכבר יצא + קבועים שעוד יגיעו + קצב ההוצאות המשתנות כפול הימים שנשארו.</p>
+    <div class="sheet-actions"><button type="button" class="btn white block" data-close="howSheet">הבנתי</button></div>
+  </div>
+</div>
+
+{% include "_expense_sheet.html" %}
 {% endblock %}
 
 {% block scripts %}
+<script src="{{ url_for('static', filename='js/expense-sheet.js') }}?v=pop1"></script>
 <script>
-    const days   = ['ראשון','שני','שלישי','רביעי','חמישי','שישי','שבת'];
-    const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
-    const n = new Date();
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var esc = Pop.esc, money = Pop.money0;
+  var feedSecs = null, feedAt = 0, lastData = null, firstLoad = true;
+  if (window.history && window.history.replaceState) window.history.replaceState(null, '', window.location.href);
+  $('dateLine').textContent = Pop.longDate(new Date());
 
-    function esc(s){const d=document.createElement('div');d.textContent=s;return d.innerHTML.replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
+  function greet(h) { return h < 5 ? 'לילה טוב' : h < 12 ? 'בוקר טוב' : h < 17 ? 'צהריים טובים' : h < 21 ? 'ערב טוב' : 'לילה טוב'; }
 
-    document.getElementById('dateLine').textContent =
-        `יום ${days[n.getDay()]}, ${n.getDate()} ב${months[n.getMonth()]} ${n.getFullYear()}`;
+  /* ── sparkline: this cycle's running total, dashed projection, budget line ── */
+  function spark(f) {
+    var W = 110, H = 50, X = function (d) { return W - 4 - d * (W - 8) / Math.max(1, f.days_total - 1); };   // right-to-left: day 1 on the right
+    var top = Math.max(f.projection, f.budget_monthly || 0, f.total) * 1.05 || 1, Y = function (v) { return H - 4 - v * (H - 8) / top; };
+    var pts = f.cum.map(function (v, i) { return X(i) + ' ' + Y(v).toFixed(1); });
+    var last = f.cum.length - 1, s = '';
+    if (f.budget_monthly) s += '<line x1="2" x2="' + (W - 2) + '" y1="' + Y(f.budget_monthly).toFixed(1) + '" y2="' + Y(f.budget_monthly).toFixed(1) + '" stroke="#FF5C6C" stroke-width="2" stroke-dasharray="3 3"/>';
+    s += '<path d="M' + X(last) + ' ' + Y(f.cum[last] || 0).toFixed(1) + ' L' + X(f.days_total - 1) + ' ' + Y(f.projection).toFixed(1) + '" stroke="#C9BDFF" stroke-width="3" stroke-dasharray="3 4" fill="none" stroke-linecap="round"/>';
+    if (pts.length) s += '<path d="M' + pts.join(' L') + '" fill="none" stroke="#FFC531" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/>';
+    s += '<circle cx="' + X(last) + '" cy="' + Y(f.cum[last] || 0).toFixed(1) + '" r="4.5" fill="#FFC531" stroke="#fff" stroke-width="2"/>';
+    $('spark').innerHTML = s;
+  }
 
-    if (window.history && window.history.replaceState)
-        window.history.replaceState(null, '', window.location.href);
-
-    function setRing(pct) {
-        const r = 35, circ = 2 * Math.PI * r;
-        const el = document.getElementById('shopRing');
-        if (el) { el.style.strokeDasharray = circ; el.style.strokeDashoffset = circ * (1 - pct/100); }
-        const pel = document.getElementById('shopPct');
-        if (pel) pel.textContent = Math.round(pct) + '%';
+  function renderFinance(f) {
+    var daysLeft = f.days_total - f.days_elapsed, budget = f.budget_monthly;
+    $('smartCycle').textContent = (f.cycle_label || '').split(' (')[0];
+    var t;
+    if (f.days_elapsed < 3) t = 'עוד מוקדם לתחזית מדויקת. בקצב של הימים הראשונים: בערך <b>' + money(f.projection) + '</b> לכל המחזור.';
+    else if (budget && f.projection <= budget) t = 'בקצב הזה תסיימו את המחזור ב־<b>' + money(f.projection) + '</b> — כ־<b>' + money(budget - f.projection) + '</b> מתחת לתקציב 🎉';
+    else if (budget) t = 'בקצב הזה תסיימו את המחזור ב־<b>' + money(f.projection) + '</b> — כ־<b>' + money(f.projection - budget) + '</b> מעל התקציב. כדאי להאט קצת 🐢';
+    else t = 'בקצב הזה תסיימו את המחזור בערך ב־<b>' + money(f.projection) + '</b>.';
+    $('smartText').innerHTML = t;
+    spark(f);
+    $('dayChip').textContent = 'יום ' + f.days_elapsed + ' מתוך ' + f.days_total;
+    $('pDays').textContent = daysLeft;
+    var today = f.week.filter(function (w) { return w.today; })[0];
+    $('pToday').textContent = money(today ? today.amount : 0);
+    Pop.countUp($('finTotal'), Math.round(f.total), { dur: firstLoad ? 1100 : 500 });
+    var diff = f.total - f.prev_same_point, vs = $('vsChip');
+    if (f.prev_total > 0) { vs.textContent = (diff <= 0 ? '−' : '+') + money(Math.abs(diff)) + ' מול אותו שלב במחזור הקודם'; vs.className = 'chip ' + (diff <= 0 ? 'mint' : 'coral'); }
+    else { vs.textContent = f.count + ' תשלומים'; vs.className = 'chip'; }
+    /* jar + key values */
+    /* per-day pace of the variable spend only: rent and other fixed payments would inflate it */
+    $('kvDaily').textContent = money(f.variable_total / Math.max(1, f.days_elapsed));
+    if (budget) {
+      var pct = f.total / budget;
+      $('jarBox').classList.remove('hidden'); $('kvBudgetRow').classList.remove('hidden');
+      $('jarLift').style.transform = 'translateY(' + Math.round(116 - (Math.min(1, pct) * 88 + 18)) + 'px)';
+      $('jarPct').textContent = Math.round(pct * 100) + '%'; $('jarPct').setAttribute('font-size', pct >= .995 ? 16 : 19);   // the jar body is 56 units wide; "103%" at 16 fits with room
+      $('jarLiquid').setAttribute('fill', pct >= 1 ? '#FF5C6C' : pct >= .8 ? '#FF9E64' : '#3E9BFF');
+      $('kvBudget').textContent = money(budget);
+      if (f.total <= budget) { $('kvLeftLbl').textContent = 'נשאר להוציא'; $('kvLeft').textContent = money(budget - f.total); $('kvLeft').className = 'num good'; }
+      else { $('kvLeftLbl').textContent = 'חריגה מהתקציב'; $('kvLeft').textContent = money(f.total - budget); $('kvLeft').className = 'num bad'; }
+    } else {
+      $('jarBox').classList.add('hidden'); $('kvBudgetRow').classList.add('hidden');
+      $('kvLeftLbl').textContent = 'תשלומים במחזור'; $('kvLeft').textContent = f.count; $('kvLeft').className = 'num';
     }
+    /* week of coins (Sunday on the right) */
+    var max = Math.max.apply(null, f.week.map(function (w) { return w.amount || 0; })) || 1;
+    $('coins').innerHTML = f.week.map(function (w, i) {
+      var s = w.amount == null ? 18 : w.amount === 0 ? 18 : 18 + Math.round(22 * w.amount / max);
+      var cls = w.amount == null ? 'future' : w.amount === 0 ? 'zero' : w.amount >= max * .85 ? 'hot' : '';
+      var lbl = w.amount == null ? '' : w.amount === 0 ? '0' : (w.amount >= 1000 ? (w.amount / 1000).toFixed(1) + 'K' : Math.round(w.amount));
+      return '<div class="coin"><em>' + lbl + '</em><i class="' + cls + (w.today ? ' today' : '') + '" style="--s:' + s + 'px;animation-delay:' + (.4 + i * .06) + 's"></i><small class="' + (w.today ? 'today' : '') + '">' + (w.today ? 'היום' : Pop.HE_DAYS_SHORT[w.dow]) + '</small></div>';
+    }).join('');
+    /* how sheet */
+    $('hFixed').textContent = money(f.fixed_total); $('hPending').textContent = money(f.pending_recurring_total);
+    $('hVar').textContent = money(f.variable_total); $('hPace').textContent = money(f.variable_total / Math.max(1, f.days_elapsed));
+    $('hLeft').textContent = daysLeft; $('hProj').textContent = money(f.projection);
+  }
 
-    async function loadSummary() {
-        try {
-            const r = await fetch('/api/home-summary');
-            const d = await r.json();
+  function renderShopping(s) {
+    $('pShop').textContent = s.left;
+    var pct = s.total ? s.done / s.total : 0;
+    $('shopRing').style.strokeDashoffset = 201 * (1 - pct);
+    $('shopLbl').textContent = s.done + '/' + s.total;
+    var pills = $('pills');
+    if (!s.items.length) { pills.innerHTML = '<p class="muted">' + (s.total ? 'הכול נקנה! 🎉' : 'הרשימה ריקה') + '</p><button type="button" class="btn sm white" id="emptyAdd">➕ הוספת פריט</button>'; $('emptyAdd').onclick = openItem; return; }
+    pills.innerHTML = s.items.slice(0, 3).map(function (it) {
+      return '<button type="button" class="pill" data-id="' + it.id + '" aria-pressed="false"><span class="cb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span><span class="n">' + esc(it.name) + (it.quantity > 1 ? ' ×' + it.quantity : '') + '</span></button>';
+    }).join('');
+  }
 
-            // Finance
-            const total = Math.round(d.finance.total);
-            document.getElementById('finTotal').textContent = total.toLocaleString('he-IL');
-            document.getElementById('finCount').textContent = d.finance.count;
-            const dayOfMonth = new Date().getDate();
-            const dailyAvg = dayOfMonth > 0 ? Math.round(d.finance.total / dayOfMonth) : 0;
-            document.getElementById('finDaily').textContent = '₪' + dailyAvg.toLocaleString('he-IL');
-
-            const finLast = document.getElementById('finLast');
-            if (d.finance.last) {
-                finLast.innerHTML = `<i class="fas fa-receipt"></i> <span>אחרון: ${esc(d.finance.last.desc)} — ₪${d.finance.last.amount.toFixed(0)}</span>`;
-            } else {
-                finLast.innerHTML = '<i class="fas fa-info-circle"></i> <span>אין עדיין תשלומים החודש</span>';
-            }
-
-            // Shopping
-            document.getElementById('shopLeft').textContent  = d.shopping.left;
-            document.getElementById('shopDone').textContent  = d.shopping.done;
-            document.getElementById('shopTotal').textContent = d.shopping.total;
-            const pct = d.shopping.total > 0 ? (d.shopping.done / d.shopping.total * 100) : 0;
-            setTimeout(() => setRing(pct), 400);
-
-            // Baby
-            document.getElementById('babyMl').textContent      = Math.round(d.baby.total_ml);
-            document.getElementById('babyBf').textContent      = d.baby.breastfeedings ?? 0;
-            document.getElementById('babyDiapers').textContent = d.baby.diapers || 0;
-            document.getElementById('babySleep').textContent   = d.baby.sleep_str ?? '--';
-            document.getElementById('babyLast').textContent    = d.baby.last_ago;
-
-            const countEl = document.getElementById('babyCount');
-            if (countEl) countEl.textContent = d.baby.count;
-
-            if (d.baby.last_ago && d.baby.last_ago !== '--') {
-                const parts = d.baby.last_ago.match(/(\d+)/);
-                if (parts) {
-                    const mins = d.baby.last_ago.includes('h')
-                        ? parseInt(parts[1]) * 60 : parseInt(parts[1]);
-                    if (mins >= 180) {
-                        const al = document.getElementById('babyAlert');
-                        al.style.display = 'flex';
-                        document.getElementById('babyAlertText').textContent =
-                            `עברו ${d.baby.last_ago} מהאכלה אחרונה`;
-                    }
-                }
-            }
-        } catch(e) { console.error(e); }
-    }
-
-    loadSummary();
-    setInterval(loadSummary, 30000);
-    document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) loadSummary();
+  async function renderBabyBand() {
+    var r = await Pop.api('GET', '/api/feedings/data'); if (!r.ok || !r.data) return;
+    var toMin = function (t) { var p = (t || '0:0').split(':'); return +p[0] * 60 + +p[1]; }, pct = function (m) { return (Math.max(0, Math.min(1440, m)) / 1440 * 100).toFixed(2) + '%'; };
+    var html = '';
+    r.data.today_feedings.forEach(function (f) {
+      var m = toMin(f.time);
+      if (f.feeding_type === 'sleep') { var st = Math.max(0, m - (f.amount || 30)); html += '<i style="left:' + pct(st) + ';width:' + ((m - st) / 1440 * 100).toFixed(2) + '%;background:var(--grape)"></i>'; }
+      else if (['bottle', 'breastfeeding', 'solid'].indexOf(f.feeding_type) >= 0) html += '<i style="left:' + pct(m) + ';width:1.6%;background:var(--sky)"></i>';
     });
+    var now = new Date(); html += '<i class="now" style="left:' + pct(now.getHours() * 60 + now.getMinutes()) + '"></i>';
+    $('band').innerHTML = html;
+  }
+
+  function renderBaby(b) {
+    var active = b.recent > 0;
+    $('babyActive').classList.toggle('hidden', !active); $('babyIdle').classList.toggle('hidden', active);
+    feedSecs = b.last_feed_secs; feedAt = Date.now();
+    $('bNext').textContent = b.next_expected || '–';
+    $('bMl').textContent = Math.round(b.total_ml);
+    $('bSleep').textContent = b.sleep_mins ? Pop.hm(b.sleep_mins) : '0:00';
+    tick();
+    if (active) renderBabyBand();
+  }
+  function tick() {
+    if (feedSecs == null || feedSecs > 86400) { $('feedTimer').textContent = '–'; $('pFeed').textContent = '–'; return; }
+    var s = feedSecs + Math.floor((Date.now() - feedAt) / 1000);
+    $('feedTimer').textContent = Pop.hms(s); $('pFeed').textContent = Math.floor(s / 3600) + ':' + Pop.pad2(Math.floor(s % 3600 / 60));
+  }
+  setInterval(tick, 1000);
+
+  async function load() {
+    var r = await Pop.api('GET', '/api/home-summary'); if (!r.ok || !r.data) return;
+    lastData = r.data;
+    $('greet').textContent = greet(r.data.hour);
+    renderFinance(r.data.finance); renderShopping(r.data.shopping); renderBaby(r.data.baby);
+    firstLoad = false;
+  }
+
+  /* check off a shopping item from home */
+  $('pills').addEventListener('click', async function (e) {
+    var p = e.target.closest('.pill[data-id]'); if (!p) return;
+    var done = !p.classList.contains('done');
+    p.classList.toggle('done', done); p.setAttribute('aria-pressed', String(done));
+    var r = await Pop.api('PUT', '/api/shopping-items/' + p.dataset.id, { checked: done });
+    if (!r.ok) { p.classList.toggle('done', !done); Pop.toast('לא נשמר, נסו שוב', 'error'); return; }
+    if (done) { Pop.confetti(p, 30); Pop.toast('סומן ✓ — כל המשפחה תראה', 'success'); }
+    var s = lastData.shopping; s.done += done ? 1 : -1; s.left -= done ? 1 : -1;
+    $('pShop').textContent = s.left; $('shopRing').style.strokeDashoffset = 201 * (1 - s.done / Math.max(1, s.total)); $('shopLbl').textContent = s.done + '/' + s.total;
+  });
+
+  /* FAB actions */
+  $('fabExpense').addEventListener('click', function () { ExpenseSheet.open({ onSaved: load }); });
+  function openItem() { $('itemName').value = ''; Pop.openSheet('itemSheet'); setTimeout(function () { $('itemName').focus(); }, 300); }
+  $('fabItem').addEventListener('click', openItem);
+  async function saveItem() {
+    var name = $('itemName').value.trim(); if (!name) { Pop.toast('כתבו מה צריך לקנות', 'error'); return; }
+    var r = await Pop.api('POST', '/api/shopping-items', { name: name, quantity: 1, category: '' });
+    if (!r.ok) { Pop.toast('לא הצלחנו להוסיף', 'error'); return; }
+    Pop.closeSheet('itemSheet'); Pop.toast('"' + name + '" נוסף לרשימה 🛒', 'success'); load();
+  }
+  $('itemSave').addEventListener('click', saveItem);
+  $('itemName').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); saveItem(); } });
+  $('howBtn').addEventListener('click', function () { Pop.openSheet('howSheet'); });
+
+  load();
+  setInterval(load, 30000);
+  Pop.onVisible(load);
+})();
 </script>
 {% endblock %}

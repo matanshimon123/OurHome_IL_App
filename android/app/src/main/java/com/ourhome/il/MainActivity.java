@@ -25,9 +25,10 @@ import com.google.firebase.messaging.FirebaseMessaging;
 
 public class MainActivity extends BridgeActivity {
 
-    private static final int BLUE_DARK  = Color.parseColor("#1d4ed8");
-    private static final int BLUE_MID   = Color.parseColor("#2563eb");
-    private static final int BLUE_LIGHT = Color.parseColor("#3b82f6");
+    // Concept A "Pop" palette: ink -> deep grape (white text stays readable on all three)
+    private static final int BLUE_DARK  = Color.parseColor("#1E1633");
+    private static final int BLUE_MID   = Color.parseColor("#3A2580");
+    private static final int BLUE_LIGHT = Color.parseColor("#5B34C9");
     private static final int TIMEOUT_MS = 10000; // 10 שניות timeout
 
     private String fcmToken = null;
@@ -139,7 +140,7 @@ public class MainActivity extends BridgeActivity {
         // תת-כותרת
         TextView subtitle = new TextView(this);
         subtitle.setText("ניהול משפחתי חכם");
-        subtitle.setTextColor(Color.argb(180, 255, 255, 255));
+        subtitle.setTextColor(Color.argb(235, 255, 255, 255));
         subtitle.setTextSize(14);
         subtitle.setGravity(Gravity.CENTER);
         subtitle.setPadding(0, 0, 0, 60);
@@ -158,8 +159,8 @@ public class MainActivity extends BridgeActivity {
         // סטטוס
         statusText = new TextView(this);
         statusText.setText("מתחבר לשרת...");
-        statusText.setTextColor(Color.argb(200, 255, 255, 255));
-        statusText.setTextSize(13);
+        statusText.setTextColor(Color.argb(235, 255, 255, 255));
+        statusText.setTextSize(16);
         statusText.setGravity(Gravity.CENTER);
         statusText.setPadding(0, 0, 0, 32);
         content.addView(statusText);
@@ -167,12 +168,12 @@ public class MainActivity extends BridgeActivity {
         // כפתור נסה שוב
         retryBtn = new Button(this);
         retryBtn.setText("נסה שוב");
-        retryBtn.setTextColor(Color.WHITE);
+        retryBtn.setTextColor(Color.parseColor("#1E1633"));
         retryBtn.setTextSize(15);
         retryBtn.setTypeface(null, Typeface.BOLD);
         GradientDrawable btnBg = new GradientDrawable();
-        btnBg.setColor(Color.argb(60, 255, 255, 255));
-        btnBg.setStroke(2, Color.argb(150, 255, 255, 255));
+        btnBg.setColor(Color.parseColor("#FFC531"));
+        btnBg.setStroke(4, Color.parseColor("#1E1633"));
         btnBg.setCornerRadius(50);
         retryBtn.setBackground(btnBg);
         LinearLayout.LayoutParams btnParams = new LinearLayout.LayoutParams(

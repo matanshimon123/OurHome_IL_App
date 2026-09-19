@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<title>Concept C · הוצאות</title>
+<link rel="stylesheet" href="concept.css">
+<style>
+/* calendar heatmap */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;margin-top:8px;direction:rtl}
+.cal .dh{font:500 9px var(--mono);color:var(--text-3);text-align:center;padding-bottom:2px}
+.cal .day{aspect-ratio:1.15;border-radius:6px;background:var(--panel-3);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;cursor:pointer;transition:transform .2s var(--ease),opacity .5s var(--ease);position:relative}
+.cal .day:active{transform:scale(.92)}
+.cal .day b{font:500 10px var(--mono);color:var(--text-2)}
+.cal .day small{font:500 8.5px var(--mono);color:var(--text-3)}
+.cal .day[data-l="1"]{background:rgba(251,191,36,.18)}.cal .day[data-l="2"]{background:rgba(251,191,36,.38)}.cal .day[data-l="3"]{background:rgba(251,191,36,.62)}.cal .day[data-l="3"] b,.cal .day[data-l="3"] small{color:#1a1200}
+.cal .day[data-l="4"]{background:var(--amber);box-shadow:0 0 12px rgba(251,191,36,.45)}.cal .day[data-l="4"] b,.cal .day[data-l="4"] small{color:#1a1200}
+.cal .day.today{outline:1.5px solid var(--cyan);outline-offset:1px}
+.cal .day.future{background:transparent;border:1px dashed var(--line-2)}
+.cal .day.future b{color:var(--text-4)}
+.cal .day.empty{visibility:hidden}
+.cal .day.fixed::after{content:'';position:absolute;top:3px;inset-inline-end:3px;width:4px;height:4px;border-radius:50%;background:var(--violet)}
+.cal .day.sel{outline:1.5px solid var(--text);outline-offset:1px}
+.day-detail{margin-top:8px;border-top:1px solid var(--line);padding-top:6px;min-height:20px}
+/* river */
+.river svg{width:100%;height:auto;margin-top:6px}
+.legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px}
+.legend span{font:500 10px var(--mono);color:var(--text-2);display:flex;align-items:center;gap:4px}
+.legend i{width:8px;height:8px;border-radius:2px}
+/* treemap */
+.tm{position:relative;width:100%;aspect-ratio:2/1;margin-top:6px;direction:ltr}
+.tm div{position:absolute;border-radius:6px;padding:6px 7px;overflow:hidden;cursor:pointer;transition:opacity .3s,transform .3s var(--ease);direction:rtl;text-align:right;border:1px solid rgba(0,0,0,.35)}
+.tm div b{display:block;font:600 11px var(--sans);color:#0a0d12;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tm div span{font:500 10.5px var(--mono);color:rgba(10,13,18,.75)}
+.tm div.dim{opacity:.3}
+.tm div.tiny b{font-size:9px}.tm div.tiny span{display:none}
+/* split */
+.split{display:flex;height:10px;border-radius:5px;overflow:hidden;margin-top:10px}
+.split i{display:block;height:100%}
+/* upcoming */
+.up-row{display:flex;flex-direction:column;gap:3px;padding:6px 0;border-bottom:1px solid var(--line)}
+.up-row:last-child{border:0}
+.up-row .r{display:flex;justify-content:space-between;font:500 11px var(--mono)}
+.up-row .r b{font-weight:600}
+.up-row .t{height:3px;border-radius:2px;background:var(--panel-3);overflow:hidden}
+.up-row .t i{display:block;height:100%;background:var(--violet);width:var(--w);transform-origin:right}
+/* simulator */
+.sim{display:flex;flex-direction:column;gap:10px;margin-top:8px}
+.sim label{display:flex;justify-content:space-between;font:500 11px var(--mono);color:var(--text-2)}
+.sim label b{color:var(--text)}
+input[type=range]{width:100%;accent-color:var(--cyan);margin:0}
+.sim-out{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:4px}
+.sim-out .o{background:var(--panel-2);border:1px solid var(--line);border-radius:10px;padding:8px 10px}
+.sim-out .o small{font:500 9.5px var(--mono);letter-spacing:.06em;color:var(--text-3);text-transform:uppercase;display:block}
+.sim-out .o b{font:600 18px var(--mono);display:block;margin-top:2px;transition:color .3s}
+.sim-bar{height:8px;border-radius:4px;background:var(--panel-3);overflow:hidden;position:relative;margin-top:4px}
+.sim-bar i{display:block;height:100%;background:var(--cyan);width:84.2%;transition:width .5s var(--ease),background .3s}
+.sim-bar::after{content:'';position:absolute;inset-inline-start:calc(100% - 1px);top:0;bottom:0;width:1px;background:var(--rose)}
+.tgl{display:flex;align-items:center;justify-content:space-between;font:500 12px var(--sans)}
+.sw{width:38px;height:22px;border-radius:99px;background:var(--panel-3);border:1px solid var(--line-2);position:relative;transition:background .25s}
+.sw::after{content:'';position:absolute;top:2px;inset-inline-start:2px;width:16px;height:16px;border-radius:50%;background:var(--text-2);transition:transform .3s var(--ease),background .25s}
+.sw.on{background:var(--cyan)}.sw.on::after{transform:translateX(-16px);background:#06222a}
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="statusbar"><span>09:41</span><span class="notch"></span><span>● 100%</span></div>
+  <div class="app">
+
+    <header class="topbar in">
+      <div>
+        <div class="brand"><b>Finance</b><span class="sep">//</span>מחזור 10.09 → 09.10</div>
+        <div class="title">הוצאות<small>DAY 09/30 · 23 TX · UPDATED 14:32</small></div>
+      </div>
+      <div class="chips" style="flex:none"><span class="chip on">מחזור</span><span class="chip">3M</span><span class="chip">YTD</span></div>
+    </header>
+
+    <main class="content">
+      <div class="kpis in d1">
+        <div class="tile"><div class="lbl">סה״כ</div><div class="kpi"><span id="tot">0</span></div><div class="sub">₪ עד היום</div></div>
+        <div class="tile"><div class="lbl">צפי</div><div class="kpi c-lime" id="projKpi">8,420</div><div class="sub">±310</div></div>
+        <div class="tile"><div class="lbl">ליום</div><div class="kpi">176</div><div class="sub">משתנות</div></div>
+        <div class="tile"><div class="lbl">vs קודם</div><div class="kpi c-lime">−720</div><div class="sub">9,140</div></div>
+      </div>
+
+      <div class="bento" style="margin-top:10px">
+
+        <!-- ===== CALENDAR HEATMAP ===== -->
+        <section class="tile span2 in d2" id="calTile">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--amber)"></i>יומן המחזור</span><span class="meta">● = יום חיוב קבוע</span></div>
+          <div class="cal" id="cal"></div>
+          <div class="day-detail mono" id="dayDetail" style="font-size:11px;color:var(--text-2)">גע ביום כדי לראות פירוט</div>
+        </section>
+
+        <!-- ===== RIVER ===== -->
+        <section class="tile span2 river in d3">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--cyan)"></i>זרימת קטגוריות</span><label class="tgl" style="gap:6px"><span class="meta">כולל קבועים</span><span class="sw" id="fixedSw"></span></label></div>
+          <svg viewBox="0 0 340 130" class="ltr" id="river"></svg>
+          <div class="legend" id="riverLegend"></div>
+        </section>
+
+        <!-- ===== TREEMAP ===== -->
+        <section class="tile span2 in d4">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--violet)"></i>מפת קטגוריות</span><span class="meta" id="tmMeta">6 / 9 CATEGORIES</span></div>
+          <div class="tm" id="tm"></div>
+        </section>
+
+        <!-- ===== WHO PAID ===== -->
+        <section class="tile in d5">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--blue)"></i>מי שילם</span></div>
+          <div class="row between mono" style="font-size:11px"><span>נועה <b>2,610</b></span><span>יובל <b>2,120</b></span></div>
+          <div class="split"><i class="grow-x" style="width:55%;background:var(--cyan)"></i><i class="grow-x" style="width:45%;background:var(--blue);transform-origin:left"></i></div>
+          <div class="sub" style="margin-top:8px">איזון: יובל → נועה <b class="c-cyan">₪245</b></div>
+          <button class="btn sm" style="margin-top:8px" onclick="this.textContent='✓ סולק';toast('האיזון נרשם')">סמן כמסולק</button>
+        </section>
+
+        <!-- ===== UPCOMING FIXED ===== -->
+        <section class="tile in d5">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--violet)"></i>קבועים הבאים</span></div>
+          <div class="up-row"><div class="r"><span>גן · 1,850</span><b>22d</b></div><div class="t"><i class="grow-x" style="--w:27%"></i></div></div>
+          <div class="up-row"><div class="r"><span>ארנונה · 480</span><b>22d</b></div><div class="t"><i class="grow-x" style="--w:27%"></i></div></div>
+          <div class="up-row"><div class="r"><span>Netflix · 49.90</span><b>22d</b></div><div class="t"><i class="grow-x" style="--w:27%"></i></div></div>
+          <div class="up-row"><div class="r"><span>Spotify · 19.90</span><b class="c-amber">4d</b></div><div class="t"><i class="grow-x" style="--w:87%;background:var(--amber)"></i></div></div>
+        </section>
+
+        <!-- ===== SMART: WHAT-IF SIMULATOR ===== -->
+        <section class="tile span2 accent-cyan in d6">
+          <div class="tile-h"><span class="lbl"><i></i>סימולטור · מה אם</span><span class="meta">LIVE MODEL</span></div>
+          <div class="sim">
+            <div><label><span>צמצום קניות סופר</span><b id="cutLbl">0%</b></label><input type="range" id="cut" min="0" max="40" value="0" step="5"></div>
+            <div class="tgl"><span>בלי בילויים בסופי שבוע</span><span class="sw" id="wkSw"></span></div>
+            <div class="tgl"><span>לסמן את טיפול הרכב כחד־פעמי</span><span class="sw on" id="carSw"></span></div>
+          </div>
+          <div class="sim-out">
+            <div class="o"><small>צפי סיום</small><b class="c-lime" id="simProj">₪8,420</b></div>
+            <div class="o"><small>מול תקציב</small><b class="c-lime" id="simDelta">−₪1,580</b></div>
+          </div>
+          <div class="sim-bar"><i id="simBar"></i></div>
+        </section>
+
+        <!-- ===== TRANSACTIONS ===== -->
+        <section class="tile span2 in d7">
+          <div class="tile-h"><span class="lbl"><i style="background:var(--text-3)"></i>תנועות</span><span class="meta" id="txMeta">23 TX · 4,730</span></div>
+          <div id="tx"></div>
+        </section>
+
+      </div>
+    </main>
+
+    <nav class="nav">
+      <div class="nav-bar">
+        <a href="home.html"><svg viewBox="0 0 24 24"><path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>HOME</a>
+        <a href="finance.html" class="active"><svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M3 10h18M16 15h2"/></svg>FINANCE</a>
+        <a href="#"><svg viewBox="0 0 24 24"><path d="M3 4h2l2 11h11l2-7H7"/><circle cx="9" cy="19" r="1"/><circle cx="17" cy="19" r="1"/></svg>SHOP</a>
+        <a href="baby.html"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><circle cx="9.5" cy="11" r=".6"/><circle cx="14.5" cy="11" r=".6"/><path d="M9.5 14.5q2.5 2 5 0"/></svg>BABY</a>
+        <a href="#"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>SETTINGS</a>
+      </div>
+    </nav>
+  </div>
+</div>
+
+<script src="concept.js"></script>
+<script>
+/* ---------- data (self-consistent: totals derive from the matrix) ---------- */
+const CATS=[{n:'קבועים',c:'#A78BFA',k:'violet'},{n:'קניות - סופר',c:'#FBBF24',k:'amber'},{n:'רכב',c:'#FB7185',k:'rose'},{n:'משק בית',c:'#A3E635',k:'lime'},{n:'תינוק',c:'#22D3EE',k:'cyan'},{n:'בילויים / פנאי',c:'#60A5FA',k:'blue'}];
+const MAT=[[3150,30,0,80,0,0],[0,210,0,0,0,0],[0,0,0,0,70,25],[0,0,246,52,0,42],[0,0,0,0,0,0],[0,312,0,108,0,0],[0,60,0,0,95,0],[0,0,64,0,0,0],[0,168,0,0,0,18]];
+const DAILY=MAT.map(r=>r.reduce((s,v)=>s+v,0));const TOTAL=DAILY.reduce((s,v)=>s+v,0);
+const CATSUM=CATS.map((c,i)=>MAT.reduce((s,r)=>s+r[i],0));
+const BUDGET=10000;
+const TX=[[9,'ארומה — קפה',5,18,'נ','14:05'],[9,'שופרסל דיל',1,168,'י','11:20'],[8,'חניה — עזריאלי',2,64,'נ','18:40'],[7,'סופר-פארם — חיתולים',4,95,'נ','17:10'],[7,'מכולת — לחם וחלב',1,60,'י','08:15'],[6,'רמי לוי',1,312,'י','19:30'],[6,'מכבסה',3,108,'נ','12:00'],[4,'טיפול 10,000 — מוסך',2,246,'י','10:30'],[4,'פיצה',5,42,'נ','20:15'],[4,'חומרי ניקוי',3,52,'נ','16:00'],[3,'מוצץ + פדים',4,70,'נ','13:30'],[3,'גלידה',5,25,'י','21:00'],[2,'שופרסל',1,210,'נ','18:00'],[1,'גן — ספטמבר',0,1850,'י','06:00'],[1,'ארנונה',0,480,'י','06:00'],[1,'חשמל',0,430,'י','06:00'],[1,'ביטוח',0,290,'י','06:00'],[1,'אינטרנט + סלולר',0,100,'י','06:00'],[1,'סופר קטן',1,30,'נ','19:00'],[1,'גז',3,80,'נ','09:00']];
+document.addEventListener('data:ready',()=>countUp($('#tot'),TOTAL));
+
+/* ---------- calendar heatmap: cycle starts Thu 10.9 (col 5 of Sun..Sat) ---------- */
+const cal=$('#cal');['א','ב','ג','ד','ה','ו','ש'].forEach(d=>cal.insertAdjacentHTML('beforeend',`<span class="dh">${d}</span>`));
+for(let i=0;i<4;i++)cal.insertAdjacentHTML('beforeend','<span class="day empty"></span>');
+const mxd=Math.max(...DAILY.slice(1));
+for(let d=1;d<=30;d++){const date=d<=21?`${9+d}.9`:`${d-21}.10`;const v=DAILY[d-1];const future=d>9;const l=future||v==null?0:v===0?0:v>=3000?4:v>=300?3:v>=150?2:1;
+  cal.insertAdjacentHTML('beforeend',`<span class="day fade-cell${d===9?' today':''}${future?' future':''}${d===1?' fixed':''}" data-l="${l}" data-d="${d}" style="transition-delay:${.2+d*.02}s"><b>${date.split('.')[0]}</b><small>${future?'·':v?(v>=1000?(v/1000).toFixed(1)+'k':v):'0'}</small></span>`);}
+cal.addEventListener('click',e=>{const c=e.target.closest('.day');if(!c||c.classList.contains('empty'))return;$$('.day.sel',cal).forEach(x=>x.classList.remove('sel'));c.classList.add('sel');const d=+c.dataset.d;
+  if(d>9){$('#dayDetail').textContent=`יום ${d} · עתידי · צפי ~₪${fmt(Math.round(176))} משתנות`;return;}
+  const items=TX.filter(t=>t[0]===d);$('#dayDetail').innerHTML=items.length?`<b>יום ${d} · ₪${fmt(DAILY[d-1])}</b> · `+items.map(t=>`${t[1]} <span class="c-${CATS[t[2]].k}">${t[3]}</span>`).join(' · '):`יום ${d} · ללא הוצאות`;});
+
+/* ---------- river (stacked stream) ---------- */
+let withFixed=false;
+function drawRiver(){const svg=$('#river');svg.innerHTML='';const W=340,H=130,pad=8;const idx=CATS.map((_,i)=>i).filter(i=>withFixed||i!==0);
+  const days=MAT.length;const X=i=>pad+i*((W-2*pad)/(days-1));const totals=MAT.map(r=>idx.reduce((s,i)=>s+r[i],0));const mx=Math.max(...totals)||1;const Y=v=>H-14-v*((H-30)/mx);
+  let base=MAT.map(()=>0);
+  idx.forEach((ci,k)=>{const top=MAT.map((r,d)=>base[d]+r[ci]);const up=top.map((v,d)=>[X(d),Y(v)]);const lo=base.map((v,d)=>[X(d),Y(v)]).reverse();
+    const d=smooth(up)+' L'+lo.map(p=>p.join(' ')).join(' L')+' Z';
+    /* the lower boundary needs to be smooth too: build with reversed smooth path */
+    const loPath=smooth([...base.map((v,d)=>[X(d),Y(v)])].reverse());
+    const path=svgEl('path',{d:smooth(up)+' L'+loPath.slice(1)+' Z',fill:CATS[ci].c,'fill-opacity':.55,stroke:CATS[ci].c,'stroke-width':1,class:'fade-cell',style:`transition-delay:${.2+k*.1}s`});svg.appendChild(path);base=top;});
+  for(let d=0;d<days;d++){svg.appendChild(svgEl('text',{x:X(d),y:H-2,'text-anchor':'middle','font-size':'8.5','font-family':'IBM Plex Mono',fill:'#5D6B7A'},d===8?'היום':(10+d)+'.9'));}
+  svg.appendChild(svgEl('line',{x1:X(8),x2:X(8),y1:6,y2:H-14,stroke:'#22D3EE','stroke-width':1,'stroke-dasharray':'2 3'}));
+  $('#riverLegend').innerHTML=idx.map(i=>`<span><i style="background:${CATS[i].c}"></i>${CATS[i].n} ${fmt(CATSUM[i])}</span>`).join('');
+  if(document.body.classList.contains('ready'))requestAnimationFrame(()=>$$('#river .fade-cell').forEach(p=>p.style.opacity=1));}
+drawRiver();
+$('#fixedSw').addEventListener('click',e=>{withFixed=e.currentTarget.classList.toggle('on');drawRiver();});
+
+/* ---------- treemap ---------- */
+const tm=$('#tm');function drawTm(){const r=tm.getBoundingClientRect();const W=r.width||360,H=r.height||180;tm.innerHTML='';
+  treemap(CATS.map((c,i)=>({n:c.n,v:CATSUM[i],c:c.c,i})).filter(d=>d.v>0),0,0,W,H).forEach((q,k)=>{const el=document.createElement('div');el.className=(q.w<58||q.h<34)?'tiny':'';el.style.cssText=`left:${q.x+1}px;top:${q.y+1}px;width:${q.w-2}px;height:${q.h-2}px;background:${q.c};transition-delay:${k*.05}s`;el.innerHTML=`<b>${q.n}</b><span>₪${fmt(q.v)} · ${Math.round(q.v/TOTAL*100)}%</span>`;el.dataset.i=q.i;tm.appendChild(el);});}
+requestAnimationFrame(drawTm);addEventListener('resize',drawTm);
+let selCat=null;tm.addEventListener('click',e=>{const d=e.target.closest('div[data-i]');if(!d)return;selCat=selCat===+d.dataset.i?null:+d.dataset.i;$$('div[data-i]',tm).forEach(x=>x.classList.toggle('dim',selCat!==null&&+x.dataset.i!==selCat));renderTx();});
+
+/* ---------- simulator ---------- */
+function sim(){const cut=+$('#cut').value/100;const wk=$('#wkSw').classList.contains('on');const car=$('#carSw').classList.contains('on');
+  const varDaily=176;let proj=3150+(TOTAL-3150)+varDaily*21; /* baseline 8,420-ish */
+  proj=8420-Math.round(CATSUM[1]*cut*(30/9))-(wk?120:0)-(car?0:0)+(car?0:246);
+  const delta=BUDGET-proj;$('#cutLbl').textContent=Math.round(cut*100)+'%';$('#simProj').textContent='₪'+fmt(proj);$('#simDelta').textContent=(delta>=0?'−':'+')+'₪'+fmt(Math.abs(delta));
+  const ok=delta>=0;$('#simProj').className=ok?'c-lime':'c-rose';$('#simDelta').className=ok?'c-lime':'c-rose';$('#simBar').style.width=Math.min(100,proj/BUDGET*100)+'%';$('#simBar').style.background=ok?'var(--cyan)':'var(--rose)';$('#projKpi').textContent=fmt(proj);}
+$('#cut').addEventListener('input',sim);['wkSw','carSw'].forEach(id=>$('#'+id).addEventListener('click',e=>{e.currentTarget.classList.toggle('on');sim();}));
+
+/* ---------- transactions ---------- */
+function renderTx(){const box=$('#tx');const rows=TX.filter(t=>selCat===null||t[2]===selCat);box.innerHTML='';let cur=null;
+  rows.forEach(t=>{if(t[0]!==cur){cur=t[0];box.insertAdjacentHTML('beforeend',`<div class="mono" style="font-size:10px;color:var(--text-3);padding:8px 0 2px;letter-spacing:.06em">DAY ${String(cur).padStart(2,'0')} · ${cur<=21?(9+cur)+'.09':(cur-21)+'.10'}</div>`);}
+    box.insertAdjacentHTML('beforeend',`<div class="trow"><span class="tm">${t[5]}</span><div class="grow"><div class="tt">${t[1]}</div><div class="ts">${CATS[t[2]].n}</div></div><span class="ta">${fmt(t[3])}</span><span class="who">${t[4]}</span><span class="bar" style="background:${CATS[t[2]].c};position:absolute;inset-inline-end:-12px;top:8px"></span></div>`);});
+  $('#txMeta').textContent=`${rows.length} TX · ${fmt(rows.reduce((s,t)=>s+t[3],0))}`;}
+renderTx();
+</script>
+</body>
+</html>

@@ -122,13 +122,14 @@ KIND_BY_LEAD = {
 PUSHES = []
 
 
-def _record_push(family_id, title, body, exclude_user_id=None):
+def _record_push(family_id, title, body, exclude_user_id=None, module=None):
     PUSHES.append({
         'thread': threading.current_thread().name,
         'fid': family_id,
         'kind': KIND_BY_LEAD.get((title or u' ')[0], 'UNKNOWN'),
         'title': title,
         'body': body,
+        'module': module,
     })
     return 'recorded'
 
