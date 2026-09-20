@@ -24,6 +24,11 @@
       <button type="button" class="key">7</button><button type="button" class="key">8</button><button type="button" class="key">9</button>
       <button type="button" class="key alt" data-k=".">נקודה .</button><button type="button" class="key">0</button><button type="button" class="key alt" data-k="del">⌫ מחק</button>
     </div>
+    {# a save that failed says so here and stays on screen until it succeeds — never a silent failure #}
+    <div class="exp-error hidden" id="expErr" role="alert">
+      <div class="exp-error-msg"><span aria-hidden="true">⚠️</span><span id="expErrMsg">ההוצאה לא נשמרה</span></div>
+      <button type="button" class="btn white" id="expRetry"><span aria-hidden="true">🔄</span><span id="expRetryT">נסו שוב</span></button>
+    </div>
     <div class="exp-actions">
       <button type="button" class="btn coral" id="expSave"><span aria-hidden="true">💸</span><span id="expSaveT">הוספת ההוצאה</span></button>
       <button type="button" class="btn white exp-del hidden" id="expDelete"><span aria-hidden="true">🗑️</span><span>מחיקה</span></button>

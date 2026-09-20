@@ -21,10 +21,12 @@ from firebase_admin import credentials, auth as firebase_auth
 # CONFIG
 # ──────────────────────────────────────────────
 
-# Web API key for the Identity Toolkit REST calls (login / password reset). It is public
-# by design — it names the project, and access is controlled by Security Rules/App Check —
-# but the real production value belongs in configuration, not in source: no fallback here.
-FIREBASE_API_KEY = (os.environ.get('FIREBASE_API_KEY') or '').strip()
+# Web API key for the Identity Toolkit REST calls (login / password reset).
+# The fallback default is INTENTIONAL and matches production (Hetzner): this is a Firebase *Web*
+# API key, meant for client-side use and protected by Firebase Security Rules, not by secrecy.
+# It lets login work out of the box without a manually set environment variable.
+# Do not remove it as a perceived security issue without checking with the project owner first.
+FIREBASE_API_KEY = os.environ.get('FIREBASE_API_KEY', 'AIzaSyBXFTtFa5isjv79ZrtyVL7RfE-S_ofigdc')
 FIREBASE_REST_URL = 'https://identitytoolkit.googleapis.com/v1'
 
 # Read APP_ENV directly rather than importing it from app.py: app.py imports this module,

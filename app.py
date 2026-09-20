@@ -717,6 +717,15 @@ def init_db():
         ('users','firebase_uid','TEXT DEFAULT ""'),
         ('family_settings','last_alert_feeding_id','INTEGER DEFAULT NULL'),
         ('family_settings','last_alert_hours','REAL DEFAULT NULL'),
+        # notification_prefs can already exist with an older layout (notify_* / quiet_* columns from an
+        # earlier prototype); CREATE TABLE IF NOT EXISTS leaves it as it was, so make sure ours are there
+        ('notification_prefs','expenses','INTEGER DEFAULT 1'),
+        ('notification_prefs','budget','INTEGER DEFAULT 1'),
+        ('notification_prefs','cycle','INTEGER DEFAULT 1'),
+        ('notification_prefs','shopping','INTEGER DEFAULT 1'),
+        ('notification_prefs','baby','INTEGER DEFAULT 1'),
+        ('notification_prefs','feeding_reminder','INTEGER DEFAULT 1'),
+        ('notification_prefs','family','INTEGER DEFAULT 1'),
     ]:
         try: conn.execute(f'ALTER TABLE {t} ADD COLUMN {c} {ct}')
         except sqlite3.OperationalError: pass
@@ -2639,7 +2648,7 @@ def feedings_data():
         except:
             ts = ''
         fmt.append(
-            {'id': f['id'], 'feeding_type': f['feeding_type'], 'amount': float(f['amount']), 'duration': f['duration'],
+            {'id': f['id'], 'feeding_type': f['feeding_type'], 'amount': float(f['amount'] or 0), 'duration': f['duration'],
              'notes': f['notes'], 'time': ts})
     lt = '--'
     if lf:
@@ -3252,7 +3261,12 @@ def _push_recipient_tokens(conn, family_id, exclude_user_id=None, module=None):
         args.append(exclude_user_id)
     sql += ')'
     if module in NOTIFICATION_MODULES:
-        sql += ' AND user_id NOT IN (SELECT user_id FROM notification_prefs WHERE %s=0)' % module
+        try:
+            return conn.execute(sql + ' AND user_id NOT IN (SELECT user_id FROM notification_prefs WHERE %s=0)' % module,
+                                args).fetchall()
+        except sqlite3.OperationalError as e:
+            # preferences unreadable (e.g. an unexpected table layout): deliver rather than silently drop the push
+            print(f'Push preferences unavailable ({e}); sending to everyone')
     return conn.execute(sql, args).fetchall()
 
 

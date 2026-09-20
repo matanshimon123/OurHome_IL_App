@@ -157,7 +157,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/expense-sheet.js') }}?v=pop1"></script>
+<script src="{{ url_for('static', filename='js/expense-sheet.js') }}?v=pop2"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -296,8 +296,15 @@
     var pending = recurring.filter(function (r) { return !logged[r.description]; });
     var ok = await Pop.confirm({ title: 'לרשום ' + pending.length + ' תשלומים קבועים?', text: pending.map(function (r) { return r.description + ' · ' + money(r.amount); }).join('\n'), ok: 'כן, לרשום' });
     if (!ok) return;
-    for (var i = 0; i < pending.length; i++) await Pop.api('POST', '/api/recurring/' + pending[i].id + '/add');
-    Pop.confetti(this, 60); Pop.toast('נרשמו ' + pending.length + ' תשלומים קבועים ✓', 'success'); loadAll();
+    var done = 0, failed = [];   /* report what actually got through, one by one */
+    for (var i = 0; i < pending.length; i++) {
+      var res = await Pop.api('POST', '/api/recurring/' + pending[i].id + '/add');
+      if (res.ok) done++; else failed.push(pending[i].description);
+    }
+    loadAll();
+    if (!done) { Pop.toast('לא הצלחנו לרשום, נסו שוב', 'error'); return; }
+    if (failed.length) { Pop.toast('נרשמו ' + done + ' מתוך ' + pending.length + ' — לא נרשמו: ' + failed.join(', '), 'error'); return; }
+    Pop.confetti(this, 60); Pop.toast('נרשמו ' + done + ' תשלומים קבועים ✓', 'success');
   });
   function openRec(r) {
     $('recId').value = r ? r.id : ''; $('recTitle').textContent = r ? '✏️ עריכת תשלום קבוע' : '🔄 תשלום קבוע חדש';

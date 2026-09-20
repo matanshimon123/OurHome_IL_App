@@ -82,7 +82,7 @@ All changes are additive. No existing response key was removed or renamed, no au
 | 10 | New `GET /api/recurring/suggestions` | Read-only: charges repeating with ≈ the same amount in ≥3 of the last 6 cycles that aren't recurring yet | Bill detective on Expenses |
 | 11 | `/history` | Passes `current_month` | Marks the running cycle |
 | 12 | `GET /api/feedings/data` | `stats` adds `last_feed_secs`, `typical_gap_min`, `next_expected` | Baby timer and rhythm |
-| 13 | New table `notification_prefs` + `GET/PUT /api/notifications/prefs` | One row per person: `expenses`, `budget`, `cycle`, `shopping`, `baby`, `feeding_reminder`, `family` (missing row = everything on). PUT changes only the keys it sends, and only true/false for known keys. | Each person chooses which notifications reach their phone |
+| 13 | New table `notification_prefs` + `GET/PUT /api/notifications/prefs` | One row per person: `expenses`, `budget`, `cycle`, `shopping`, `baby`, `feeding_reminder`, `family` (missing row = everything on). PUT changes only the keys it sends, and only true/false for known keys. If a `notification_prefs` table already exists with an older column layout (an earlier prototype left one in a developer database), the new columns are added by the `init_db()` upgrade list. If the preferences can't be read, `send_push_to_family` delivers instead of dropping the push. | Each person chooses which notifications reach their phone |
 | 14 | `send_push_to_family(..., module=None)` + `_push_recipient_tokens` | Optional `module`: people who turned that kind off are skipped. All 19 call sites are tagged with their kind. Without `module`, behaviour is exactly as before. The feeding-reminder hours stay a family setting. | Same |
 | 15 | `PUT /api/payments/<id>` + `_cycle_month_for_date` | Accepts an optional `date` (`YYYY-MM-DD`). Before anything is written it must be a real date, not in the future, for a payment that isn't archived, and not in an archived cycle; otherwise 400 and nothing changes. Keeps the time of day; recomputes `month`/`year` with the family's cycle day. Response adds `month`. | Changing an expense's date |
 
@@ -111,11 +111,33 @@ Each screen was checked in a fresh headless Chrome at 390×844 against a scratch
 
 The per-screen log is at the end of this file.
 
+## 8b. No silent failures when saving (after the six-week incident)
+
+Expenses were reported as added in the UI but never reached the server, for about six weeks (last real payment 5 Aug 2026). The cause was in the pre-refresh client: `dashboard.html` did `await fetch('/api/payments/add', …)` and then cleared the form and showed "תשלום נוסף!" **without ever looking at the response**. Whatever the server answered — 401, 500, anything — the user was told it was saved.
+
+The API itself is fine: an expired session returns a clean `401 {"code":"AUTH_REQUIRED"}` as JSON, never an HTML redirect, on both the old and the new code.
+
+What changed:
+
+- **`Pop.api` (`static/js/pop.js`) decides what counts as a save.** A 200 whose body is not JSON (a login page, a proxy error page) is now a **failure**, not a success — that is the trap this class of bug falls into. 401/403 gets its own `reason` so the screen can say "log in again", and every result carries `reason` and `retriable`. `Pop.netMsg(r)` turns a result into the sentence the user reads.
+- **GET is retried automatically** (twice, backing off). **Writes are never retried on their own**: `/api/payments/add` is not idempotent, and a blind retry can record the expense twice. The user is offered a retry button instead, and the retry test asserts exactly one row is added.
+- **The expense sheet shows a failure state** (`.exp-error` + "נסו שוב", or "התחברות מחדש" on 401). The sheet stays open with the amount, category and description intact, so the retry re-sends what was typed. Success — toast, confetti, closing the sheet, refreshing the list — only ever happens after the server confirms.
+- **The one remaining unchecked write was fixed**: "register all recurring payments" (`dashboard.html`) ignored every result and always claimed success; it now counts what got through and names what didn't.
+- **Push-token registration** (`base.html`) now checks the response instead of discarding it.
+- **Service worker: not involved, and proven not to be.** It already returns early for non-GET and for `/api/`, so it can never answer a save. The test asserts the worker controls the page, that a save still lands in the database, and that no `/api/` response is in any cache.
+- **Asset version bumped `pop1` → `pop2`** (and the cache to `ourhome-pop-2`) so phones actually pick up the fixed JavaScript instead of a cached copy.
+- **`float(f['amount'] or 0)` in `feedings_data`** (`app.py`): one row with a NULL amount used to 500 the whole baby tracker. The app can't create such a row (`add_feeding` rejects it), so this is defence only.
+
+Verified in a real browser (`vs_nosilent.py`, 48 checks): for a 200-that-is-HTML, a 500, no connection at all, and an expired session — nothing is ever reported as saved, a written reason appears, the sheet stays open with the typed values, and the database row count is unchanged. Then retry saves exactly once.
+
+**Still unexplained: why the server refused those writes for six weeks.** The client change makes the next failure visible immediately; it does not tell us what went wrong in August. Worth checking on the server: the Flask/Gunicorn log around 5 Aug for 4xx/5xx on `/api/payments/add`, `df -h` (a full disk makes SQLite fail writes while reads keep working), and that the database file and its directory are writable by the app user.
+
 ## 9. Follow-ups (flagged, not implemented)
 
 - **Partner spending race and settle-up.** Needs a payer/settlement model.
 - **Swipe-to-split an expense.**
 - **Chores module.**
+- **`docker-compose-new.yml` and `.env.example` still assume the key must be configured.** The Web API key default in `firebase_config.py` was restored on purpose (it matches production, and Web API keys are public by design), so login works with no variable set. But the compose file still aborts `docker compose up` when `.env` has no `FIREBASE_API_KEY` (`${FIREBASE_API_KEY:?...}`), and copying `.env.example` as-is would set the placeholder `your-firebase-web-api-key`, which overrides the default and breaks login. Both lines come from the issue #23 change and need the owner's decision.
 - **Quiet hours for notifications.** Per-person switches per kind now exist (backend #13–14); a "don't disturb between 23:00 and 07:00" setting doesn't yet.
 - **Tapping a notification doesn't open the related screen.** The app just opens.
 - **A device token can occasionally be missed.** Push listeners are attached after `register()`; Capacitor's docs attach them first.

@@ -119,4 +119,6 @@ python test_files/test_flows.py        # 60 tests — complete user flows
 - Push calls always include `exclude_user_id` for user actions
 - `init_db()` checks existence before inserting default categories
 - PowerShell quote escaping issues — use .py scripts instead of inline
+- `firebase_config.py` keeps a hardcoded fallback for `FIREBASE_API_KEY` (the Firebase **Web** API key, same as production on Hetzner) so login works out of the box. It is intentional, not a leaked secret: Web API keys are client-side by design and protected by Firebase Security Rules. Do NOT remove it as a "security fix" without checking with the owner (issue #23 removed it once and broke local login). An environment variable still overrides it
+- New columns on tables that may already exist in a developer's DB go in the `init_db()` ALTER list (CREATE TABLE IF NOT EXISTS won't add them); test upgrades against a copy of a real DB, not only a fresh one
 - UI: templates use the classes in static/css/style.css and the Pop.* helpers in static/js/pop.js (no Bootstrap / Font Awesome / Chart.js); page-only styles go in the page's head block; every button has words; forms open in bottom sheets; confirmations via Pop.confirm(); ≥44px tap targets, ≥13px text, WCAG contrast

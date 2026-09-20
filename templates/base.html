@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800;900&family=Varela+Round&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=pop1">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=pop2">
     {% block head %}{% endblock %}
 </head>
 {% set has_nav = session.user_id and session.family_id %}
@@ -55,7 +55,7 @@
         return _origFetch(url, opts);
     };
     </script>
-    <script src="{{ url_for('static', filename='js/pop.js') }}?v=pop1"></script>
+    <script src="{{ url_for('static', filename='js/pop.js') }}?v=pop2"></script>
     <script>
     (function () {   /* status bar icons readable over this page's hero (overlay mode draws the hero under the bar) */
         try {
@@ -104,12 +104,14 @@
             PushNotifications.addListener('registration', async function(tokenData) {
                 console.log('Push token:', tokenData.value);
                 try {
-                    await fetch('/api/push/register', {
+                    // check the answer: a token that never registered means no notifications, silently
+                    const res = await fetch('/api/push/register', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ token: tokenData.value, platform: 'android' })
                     });
-                    console.log('Push token saved');
+                    if (res.ok) console.log('Push token saved');
+                    else console.error('Push register rejected:', res.status);
                 } catch(e) {
                     console.error('Push register failed:', e);
                 }

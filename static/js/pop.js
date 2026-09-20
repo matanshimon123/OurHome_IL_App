@@ -45,15 +45,60 @@
   function avatarClass(name) { var h = 0; String(name || '?').split('').forEach(function (c) { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return AV[h % AV.length]; }
   function initial(name) { return (String(name || '?').trim()[0] || '?'); }
 
-  /* ── network ── */
-  async function api(method, url, body) {
-    var opts = { method: method, headers: {} };
+  /* ── network ──
+     Everything the app writes goes through here, so this is where a save is allowed to be called a save.
+     Rules, after expenses were reported "נוסף ✓" for six weeks without ever reaching the server:
+     - a 200 whose body is not JSON (a login page, a proxy error page) is a FAILURE, not a save
+     - 401/403 is its own reason, so the screen can say "log in again" instead of a vague error
+     - GET is retried automatically (safe to repeat). POST/PUT/DELETE is never retried on its own:
+       /api/payments/add is not idempotent and a blind retry can record the expense twice.
+       Callers show the user a retry button instead.
+     Returns { ok, status, data } as before, plus `reason` and `retriable` for callers that want them. */
+  var NET_MSG = {
+    offline: 'אין חיבור לשרת',
+    auth: 'פג תוקף ההתחברות — התחברו מחדש',
+    server: 'השרת לא הגיב כמו שצריך',
+    html: 'השרת החזיר תשובה לא צפויה'
+  };
+  function sleep(ms) { return new Promise(function (res) { setTimeout(res, ms); }); }
+
+  async function apiOnce(method, url, body) {
+    var opts = { method: method, headers: { 'Accept': 'application/json' }, credentials: 'same-origin', cache: 'no-store' };
     if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
-    try {
-      var r = await fetch(url, opts), data = null;
-      try { data = await r.json(); } catch (e) { data = null; }
-      return { ok: r.ok, status: r.status, data: data };
-    } catch (e) { return { ok: false, status: 0, data: { error: 'אין חיבור לשרת' } }; }
+    var r;
+    try { r = await fetch(url, opts); }
+    catch (e) { return { ok: false, status: 0, data: { error: NET_MSG.offline }, reason: 'offline', retriable: true }; }
+    var text = '', data = null;
+    try { text = await r.text(); } catch (e) { text = ''; }
+    if (text) { try { data = JSON.parse(text); } catch (e) { data = null; } }
+    if (data === null && text && text.trim().charAt(0) === '<') {   /* never reached the API */
+      return { ok: false, status: r.status, data: { error: NET_MSG.html }, reason: 'html', retriable: true };
+    }
+    if (r.status === 401 || r.status === 403) {
+      return { ok: false, status: r.status, data: data || { error: NET_MSG.auth }, reason: 'auth', retriable: false };
+    }
+    if (!r.ok) {
+      return { ok: false, status: r.status, data: data || { error: NET_MSG.server },
+               reason: r.status >= 500 ? 'server' : 'rejected', retriable: r.status >= 500 };
+    }
+    return { ok: true, status: r.status, data: data, reason: null, retriable: false };
+  }
+
+  /* the sentence to show the user for a failed call, in their words */
+  function netMsg(r, fallback) {
+    if (!r) return fallback || NET_MSG.server;
+    if (r.reason === 'auth') return NET_MSG.auth;
+    if (r.reason === 'offline') return NET_MSG.offline;
+    if (r.data && r.data.error) return r.data.error;
+    return fallback || NET_MSG.server;
+  }
+
+  async function api(method, url, body) {
+    var r = await apiOnce(method, url, body);
+    if (String(method).toUpperCase() === 'GET') {
+      for (var i = 0; i < 2 && !r.ok && r.retriable; i++) { await sleep(400 * (i + 1)); r = await apiOnce(method, url, body); }
+    }
+    return r;
   }
 
   /* ── count-up (from concept.js, with a guaranteed settle) ── */
@@ -212,7 +257,7 @@
   window.Pop = {
     esc: esc, num: num, money: money, money0: money0, iso: iso, pad2: pad2, longDate: longDate, dayLabel: dayLabel,
     minutesToWords: minutesToWords, hm: hm, hms: hms, avatarClass: avatarClass, initial: initial,
-    api: api, countUp: countUp, toast: toast, confetti: confetti, squish: squish,
+    api: api, netMsg: netMsg, countUp: countUp, toast: toast, confetti: confetti, squish: squish,
     openSheet: openSheet, closeSheet: closeSheet, confirm: confirmPop, copyText: copyText, share: share, onVisible: onVisible,
     HE_DAYS: HE_DAYS, HE_DAYS_SHORT: HE_DAYS_SHORT, HE_MONTHS: HE_MONTHS, reduceMotion: reduceMotion
   };

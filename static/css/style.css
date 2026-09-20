@@ -253,6 +253,12 @@ input[type=color].swatch{width:54px;height:54px;padding:5px;border:var(--line) s
 .exp-actions .btn{flex:1 1 0;min-width:0;min-height:56px;padding:0 10px;font-size:17px;gap:8px}
 .exp-actions .btn span:last-child{overflow:hidden;text-overflow:ellipsis}
 .exp-actions .exp-del{color:var(--coral-ink)}
+/* failed save: loud, keeps the sheet open, offers the retry the user decides to make */
+.exp-error{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;padding:12px 14px;
+  background:var(--coral-soft);border:var(--line) solid var(--ink);border-radius:var(--r-sm);box-shadow:var(--shadow-sm)}
+.exp-error-msg{display:flex;align-items:center;gap:8px;flex:1 1 180px;min-width:0;
+  color:var(--ink);font-family:var(--font-display);font-weight:700;font-size:15px;line-height:1.35}
+.exp-error .btn{min-height:var(--tap);padding:0 16px;font-size:15px;gap:6px;flex:0 0 auto}
 
 /* ═══════════ lists ═══════════ */
 .list{display:flex;flex-direction:column;gap:10px}

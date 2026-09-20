@@ -2,9 +2,21 @@
    POST /api/payments/add · PUT /api/payments/<id> · POST /delete_payment/<id>?api=1 · GET /api/categories */
 (function () {
   'use strict';
-  var cats = null, amt = '', cat = null, editId = null, onSaved = null, origDate = '', cycle = null;
+  var cats = null, amt = '', cat = null, editId = null, onSaved = null, origDate = '', cycle = null, authFail = false;
   var $ = function (id) { return document.getElementById(id); };
   var LAST = 'lastExpenseCat';
+
+  /* a failed save stays on screen until it works. The sheet keeps the amount, category and description,
+     so "נסו שוב" re-sends exactly what the user typed. */
+  function showErr(msg, canRetry) {
+    authFail = !canRetry;
+    $('expErrMsg').textContent = msg;
+    $('expRetryT').textContent = canRetry ? 'נסו שוב' : 'התחברות מחדש';
+    $('expRetry').firstElementChild.textContent = canRetry ? '🔄' : '🔑';
+    $('expErr').classList.remove('hidden');
+    $('expErr').scrollIntoView({ block: 'nearest' });
+  }
+  function clearErr() { authFail = false; var e = $('expErr'); if (e) e.classList.add('hidden'); }
 
   async function loadCats() {
     if (cats) return cats;
@@ -48,7 +60,7 @@
     $('expDate').value = origDate;
     $('expDate').max = Pop.iso(new Date());
     if (cycle && cycle.start_date) $('expDate').min = cycle.start_date; else $('expDate').removeAttribute('min');
-    paintAmt(); paintCats();
+    paintAmt(); paintCats(); clearErr();
     Pop.openSheet('expSheet');
   }
 
@@ -65,13 +77,14 @@
         if (parts[0].length >= 7 && parts.length === 1) return;
         amt = (amt === '0' ? '' : amt) + v;
       }
-      Pop.squish(k); paintAmt();
+      Pop.squish(k); paintAmt(); clearErr();
     });
+    $('expDesc').addEventListener('input', clearErr);
     $('expCats').addEventListener('click', function (e) {
       var b = e.target.closest('[data-cat]'); if (!b) return;
       cat = b.getAttribute('data-cat'); paintCats();
     });
-    $('expSave').addEventListener('click', async function () {
+    async function save() {
       var a = parseFloat(amt);
       if (!a || a <= 0) { Pop.toast('הקלידו סכום בעזרת המקלדת', 'error'); Pop.squish($('expAmt').parentNode); return; }
       var desc = $('expDesc').value.trim() || cat;
@@ -83,23 +96,34 @@
         if ($('expDate').min && d < $('expDate').min) { Pop.toast('אפשר לבחור תאריך רק מתוך המחזור הנוכחי', 'error'); $('expDate').focus(); return; }
         if (d !== origDate) body.date = d;
       }
-      var btn = this; btn.disabled = true;
+      var btn = $('expSave');
+      btn.disabled = true; $('expRetry').disabled = true; clearErr();
       var r = editId ? await Pop.api('PUT', '/api/payments/' + editId, body)
                      : await Pop.api('POST', '/api/payments/add', body);
-      btn.disabled = false;
-      if (!r.ok) { Pop.toast((r.data && r.data.error) || 'השמירה נכשלה', 'error'); return; }
+      btn.disabled = false; $('expRetry').disabled = false;
+      /* only the server gets to say it was saved: no toast, no confetti, no list refresh until it does */
+      if (!r.ok) {
+        showErr(Pop.netMsg(r, editId ? 'העדכון לא נשמר' : 'ההוצאה לא נשמרה'), r.reason !== 'auth');
+        Pop.toast(Pop.netMsg(r, 'השמירה נכשלה'), 'error');
+        return;
+      }
       try { localStorage.setItem(LAST, cat); } catch (e) {}
       Pop.confetti(btn, 50);
       Pop.toast(editId ? 'התשלום עודכן ✓' : Pop.money(a) + ' נרשם ✓', 'success');
       Pop.closeSheet('expSheet');
       if (onSaved) onSaved({ id: editId, amount: a, category: cat, description: desc });
+    }
+    $('expSave').addEventListener('click', save);
+    $('expRetry').addEventListener('click', function () {
+      if (authFail) { location.href = '/login'; return; }   /* re-sending would fail the same way */
+      save();
     });
     $('expDelete').addEventListener('click', async function () {
       if (!editId) return;
       var ok = await Pop.confirm({ title: 'למחוק את התשלום?', text: 'אי אפשר לבטל מחיקה.', ok: 'כן, למחוק', danger: true });
       if (!ok) return;
       var r = await Pop.api('POST', '/delete_payment/' + editId + '?api=1');
-      if (!r.ok) { Pop.toast('המחיקה נכשלה', 'error'); return; }
+      if (!r.ok) { showErr(Pop.netMsg(r, 'התשלום לא נמחק'), r.reason !== 'auth'); Pop.toast(Pop.netMsg(r, 'המחיקה נכשלה'), 'error'); return; }
       Pop.toast('התשלום נמחק', 'success'); Pop.closeSheet('expSheet');
       if (onSaved) onSaved({ id: editId, deleted: true });
     });
