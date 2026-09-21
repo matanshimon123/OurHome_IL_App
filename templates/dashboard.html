@@ -25,6 +25,16 @@
 .split-bar i+i{border-inline-start:2px solid var(--ink)}
 .split-bar i.dim{opacity:.22}
 .split-empty{display:grid;place-items:center;height:44px;border:var(--line) dashed var(--ink-2);border-radius:var(--r-pill);color:var(--ink-2);font:800 14px var(--font-display);text-align:center;padding:0 10px}
+/* legend chips: name over figures, so a chip is only as wide as its longest line instead of the sum of both.
+   Height stays 44px — that is the tap-target floor, not spare room. Colour is left to .chip-btn/.on. */
+#legend{padding-bottom:4px}
+#legend .chip-btn{padding:0 9px;gap:5px}
+#legend .chip-btn i.dot{width:10px;height:10px}
+.lc{display:flex;flex-direction:column;align-items:flex-start;line-height:1.15}
+.lc b{font:800 14px var(--font-display)}
+.lc small{font:700 13px var(--font-display)}
+.chip-btn .lc small{color:var(--ink-2)}
+.chip-btn.on .lc small{color:#E8E2FF}
 .filter-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 2px 0}
 .rec-row .t{white-space:normal}
 .cat-dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);display:inline-block;flex:none}
@@ -191,10 +201,14 @@
       return '<i aria-hidden="true" data-n="' + esc(it.n) + '" style="flex:' + (it.v / total * 1000).toFixed(2) +
              ' 1 0;background:' + esc(it.c) + '"></i>';
     }).join('');
+    /* "קניות - סופר" reads as "סופר" on a chip this size; the full name stays in the spoken label */
+    var shortName = function (n) { return n.replace('קניות - ', ''); };
     $('legend').innerHTML = items.map(function (it) {
-      return '<button type="button" class="chip-btn" data-n="' + esc(it.n) + '">' +
-        '<i class="dot" style="background:' + esc(it.c) + '"></i>' + esc(it.n) +
-        ' <span class="m">' + money0(it.v) + ' · ' + pct(it.v) + '%</span></button>';
+      return '<button type="button" class="chip-btn" data-n="' + esc(it.n) +
+        '" aria-label="' + esc(it.n) + ', ' + esc(money0(it.v)) + ', ' + pct(it.v) + ' אחוז">' +
+        '<i class="dot" style="background:' + esc(it.c) + '"></i>' +
+        '<span class="lc"><b>' + esc(shortName(it.n)) + '</b>' +
+        '<small>' + esc(money0(it.v)) + '&nbsp; ' + pct(it.v) + '%</small></span></button>';
     }).join('');
     paintSel();
   }
