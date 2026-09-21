@@ -3,8 +3,23 @@
 (function () {
   'use strict';
   var cats = null, amt = '', cat = null, editId = null, onSaved = null, origDate = '', cycle = null, authFail = false;
+  var catManual = false;
   var $ = function (id) { return document.getElementById(id); };
   var LAST = 'lastExpenseCat';
+
+  /* Category suggested from what the user types, the same way the shopping list guesses a department.
+     The matching is Pop.guessRules/guessFrom (shared); only the vocabulary is specific to expenses,
+     because departments (חלבי, קפואים…) and expense categories (רכב, משק בית…) are different taxonomies.
+     A guess only ever pre-selects a chip — tapping any other chip wins and stops the guessing. */
+  var GUESS = Pop.guessRules([
+    ['תינוק', 'חיתול|מטרנה|סימילאק|מוצץ|גן ילדים|גן של|טיפת חלב|עגלה|מגבונים|דייסה|בקבוק לתינוק|חלב אם'],
+    ['רכב', 'דלק|סולר|בנזין|תדלוק|טסט|צמיג|מוסך|חני|כביש 6|רישוי|ביטוח רכב|פנגו|סלופארק|שטיפת רכב|רכב'],
+    ['קניות - סופר', 'סופר|שופרסל|רמי לוי|ויקטורי|יינות ביתן|אושר עד|מכולת|טיב טעם|יוחננוף|חצי חינם|קרפור|אמפמ|מעדני'],
+    ['קניות - אופנה', 'בגד|חולצה|מכנס|נעל|קסטרו|אופנה|שמלה|גרבי|מעיל|חנות בגדים|זארה|טרמינל'],
+    ['בילויים / פנאי', 'מסעד|קפה|קולנוע|סרט|הופע|פאב|בילוי|נטפליקס|ספוטיפיי|פארק|בריכה|מלון|טיול|כרטיס|משחק|חופש|יום כיף'],
+    ['טיפוח', 'מספר|תספורת|קוסמטי|ציפורני|פדיקור|מניקור|סלון|טיפוח|בושם|איפור|עיסוי'],
+    ['משק בית', 'חשמל|ארנונה|מים|אינטרנט|סלולר|כבלים|ועד בית|שכר דירה|משכנתא|ריהוט|תיקון|אמבט|מקרר|מזגן|ביטוח דירה']
+  ]);
 
   /* a failed save stays on screen until it works. The sheet keeps the amount, category and description,
      so "נסו שוב" re-sends exactly what the user typed. */
@@ -60,6 +75,8 @@
     $('expDate').value = origDate;
     $('expDate').max = Pop.iso(new Date());
     if (cycle && cycle.start_date) $('expDate').min = cycle.start_date; else $('expDate').removeAttribute('min');
+    catManual = !!p;   /* editing: the saved category wins, never re-guess it from the description */
+    $('expAutoHint').classList.add('hidden');
     paintAmt(); paintCats(); clearErr();
     Pop.openSheet('expSheet');
   }
@@ -79,10 +96,20 @@
       }
       Pop.squish(k); paintAmt(); clearErr();
     });
-    $('expDesc').addEventListener('input', clearErr);
     $('expCats').addEventListener('click', function (e) {
       var b = e.target.closest('[data-cat]'); if (!b) return;
-      cat = b.getAttribute('data-cat'); paintCats();
+      cat = b.getAttribute('data-cat'); catManual = true;   /* the user chose: stop guessing */
+      $('expAutoHint').classList.add('hidden');
+      paintCats();
+    });
+    /* suggest a category from the description, for new expenses only */
+    $('expDesc').addEventListener('input', function () {
+      clearErr();
+      if (catManual) return;
+      var g = Pop.guessFrom(GUESS, this.value);
+      var known = g && cats && cats.some(function (c) { return c.name === g; });
+      $('expAutoHint').classList.toggle('hidden', !known);
+      if (known && g !== cat) { cat = g; paintCats(); }
     });
     async function save() {
       var a = parseFloat(amt);

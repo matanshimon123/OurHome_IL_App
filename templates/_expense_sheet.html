@@ -7,7 +7,7 @@
       <span class="chip cream flat" id="expWho">היום · {{ (session.display_name or '').split()[0] if session.display_name else '' }}</span>
     </div>
     <div class="kp-amt" aria-live="polite"><span>₪</span><b id="expAmt">0</b></div>
-    <div class="label">קטגוריה</div>
+    <div class="label">קטגוריה <small class="muted hidden" id="expAutoHint">· נבחרה לפי התיאור, אפשר לשנות</small></div>
     <div class="chip-scroll mb-2" id="expCats" role="radiogroup" aria-label="קטגוריה"></div>
     <div class="field exp-field">
       <label class="label" for="expDesc">על מה? <span class="muted" style="font-weight:700">(לא חובה)</span></label>

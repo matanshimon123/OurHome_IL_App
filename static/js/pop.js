@@ -45,6 +45,21 @@
   function avatarClass(name) { var h = 0; String(name || '?').split('').forEach(function (c) { h = (h * 31 + c.charCodeAt(0)) >>> 0; }); return AV[h % AV.length]; }
   function initial(name) { return (String(name || '?').trim()[0] || '?'); }
 
+  /* ── keyword guessing ──
+     Shared by the shopping list (departments) and the expense sheet (expense categories): same matching,
+     different vocabulary, because the two taxonomies are unrelated. Rules are [value, pattern] pairs in
+     priority order, first match wins.
+     Hebrew final letters (ך ם ן ף ץ) turn regular inside a longer word — מלפפון becomes מלפפונים — so both
+     the pattern and the text are folded before matching. */
+  function foldHe(t) { return String(t).replace(/[ךםןףץ]/g, function (c) { return { 'ך': 'כ', 'ם': 'מ', 'ן': 'נ', 'ף': 'פ', 'ץ': 'צ' }[c]; }); }
+  function guessRules(rules) { return rules.map(function (g) { return [g[0], new RegExp(foldHe(g[1]))]; }); }
+  function guessFrom(rules, text) {
+    var n = foldHe(text || '').trim();
+    if (!n) return '';
+    for (var i = 0; i < rules.length; i++) if (rules[i][1].test(n)) return rules[i][0];
+    return '';
+  }
+
   /* ── network ──
      Everything the app writes goes through here, so this is where a save is allowed to be called a save.
      Rules, after expenses were reported "נוסף ✓" for six weeks without ever reaching the server:
@@ -257,7 +272,8 @@
   window.Pop = {
     esc: esc, num: num, money: money, money0: money0, iso: iso, pad2: pad2, longDate: longDate, dayLabel: dayLabel,
     minutesToWords: minutesToWords, hm: hm, hms: hms, avatarClass: avatarClass, initial: initial,
-    api: api, netMsg: netMsg, countUp: countUp, toast: toast, confetti: confetti, squish: squish,
+    api: api, netMsg: netMsg, foldHe: foldHe, guessRules: guessRules, guessFrom: guessFrom,
+    countUp: countUp, toast: toast, confetti: confetti, squish: squish,
     openSheet: openSheet, closeSheet: closeSheet, confirm: confirmPop, copyText: copyText, share: share, onVisible: onVisible,
     HE_DAYS: HE_DAYS, HE_DAYS_SHORT: HE_DAYS_SHORT, HE_MONTHS: HE_MONTHS, reduceMotion: reduceMotion
   };

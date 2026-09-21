@@ -177,8 +177,9 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = Pop.esc;
   var CATS = ['🥬 ירקות ופירות', '🥛 חלבי', '🥩 בשר ודגים', '🍞 לחם ומאפים', '🧊 קפואים', '🧴 ניקיון', '🍼 תינוק', '📦 כללי'];
-  /* department guess from the item name (Concept C's keyword auto-categorising, applied to shopping) */
-  var GUESS = [
+  /* department guess from the item name (Concept C's keyword auto-categorising, applied to shopping).
+     The matching itself lives in Pop.guessRules/guessFrom, shared with the expense sheet. */
+  var GUESS = Pop.guessRules([
     ['🍼 תינוק', 'חיתול|מטרנה|סימילאק|תמ.?ל|מוצץ|דייסה|מגבונים לתינוק|קרם החתלה'],
     ['🧊 קפואים', 'קפוא|גלידה|בצק עלים|שלגון'],
     ['🥛 חלבי', 'חלב|גבינ|יוגורט|יופלה|קוטג|שמנת|חמאה|לבן|מעדן|ביצ|דנונה|מילקי'],
@@ -186,11 +187,8 @@
     ['🍞 לחם ומאפים', 'לחם|פית|חלה|לחמני|בגט|עוג|מאפ|קרואסון|טורטיי'],
     ['🧴 ניקיון', 'סבון|אקונומיקה|נוזל כלים|ניקוי|נייר טואלט|שקיות|מרכך|אבקת כביסה|ג.ל כביסה|ספוג|מטליות|שמפו'],
     ['🥬 ירקות ופירות', 'עגבני|מלפפון|בצל|שום|תפוח|בננ|גזר|חסה|פלפל|לימון|אבוקדו|תפו.?א|תפוחי אדמה|פטרוזיליה|כוסברה|שמיר|ענב|אבטיח|מלון|תות|אגס|קישוא|חציל|כרוב|ברוקולי|פטריות|תפוז|קלמנטינ']
-  ];
-  /* Hebrew final letters (ך ם ן ף ץ) turn regular inside a longer word: מלפפון → מלפפונים. Fold them on both sides. */
-  function fold(t) { return String(t).replace(/[ךםןףץ]/g, function (c) { return { 'ך': 'כ', 'ם': 'מ', 'ן': 'נ', 'ף': 'פ', 'ץ': 'צ' }[c]; }); }
-  GUESS.forEach(function (g) { g[1] = new RegExp(fold(g[1])); });
-  function guess(name) { var n = fold(name); for (var i = 0; i < GUESS.length; i++) if (GUESS[i][1].test(n)) return GUESS[i][0]; return ''; }
+  ]);
+  function guess(name) { return Pop.guessFrom(GUESS, name); }
 
   var items = [], favs = [], busy = {}, tab = 'list', addQty = 1, addCat = '', addCatManual = false, editing = null, editImg = null, editWasFav = false, favEditing = null;
   function isFav(it) { return !!it.favorite || favs.some(function (f) { return f.name === it.name; }); }

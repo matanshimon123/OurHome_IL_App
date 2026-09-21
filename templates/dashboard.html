@@ -17,15 +17,14 @@
 .detect h3{font-size:17px;line-height:1.4;margin:6px 0 12px}
 .detect h3 b{background:#fff;border:2px solid var(--ink);border-radius:8px;padding:0 6px;box-shadow:2px 2px 0 var(--ink);white-space:nowrap}
 .logo{width:48px;height:48px;border-radius:14px;border:2.5px solid var(--ink);background:#fff;display:grid;place-items:center;font:900 22px var(--font-display);box-shadow:2px 2px 0 var(--ink);flex:none}
-.bubbles{padding:12px 12px 14px}
-.bubbles svg{width:100%;height:auto}
-.bub{cursor:pointer;transform-box:fill-box;transform-origin:center;transition:transform .35s var(--spring),opacity .3s}
-.bub circle{stroke:#1E1633;stroke-width:3}
-.bub text{font-family:Rubik,sans-serif;font-weight:900;text-anchor:middle;pointer-events:none}
-.bub.dim{opacity:.3}
-.bub.on{transform:scale(1.1)}
-.bub.in{animation:bubIn .7s var(--spring) both}
-@keyframes bubIn{from{transform:scale(0)}to{transform:scale(1)}}
+/* category split: one proportional bar carries the shape, the legend chips carry the numbers and the
+   filtering. The bar is decoration only (aria-hidden segments), so no sliver becomes a tiny tap target. */
+.split{padding:14px}
+.split-bar{display:flex;height:30px;border:var(--line) solid var(--ink);border-radius:var(--r-pill);overflow:hidden;box-shadow:var(--shadow-sm);background:var(--white)}
+.split-bar i{display:block;height:100%;min-width:6px;transition:opacity .25s var(--ease)}
+.split-bar i+i{border-inline-start:2px solid var(--ink)}
+.split-bar i.dim{opacity:.22}
+.split-empty{display:grid;place-items:center;height:44px;border:var(--line) dashed var(--ink-2);border-radius:var(--r-pill);color:var(--ink-2);font:800 14px var(--font-display);text-align:center;padding:0 10px}
 .filter-bar{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:18px 2px 0}
 .rec-row .t{white-space:normal}
 .cat-dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--ink);display:inline-block;flex:none}
@@ -89,11 +88,12 @@
     <button type="button" class="btn white block mt-2" id="recNew">➕ תשלום קבוע חדש</button>
   </section>
 
-  <!-- bubble split -->
-  <div class="section-title pop d3"><span>לאן הלך הכסף?</span><small>גע בבועה לסינון</small></div>
-  <section class="sticker bubbles pop d3">
-    <svg viewBox="0 0 340 230" class="ltr" id="bubbles" role="img" aria-label="פילוח ההוצאות לפי קטגוריה"></svg>
-    <div class="chip-row mt-2" id="legend"></div>
+  <!-- category split -->
+  <div class="section-title pop d3"><span>לאן הלך הכסף?</span><small>גע בקטגוריה לסינון</small></div>
+  <section class="sticker split pop d3">
+    <div class="split-bar" id="catBar" role="img"></div>
+    {# one scrolling line, ranked biggest first: six full-size tap targets without six stacked rows #}
+    <div class="chip-scroll mt-2" id="legend" role="group" aria-label="סינון לפי קטגוריה"></div>
     <div class="muted small mt-2 hidden" id="unusedCats"></div>
   </section>
 
@@ -116,8 +116,8 @@
 <div class="fab-wrap">
   <button type="button" class="fab" aria-expanded="false" aria-haspopup="true"><span class="plus" aria-hidden="true">+</span><span class="lbl">הוספה</span></button>
   <button type="button" class="fab-item" style="background:var(--sun)" id="fabExpense"><b>הוצאה</b>💸</button>
+  {# the FAB is for creating things; cycle analysis is a view, and keeps its card at the top of the screen #}
   <button type="button" class="fab-item" style="background:var(--grape-soft)" id="fabRec"><b>קבוע</b>🔄</button>
-  <a class="fab-item" style="background:var(--mint)" href="{{ url_for('finance_analysis') }}"><b>ניתוח</b>📊</a>
 </div>
 
 <!-- recurring sheet -->
@@ -157,7 +157,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/expense-sheet.js') }}?v=pop2"></script>
+<script src="{{ url_for('static', filename='js/expense-sheet.js') }}?v=pop3"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -166,62 +166,54 @@
   var payments = [], recurring = [], catColors = {}, sel = null, firstLoad = true;
   var ALL_CATS = {{ categories|map(attribute='name')|list|tojson }};
 
-  /* readable text on any fill: ink or white, whichever contrasts more */
-  function textOn(hex) {
-    var h = (hex || '#999').replace('#', ''); if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
-    var ch = [0, 2, 4].map(function (i) { var v = parseInt(h.substr(i, 2), 16) / 255; return v <= .03928 ? v / 12.92 : Math.pow((v + .055) / 1.055, 2.4); });
-    var L = .2126 * ch[0] + .7152 * ch[1] + .0722 * ch[2];
-    return (L + .05) / (0.0119 + .05) >= (1.05) / (L + .05) ? '#1E1633' : '#FFFFFF';
-  }
-
-  /* ── bubble split: simple circle packing (largest first, nearest free spot to the centre) ── */
-  function pack(items) {
-    var total = items.reduce(function (s, i) { return s + i.v; }, 0) || 1, placed = [];
-    items.forEach(function (it, k) {
-      var r = Math.max(14, Math.sqrt(it.v / total) * 118);
-      if (!k) { placed.push({ x: 0, y: 0, r: r, it: it }); return; }
-      var best = null;
-      placed.forEach(function (p) {
-        for (var a = 0; a < 360; a += 12) {
-          var rad = a * Math.PI / 180, x = p.x + Math.cos(rad) * (p.r + r + 5), y = p.y + Math.sin(rad) * (p.r + r + 5);
-          if (placed.every(function (q) { return Math.hypot(q.x - x, q.y - y) >= q.r + r + 4; })) {
-            var d = Math.hypot(x * .8, y * 1.25); if (!best || d < best.d) best = { x: x, y: y, d: d };
-          }
-        }
-      });
-      placed.push({ x: best.x, y: best.y, r: r, it: it });
-    });
-    var minX = Math.min.apply(null, placed.map(function (p) { return p.x - p.r; })), maxX = Math.max.apply(null, placed.map(function (p) { return p.x + p.r; }));
-    var minY = Math.min.apply(null, placed.map(function (p) { return p.y - p.r; })), maxY = Math.max.apply(null, placed.map(function (p) { return p.y + p.r; }));
-    var sc = Math.min(330 / (maxX - minX), 222 / (maxY - minY), 1.4);
-    return placed.map(function (p) { return { x: 170 + (p.x - (minX + maxX) / 2) * sc, y: 115 + (p.y - (minY + maxY) / 2) * sc, r: p.r * sc, it: p.it }; });
-  }
-  function drawBubbles(labels, data, colors) {
-    var svg = $('bubbles'), total = data.reduce(function (s, v) { return s + v; }, 0);
-    if (!labels.length) { svg.innerHTML = '<text x="170" y="115" text-anchor="middle" font-family="Rubik" font-weight="800" font-size="16" fill="#4A4260">עוד אין הוצאות במחזור הזה</text>'; $('legend').innerHTML = ''; return; }
-    var items = labels.map(function (l, i) { catColors[l] = colors[i]; return { n: l, v: data[i], c: colors[i] }; });
-    svg.innerHTML = pack(items).map(function (p, i) {
-      var tc = textOn(p.it.c), big = p.r >= 36, pct = Math.round(p.it.v / total * 100);
-      var label = big ? '<text x="' + p.x.toFixed(1) + '" y="' + (p.y - 3).toFixed(1) + '" font-size="' + (p.r > 55 ? 17 : 14) + '" fill="' + tc + '">' + esc(p.it.n.replace('קניות - ', '')) + '</text><text x="' + p.x.toFixed(1) + '" y="' + (p.y + 15).toFixed(1) + '" font-size="' + (p.r > 55 ? 16 : 13) + '" fill="' + tc + '">' + money0(p.it.v) + '</text>'
-                      : (p.r >= 22 ? '<text x="' + p.x.toFixed(1) + '" y="' + (p.y + 5).toFixed(1) + '" font-size="13" fill="' + tc + '">' + pct + '%</text>' : '');
-      return '<g class="bub in' + (sel && sel !== p.it.n ? ' dim' : sel === p.it.n ? ' on' : '') + '" data-n="' + esc(p.it.n) + '" style="animation-delay:' + (.15 + i * .07) + 's"><circle cx="' + p.x.toFixed(1) + '" cy="' + p.y.toFixed(1) + '" r="' + p.r.toFixed(1) + '" fill="' + esc(p.it.c) + '"/>' + label + '</g>';
-    }).join('');
-    $('legend').innerHTML = items.map(function (it) {
-      return '<button type="button" class="chip-btn' + (sel === it.n ? ' on' : '') + '" data-n="' + esc(it.n) + '"><i class="dot" style="background:' + esc(it.c) + '"></i>' + esc(it.n) + ' <span class="m">' + Math.round(it.v / total * 100) + '%</span></button>';
-    }).join('');
+  /* ── category split: one proportional bar + a ranked legend ──
+     The bar shows the shape of the cycle at a glance; every number lives once, in the legend chips,
+     which are also the filter controls. Segments stay decorative so a 2% sliver never becomes a tap target. */
+  function drawSplit(labels, data, colors) {
+    var bar = $('catBar'), total = data.reduce(function (s, v) { return s + v; }, 0);
     var unused = ALL_CATS.filter(function (n) { return labels.indexOf(n) < 0; });
     $('unusedCats').classList.toggle('hidden', !unused.length);
     $('unusedCats').textContent = unused.length ? 'עדיין בלי הוצאות במחזור: ' + unused.join(', ') + ' ✨' : '';
+    if (!labels.length || total <= 0) {
+      bar.className = 'split-empty'; bar.removeAttribute('role'); bar.removeAttribute('aria-label');
+      bar.textContent = 'עוד אין הוצאות במחזור הזה';
+      $('legend').innerHTML = '';
+      return;
+    }
+    var items = labels.map(function (l, i) { catColors[l] = colors[i]; return { n: l, v: data[i], c: colors[i] }; })
+                      .sort(function (a, b) { return b.v - a.v; });
+    var pct = function (v) { return Math.round(v / total * 100); };
+    bar.className = 'split-bar';
+    bar.setAttribute('role', 'img');
+    bar.setAttribute('aria-label', 'פילוח ההוצאות לפי קטגוריה: ' +
+      items.map(function (it) { return it.n + ' ' + pct(it.v) + ' אחוז'; }).join(', '));
+    bar.innerHTML = items.map(function (it) {
+      return '<i aria-hidden="true" data-n="' + esc(it.n) + '" style="flex:' + (it.v / total * 1000).toFixed(2) +
+             ' 1 0;background:' + esc(it.c) + '"></i>';
+    }).join('');
+    $('legend').innerHTML = items.map(function (it) {
+      return '<button type="button" class="chip-btn" data-n="' + esc(it.n) + '">' +
+        '<i class="dot" style="background:' + esc(it.c) + '"></i>' + esc(it.n) +
+        ' <span class="m">' + money0(it.v) + ' · ' + pct(it.v) + '%</span></button>';
+    }).join('');
+    paintSel();
+  }
+  function paintSel() {
+    Array.prototype.forEach.call(document.querySelectorAll('#catBar i'), function (s) {
+      s.classList.toggle('dim', !!sel && s.dataset.n !== sel);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#legend .chip-btn'), function (b) {
+      var on = b.dataset.n === sel;
+      b.classList.toggle('on', on); b.setAttribute('aria-pressed', String(on));
+    });
   }
   function select(n) {
     sel = sel === n ? null : n;
-    Array.prototype.forEach.call(document.querySelectorAll('.bub'), function (b) { b.classList.toggle('on', b.dataset.n === sel); b.classList.toggle('dim', !!sel && b.dataset.n !== sel); });
-    Array.prototype.forEach.call(document.querySelectorAll('#legend .chip-btn'), function (b) { b.classList.toggle('on', b.dataset.n === sel); });
+    paintSel();
     $('clearFilter').classList.toggle('hidden', !sel);
     renderTx();
     if (sel) { $('filterNote').classList.remove('hidden'); $('txList').scrollIntoView({ behavior: 'smooth', block: 'start' }); } else $('filterNote').classList.add('hidden');
   }
-  $('bubbles').addEventListener('click', function (e) { var g = e.target.closest('.bub'); if (g) select(g.dataset.n); });
   $('legend').addEventListener('click', function (e) { var b = e.target.closest('[data-n]'); if (b) select(b.dataset.n); });
   $('clearFilter').addEventListener('click', function () { select(sel); });
 
@@ -238,7 +230,7 @@
         html += '<div class="day-h"><span>' + esc(Pop.dayLabel(day)) + '</span><small>' + money0(daySum) + '</small></div>';
       }
       var c = p.color || '#999';
-      html += '<button type="button" class="sticker item pressable" style="margin-bottom:10px" data-id="' + p.id + '">' +
+      html += '<button type="button" class="sticker item dense pressable tx-row" data-id="' + p.id + '">' +
         '<span class="ico" style="background:' + esc(c) + '33">' + (ICON[p.category] || '🏷️') + '</span>' +
         '<span class="grow"><span class="t" style="display:block">' + esc(p.description) + '</span><span class="s"><i class="cat-dot" style="background:' + esc(c) + '"></i>' + esc(p.category) + (p.time ? ' · ' + esc(p.time) : '') + '</span></span>' +
         '<span class="amt num">' + money(p.amount) + '</span>' +
@@ -265,7 +257,7 @@
 
   /* ── recurring ── */
   function recRow(r, pending) {
-    return '<div class="sticker item rec-row" style="box-shadow:none">' +
+    return '<div class="sticker item dense rec-row" style="box-shadow:none">' +
       '<button type="button" class="row grow" style="text-align:start;min-height:44px" data-rec-edit="' + r.id + '"><span class="ico" style="background:var(--grape-soft)">🔄</span>' +
       '<span class="grow"><span class="t" style="display:block">' + esc(r.description) + '</span><span class="s">' + esc(r.category) + ' · ' + money(r.amount) + '</span></span></button>' +
       (pending ? '<button type="button" class="chip-btn" style="background:var(--mint)" data-rec-add="' + r.id + '">➕ רישום</button>' : '<span class="chip mint">✓ נרשם</span>') + '</div>';
@@ -353,7 +345,7 @@
   /* ── loading ── */
   async function loadPayments() { var r = await Pop.api('GET', '/api/payments'); if (r.ok && Array.isArray(r.data)) { payments = r.data; renderHero(); renderTx(); } }
   async function loadRecurring() { var r = await Pop.api('GET', '/api/recurring'); if (r.ok && Array.isArray(r.data)) { recurring = r.data; renderRecurring(); } }
-  async function loadCategories() { var r = await Pop.api('GET', '/api/chart_data'); if (r.ok && r.data && r.data.categories) { var c = r.data.categories; drawBubbles(c.labels, c.data, c.colors); } }
+  async function loadCategories() { var r = await Pop.api('GET', '/api/chart_data'); if (r.ok && r.data && r.data.categories) { var c = r.data.categories; drawSplit(c.labels, c.data, c.colors); } }
   async function loadAll() { await loadPayments(); await loadRecurring(); loadCategories(); firstLoad = false; }
 
   $('fabExpense').addEventListener('click', function () { ExpenseSheet.open({ onSaved: loadAll }); });

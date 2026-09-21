@@ -132,6 +132,31 @@ Verified in a real browser (`vs_nosilent.py`, 48 checks): for a 200-that-is-HTML
 
 **Still unexplained: why the server refused those writes for six weeks.** The client change makes the next failure visible immediately; it does not tell us what went wrong in August. Worth checking on the server: the Flask/Gunicorn log around 5 Aug for 4xx/5xx on `/api/payments/add`, `df -h` (a full disk makes SQLite fail writes while reads keep working), and that the database file and its directory are writable by the app user.
 
+## 8c. Expenses screen density pass
+
+Measured on the same data, deployed build (`80ca438`) vs now, at 390×844:
+
+| | deployed | now |
+|---|---|---|
+| category breakdown section | 465px | **181px** (−61%) |
+| tallest transaction row | 74px | 59px (−20%) |
+| tallest recurring row | 74px | 58px (−22%) |
+| whole page | 3196px | 2704px (−15%) |
+
+**Bubble pack → one proportional bar + a ranked scrolling legend.** The bubbles cost ~230px of SVG and then repeated every percentage in a legend underneath. The replacement is a single 30px stacked bar (the shape of the cycle at a glance) above one horizontally scrolling row of ranked chips, each carrying `₪amount · share%`. Every number now appears exactly once, in the chips; the bar is purely proportional.
+
+Why this and not a donut or a ranked list with inline bars: any per-category *control* has to be ≥44px tall, so six always-visible rows cost ≥264px however they are drawn — a ranked list could not beat the bubbles by much. Putting the categories on one `.chip-scroll` line (the pattern the expense sheet already uses for its category picker) keeps full-size tap targets while costing a single row. The bar segments are `aria-hidden` and non-interactive on purpose: a 2% sliver would otherwise be a 6px tap target and fail the accessibility audit. The bar carries an `aria-label` spelling out the whole breakdown for screen readers.
+
+**Dense rows** are a `.item.dense` modifier on the existing row component: 34px icon (was 44), 15px title, 13px subtitle, 16px amount, 8px padding. Nothing was removed — payer avatar, amount, title, category dot and name, and time all remain. Compact is not cramped: rows stay ≥44px tall and no text is under 13px, both asserted.
+
+**FAB**: cycle analysis removed (it is a view, not a creation) and keeps its card at the top of the screen. Recurring payment was *already* a FAB action in the deployed build (`#fabRec`) — nothing was added, and the check now asserts it is there.
+
+**Recurring and the cycle start — verified, not assumed.** `add_recurring_to_month` files the payment under `month = get_cycle_month(fid)`, which is the cycle, not the calendar month of "today". Tested with the cycle deliberately started six days before today (cycle day 15, today the 21st): the row lands in cycle `2026-09`, the cycle total moves by exactly the amount, the home summary and the expense list agree, and `_cycle_month_for_date` maps today to the same cycle. So a recurring charge registered mid-cycle counts for the whole cycle. No backend change was needed; the FAB reuses this same route.
+
+**Category suggestion — genuinely shared.** The matching engine moved into `Pop.foldHe/guessRules/guessFrom` in `pop.js`, and the shopping list now calls it instead of its own copy. Only the vocabulary differs, because the two taxonomies are unrelated: shopping guesses supermarket *departments* (חלבי, קפואים…), expenses guess *expense categories* (רכב, משק בית…). The Hebrew final-letter folding (מלפפון → מלפפונים) is shared, which is the part that was actually hard to get right. The guess only pre-selects a chip, is labelled "נבחרה לפי התיאור, אפשר לשנות", stops the moment the user taps any chip, and never runs when editing an existing payment.
+
+**Double-tap zoom, site-wide.** `touch-action: manipulation` on `html, body` and on interactive elements in `style.css` — this is the fix that actually works on iOS Safari, which has ignored `user-scalable=no` since iOS 10. The viewport tag also gained `maximum-scale=1, minimum-scale=1, user-scalable=no` in `base.html` (every page), `static/offline.html` and `www/index.html`. Note the trade-off: `user-scalable=no` also blocks pinch-zoom, which works against WCAG 1.4.4; `touch-action` alone would have stopped double-tap zoom while leaving pinch available. It is set as asked — say the word and I will drop `user-scalable=no` and keep the `touch-action` fix. Verified on `/dashboard`, `/home`, `/shopping-list`, `/settings` and `/login`.
+
 ## 9. Follow-ups (flagged, not implemented)
 
 - **Partner spending race and settle-up.** Needs a payer/settlement model.
