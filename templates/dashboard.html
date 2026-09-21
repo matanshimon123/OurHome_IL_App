@@ -8,10 +8,6 @@
 .hero-big .sym{font-size:28px;font-weight:700;text-shadow:none}
 .hero-sub{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 .stats3{margin-top:16px}
-.sticker.analysis-cta{display:flex;align-items:center;gap:12px;padding:14px 16px}
-.analysis-cta .ico{width:52px;height:52px;border-radius:16px;border:2.5px solid var(--ink);display:grid;place-items:center;font-size:26px;background:#fff;box-shadow:2px 2px 0 var(--ink);flex:none}
-.analysis-cta b{font:900 18px var(--font-display);display:block}
-.analysis-cta small{font-size:14px;color:var(--ink-2)}
 .detect{padding:14px 16px;overflow:hidden;transition:all .5s var(--ease)}
 .detect.gone{max-height:0;padding-top:0;padding-bottom:0;margin:0;opacity:0;border-width:0;transform:scale(.9)}
 .detect h3{font-size:17px;line-height:1.4;margin:6px 0 12px}
@@ -66,12 +62,7 @@
 </header>
 
 <main class="content">
-  <!-- deeper analysis entry point -->
-  <a href="{{ url_for('finance_analysis') }}" class="sticker soft-grape analysis-cta pressable pop d1 mt-3" id="analysisCta">
-    <span class="ico">📊</span>
-    <span class="grow"><b>ניתוח והשוואת מחזורים</b><small>המחזור הזה מול הקודם, יום אחרי יום</small></span>
-    <span class="go" aria-hidden="true">לניתוח<svg viewBox="0 0 24 24"><path d="M15 6l-6 6 6 6"/></svg></span>
-  </a>
+  {# cycle analysis lives in the FAB menu now, so it no longer needs a card of its own up here #}
 
   <!-- smart: bill detective -->
   <section class="sticker sun detect tilt-r pop d2 mt-3 hidden" id="detect">
@@ -88,18 +79,18 @@
     </div>
   </section>
 
-  <!-- recurring: pending vs logged -->
-  <div class="section-title pop d2"><span>🔄 תשלומים קבועים</span><small id="recSummary"></small></div>
-  <section class="sticker pad pop d2" id="recCard">
+  <!-- recurring: a full card only while something is actually waiting to be logged; otherwise one line -->
+  <div class="section-title pop d2 hidden" id="recHead"><span>🔄 תשלומים קבועים</span><small id="recSummary"></small></div>
+  <section class="sticker pad pop d2 hidden" id="recCard">
     <div id="recPending" class="list"></div>
     <button type="button" class="btn mint block mt-2 hidden" id="recAll">⚡ רישום כל הקבועים שחסרים</button>
     <details class="mt-2 hidden" id="recDoneWrap">
       <summary class="chip-btn" style="list-style:none;display:inline-flex">✓ כבר נרשמו במחזור: <span id="recDoneN">0</span></summary>
       <div id="recDone" class="list mt-2"></div>
     </details>
-    <div class="empty hidden" id="recEmpty" style="padding:10px"><div class="t">אין עדיין תשלומים קבועים</div><div class="d">שכר דירה, גן, חשמל: מגדירים פעם אחת, ורושמים בלחיצה בכל מחזור.</div></div>
     <button type="button" class="btn white block mt-2" id="recNew">➕ תשלום קבוע חדש</button>
   </section>
+  <button type="button" class="sticker item dense pressable pop d2 mt-3 hidden" id="recSlim"></button>
 
   <!-- bubble split -->
   <div class="section-title pop d3"><span>לאן הלך הכסף?</span><small>גע בבועה לסינון</small></div>
@@ -127,10 +118,11 @@
 <!-- radial quick actions -->
 <div class="fab-scrim"></div>
 <div class="fab-wrap">
-  <button type="button" class="fab" aria-expanded="false" aria-haspopup="true"><span class="plus" aria-hidden="true">+</span><span class="lbl">הוספה</span></button>
+  {# "פעולות", not "הוספה": the menu also opens the cycle analysis, which is a view rather than a creation #}
+  <button type="button" class="fab" aria-expanded="false" aria-haspopup="true"><span class="plus" aria-hidden="true">+</span><span class="lbl">פעולות</span></button>
   <button type="button" class="fab-item" style="background:var(--sun)" id="fabExpense"><b>הוצאה</b>💸</button>
-  {# the FAB is for creating things; cycle analysis is a view, and keeps its card at the top of the screen #}
   <button type="button" class="fab-item" style="background:var(--grape-soft)" id="fabRec"><b>קבוע</b>🔄</button>
+  <a class="fab-item" style="background:var(--mint)" href="{{ url_for('finance_analysis') }}"><b>ניתוח</b>📊</a>
 </div>
 
 <!-- recurring sheet -->
@@ -170,7 +162,7 @@
 {% endblock %}
 
 {% block scripts %}
-<script src="{{ url_for('static', filename='js/expense-sheet.js') }}?v=pop3"></script>
+<script src="{{ url_for('static', filename='js/expense-sheet.js') }}?v=pop4"></script>
 <script>
 (function () {
   var $ = function (id) { return document.getElementById(id); };
@@ -304,17 +296,47 @@
       '<span class="grow"><span class="t" style="display:block">' + esc(r.description) + '</span><span class="s">' + esc(r.category) + ' · ' + money(r.amount) + '</span></span></button>' +
       (pending ? '<button type="button" class="chip-btn" style="background:var(--mint)" data-rec-add="' + r.id + '">➕ רישום</button>' : '<span class="chip mint">✓ נרשם</span>') + '</div>';
   }
+  /* The card earns its place on the screen. Three states:
+       nothing set up  → one quiet line offering to set it up (the FAB can do it too)
+       something due   → the full card, so a new cycle reminds you to log what is missing
+       everything done → one line saying so, which opens the list when you want to edit it       */
+  var recOpen = false;
+  function paintSlim(mode, sub) {
+    var b = $('recSlim');
+    b.dataset.mode = mode;
+    b.innerHTML = mode === 'new'
+      ? '<span class="ico" style="background:var(--grape-soft)">🔄</span>' +
+        '<span class="grow"><span class="t">להגדיר תשלומים קבועים</span>' +
+        '<span class="s">שכר דירה, גן, חשמל — פעם אחת, ואז בלחיצה בכל מחזור</span></span>' +
+        '<span class="chip grape flat">הוספה</span>'
+      : '<span class="ico" style="background:var(--mint-soft)">✓</span>' +
+        '<span class="grow"><span class="t">כל הקבועים נרשמו במחזור</span>' +
+        '<span class="s">' + esc(sub) + '</span></span>' +
+        '<span class="chip mint flat">ניהול</span>';
+  }
   function renderRecurring() {
     var logged = {}; payments.forEach(function (p) { logged[p.description] = true; });
     var pending = recurring.filter(function (r) { return !logged[r.description]; }), done = recurring.filter(function (r) { return logged[r.description]; });
-    $('recEmpty').classList.toggle('hidden', recurring.length > 0);
+    var nothing = recurring.length === 0, waiting = pending.length > 0;
+    var showCard = !nothing && (waiting || recOpen);
+    $('recHead').classList.toggle('hidden', !showCard);
+    $('recCard').classList.toggle('hidden', !showCard);
+    $('recSlim').classList.toggle('hidden', showCard);
+    if (!showCard) {
+      var sum = done.reduce(function (s, r) { return s + r.amount; }, 0);
+      paintSlim(nothing ? 'new' : 'done', done.length + ' תשלומים · ' + money0(sum));
+    }
     $('recPending').innerHTML = pending.map(function (r) { return recRow(r, true); }).join('');
     $('recAll').classList.toggle('hidden', pending.length < 2);
     $('recDoneWrap').classList.toggle('hidden', !done.length); $('recDoneN').textContent = done.length;
     $('recDone').innerHTML = done.map(function (r) { return recRow(r, false); }).join('');
     var pendSum = pending.reduce(function (s, r) { return s + r.amount; }, 0);
-    $('recSummary').textContent = !recurring.length ? '' : pending.length ? pending.length + ' עוד לא נרשמו (' + money0(pendSum) + ')' : 'הכול נרשם במחזור ✓';
+    $('recSummary').textContent = waiting ? pending.length + ' עוד לא נרשמו (' + money0(pendSum) + ')' : 'הכול נרשם במחזור ✓';
   }
+  $('recSlim').addEventListener('click', function () {
+    if (this.dataset.mode === 'new') { openRec(null); return; }
+    recOpen = true; renderRecurring();
+  });
   $('recCard').addEventListener('click', async function (e) {
     var add = e.target.closest('[data-rec-add]'), ed = e.target.closest('[data-rec-edit]');
     if (add) {

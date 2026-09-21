@@ -236,10 +236,13 @@
           b.style.transform = open ? 'translate(' + x.toFixed(0) + 'px,' + y.toFixed(0) + 'px) scale(1)' : 'translate(0,0) scale(.3)';
         });
       };
+      /* each page names its own FAB — "הוספה" where the menu only creates things, "פעולות" where it
+         also opens a view — so keep that word instead of hardcoding one here */
+      var closedLabel = (label && label.textContent.trim()) || 'הוספה';
       var toggle = function (force) {
         var open = typeof force === 'boolean' ? force : !fw.classList.contains('open');
         fw.classList.toggle('open', open); if (scrim) scrim.classList.toggle('show', open);
-        fab.setAttribute('aria-expanded', String(open)); if (label) label.textContent = open ? 'סגירה' : 'הוספה';
+        fab.setAttribute('aria-expanded', String(open)); if (label) label.textContent = open ? 'סגירה' : closedLabel;
         items.forEach(function (b) { b.tabIndex = open ? 0 : -1; b.setAttribute('aria-hidden', String(!open)); });
         place(open);
       };
