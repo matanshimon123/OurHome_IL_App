@@ -1480,16 +1480,21 @@ def add_payment_api():
     if data is None:
         return jsonify({'error': 'Invalid data'}), 400
     cm = get_cycle_month(fid)
-    cy = int(cm.split('-')[0])
     desc = data.get('description', '').strip()
     amount = data.get('amount', 0)
     if not desc or amount is None or float(amount) <= 0:
         return jsonify({'error': 'Invalid data'}), 400
     added_by = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+    when = now_israel().strftime('%Y-%m-%d %H:%M:%S')
     with get_db() as conn:
+        if data.get('date'):   # an expense recorded after the fact, dated when it actually happened
+            day, cm, err = _validate_payment_date(conn, fid, data['date'])
+            if err:
+                return err
+            when = '%s %s' % (day.strftime('%Y-%m-%d'), now_israel().strftime('%H:%M:%S'))
         conn.execute('INSERT INTO payments (family_id,description,amount,category,month,year,date,added_by) VALUES (?,?,?,?,?,?,?,?)',
-                     (fid, data['description'], data['amount'], data.get('category', 'כללי'), cm, cy,
-                      now_israel().strftime('%Y-%m-%d %H:%M:%S'), added_by))
+                     (fid, data['description'], data['amount'], data.get('category', 'כללי'), cm, int(cm[:4]),
+                      when, added_by))
 
     # Push notification to family
     user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
@@ -1544,6 +1549,22 @@ def _cycle_month_for_date(d, cycle_day):
     return (d.replace(day=1) - timedelta(days=1)).strftime('%Y-%m')
 
 
+def _validate_payment_date(conn, fid, raw):
+    """One rule set wherever a payment date comes from the user (adding a backdated expense, editing one):
+    a real date, not in the future, and not inside a cycle that has already been archived.
+    Returns (date, cycle_month, None) or (None, None, error_response)."""
+    try:
+        day = datetime.strptime(str(raw), '%Y-%m-%d').date()
+    except (TypeError, ValueError):
+        return None, None, (jsonify({'error': 'תאריך לא תקין'}), 400)
+    if day > now_israel().date():
+        return None, None, (jsonify({'error': 'אי אפשר לרשום תשלום בתאריך עתידי'}), 400)
+    month = _cycle_month_for_date(day, get_cycle_day(fid))
+    if conn.execute('SELECT 1 FROM archived_cycles WHERE family_id=? AND month=?', (fid, month)).fetchone():
+        return None, None, (jsonify({'error': 'התאריך שייך למחזור שכבר נסגר'}), 400)
+    return day, month, None
+
+
 @app.route('/api/payments/<int:pid>', methods=['PUT'])
 @require_auth
 def update_payment(pid):
@@ -1554,20 +1575,14 @@ def update_payment(pid):
     with get_db() as conn:
         new_date = new_month = None
         if 'date' in data:   # validate everything before writing anything
-            try:
-                day = datetime.strptime(str(data['date']), '%Y-%m-%d').date()
-            except (TypeError, ValueError):
-                return jsonify({'error': 'תאריך לא תקין'}), 400
-            if day > now_israel().date():
-                return jsonify({'error': 'אי אפשר לרשום תשלום בתאריך עתידי'}), 400
+            day, new_month, err = _validate_payment_date(conn, fid, data['date'])
+            if err:
+                return err
             cur = conn.execute('SELECT date, archived FROM payments WHERE id=? AND family_id=?', (pid, fid)).fetchone()
             if not cur:
                 return jsonify({'error': 'התשלום לא נמצא'}), 404
             if cur['archived']:
                 return jsonify({'error': 'אי אפשר לשנות תאריך של תשלום ממחזור שנסגר'}), 400
-            new_month = _cycle_month_for_date(day, get_cycle_day(fid))
-            if conn.execute('SELECT 1 FROM archived_cycles WHERE family_id=? AND month=?', (fid, new_month)).fetchone():
-                return jsonify({'error': 'התאריך שייך למחזור שכבר נסגר'}), 400
             old_time = (cur['date'] or '').split('.')[0][11:19] or now_israel().strftime('%H:%M:%S')
             new_date = '%s %s' % (day.strftime('%Y-%m-%d'), old_time)
         for f, sql in PAYMENT_UPDATE_SQL.items():
@@ -2161,10 +2176,14 @@ def add_shopping_item():
     name = data.get('name', '').strip()
     if not name: return jsonify({'error': 'Name required'}), 400
     cat = data.get('category', '')
+    # a photo can now come with the item instead of only through a later edit
+    image = data.get('image') or ''
+    if not isinstance(image, str) or not (image == '' or image.startswith('data:image/')):
+        return jsonify({'error': 'Invalid data'}), 400
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO shopping_items (family_id,name,quantity,checked,category,added_by) VALUES (?,?,?,FALSE,?,?)',
-            (fid, name, data.get('quantity', 1), cat,
+            'INSERT INTO shopping_items (family_id,name,quantity,checked,category,image,added_by) VALUES (?,?,?,FALSE,?,?,?)',
+            (fid, name, data.get('quantity', 1), cat, image,
              request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')))
 
     # Push notification to family

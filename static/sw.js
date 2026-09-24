@@ -1,11 +1,11 @@
 // OurHome IL service worker — network first, cache as fallback, a friendly offline page for pages that can't load.
-const CACHE_NAME = 'ourhome-pop-4';
+const CACHE_NAME = 'ourhome-pop-5';
 const OFFLINE_URL = '/static/offline.html';
 const ASSETS_TO_CACHE = [
   OFFLINE_URL,
-  '/static/css/style.css?v=pop4',
-  '/static/js/pop.js?v=pop4',
-  '/static/js/expense-sheet.js?v=pop4',
+  '/static/css/style.css?v=pop5',
+  '/static/js/pop.js?v=pop5',
+  '/static/js/expense-sheet.js?v=pop5',
   '/static/icons/favicon.png',
   '/static/icons/icon-192.png',
   '/static/icons/icon-512.png'

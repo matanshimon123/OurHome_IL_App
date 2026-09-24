@@ -52,6 +52,8 @@
 .img-prev img{width:72px;height:72px;object-fit:cover;border:2.5px solid var(--ink);border-radius:14px}
 .file-btn{position:relative;overflow:hidden}
 .file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
+.img-btns{display:flex;flex-wrap:wrap;gap:8px}
+.img-btns .file-btn{flex:1 1 0;min-width:120px;justify-content:center}
 </style>
 {% endblock %}
 {% block content %}
@@ -91,6 +93,13 @@
         </div>
         <div class="label mt-3" id="addCatLbl">מחלקה <small class="muted hidden" id="autoHint">· נבחרה לפי השם, אפשר לשנות</small></div>
         <div class="cat-wrap" id="addCats" role="radiogroup" aria-labelledby="addCatLbl"></div>
+        {# a photo can go on straight away now, instead of only through a later edit #}
+        <div class="label mt-3">תמונה <small class="muted">(לא חובה)</small></div>
+        <div class="img-btns">
+          <label class="btn white sm file-btn">📷 <span>צילום</span><input type="file" id="addImgCam" accept="image/*" capture="environment" aria-label="צילום תמונה של הפריט"></label>
+          <label class="btn white sm file-btn">🖼️ <span>גלריה</span><input type="file" id="addImgGal" accept="image/*" aria-label="בחירת תמונה מהגלריה"></label>
+        </div>
+        <div class="img-prev hidden" id="addPrev"><img id="addPrevImg" alt="תמונת הפריט"><button type="button" class="btn white sm" id="addImgDel">🗑️ הסרת התמונה</button></div>
       </div></div>
     </form>
   </section>
@@ -128,7 +137,10 @@
     <div class="field"><span class="label" id="itCatLbl">מחלקה</span><div class="cat-wrap" id="itCats" role="radiogroup" aria-labelledby="itCatLbl"></div></div>
     <div class="field">
       <span class="label">תמונה</span>
-      <label class="btn white sm file-btn" id="itImgBtn">📷 <span id="itImgBtnT">הוספת תמונה</span><input type="file" id="itImg" accept="image/*" aria-label="בחירת תמונה"></label>
+      <div class="img-btns">
+        <label class="btn white sm file-btn">📷 <span>צילום</span><input type="file" id="itImgCam" accept="image/*" capture="environment" aria-label="צילום תמונה של הפריט"></label>
+        <label class="btn white sm file-btn">🖼️ <span id="itImgBtnT">גלריה</span><input type="file" id="itImg" accept="image/*" aria-label="בחירת תמונה מהגלריה"></label>
+      </div>
       <div class="img-prev hidden" id="itPrev"><img id="itPrevImg" alt="תמונת הפריט"><button type="button" class="btn white sm" id="itImgDel">🗑️ הסרת התמונה</button></div>
     </div>
     <button type="button" class="toggle-row" role="switch" aria-checked="false" id="itFav">
@@ -190,7 +202,7 @@
   ]);
   function guess(name) { return Pop.guessFrom(GUESS, name); }
 
-  var items = [], favs = [], busy = {}, tab = 'list', addQty = 1, addCat = '', addCatManual = false, editing = null, editImg = null, editWasFav = false, favEditing = null;
+  var items = [], favs = [], busy = {}, tab = 'list', addQty = 1, addCat = '', addCatManual = false, addImg = null, editing = null, editImg = null, editWasFav = false, favEditing = null;
   function isFav(it) { return !!it.favorite || favs.some(function (f) { return f.name === it.name; }); }
 
   /* ── category chip groups (radio) ── */
@@ -275,11 +287,13 @@
     var name = $('addName').value.trim(); if (!name) { $('addName').focus(); return; }
     if (items.some(function (i) { return i.name === name && !i.checked; })) { Pop.toast('"' + name + '" כבר ברשימה', 'info'); return; }
     $('addBtn').disabled = true;
-    var r = await Pop.api('POST', '/api/shopping-items', { name: name, quantity: addQty, category: addCat });
+    var r = await Pop.api('POST', '/api/shopping-items', { name: name, quantity: addQty, category: addCat, image: addImg || '' });
     $('addBtn').disabled = false;
     if (!r.ok) { Pop.toast((r.data && r.data.error) || 'לא הצלחנו להוסיף', 'error'); return; }
     Pop.toast('"' + name + '" נוסף לרשימה 🛒', 'success');
-    $('addName').value = ''; addQty = 1; $('addQty').textContent = 1; addCatManual = false; syncAdd();
+    $('addName').value = ''; addQty = 1; $('addQty').textContent = 1; addCatManual = false;
+    addImg = null; $('addImgCam').value = ''; $('addImgGal').value = ''; showAddPrev();
+    syncAdd();
     $('addName').focus();
     if (tab !== 'list') setTab('list');
     load();
@@ -316,7 +330,7 @@
 
   /* ── edit item sheet ── */
   function setSwitch(on) { $('itFav').setAttribute('aria-checked', on); $('itFavState').textContent = on ? 'כן' : 'לא'; }
-  function showPrev() { $('itPrev').classList.toggle('hidden', !editImg); if (editImg) $('itPrevImg').src = editImg; $('itImgBtnT').textContent = editImg ? 'החלפת תמונה' : 'הוספת תמונה'; }
+  function showPrev() { $('itPrev').classList.toggle('hidden', !editImg); if (editImg) $('itPrevImg').src = editImg; }
   function openEdit(it) {
     editing = it; editImg = it.image || null;
     $('itName').value = it.name; $('itQty').value = it.quantity || 1; catChips('itCats', it.category || ''); editWasFav = isFav(it); setSwitch(editWasFav); showPrev();
@@ -328,8 +342,9 @@
   document.querySelectorAll('.stepper [data-step]').forEach(function (b) {
     b.addEventListener('click', function () { var inp = b.parentElement.querySelector('input'); inp.value = Math.max(1, Math.min(99, (parseInt(inp.value, 10) || 1) + parseInt(b.dataset.step, 10))); });
   });
-  $('itImg').addEventListener('change', function (e) {   // shrink to 800px JPEG before upload, as before
-    var file = e.target.files[0]; if (!file) return;
+  /* shrink to an 800px JPEG before upload — same for a fresh photo and one picked from the gallery */
+  function shrink(file, done) {
+    if (!file) return;
     var rd = new FileReader();
     rd.onload = function (ev) {
       var img = new Image();
@@ -337,13 +352,32 @@
         var c = document.createElement('canvas'), max = 800, w = img.width, h = img.height;
         if (w > h) { h = h * max / w; w = max; } else { w = w * max / h; h = max; }
         c.width = w; c.height = h; c.getContext('2d').drawImage(img, 0, 0, w, h);
-        editImg = c.toDataURL('image/jpeg', .7); showPrev();
+        done(c.toDataURL('image/jpeg', .7));
       };
+      img.onerror = function () { Pop.toast('לא הצלחנו לקרוא את התמונה', 'error'); };
       img.src = ev.target.result;
     };
+    rd.onerror = function () { Pop.toast('לא הצלחנו לקרוא את התמונה', 'error'); };
     rd.readAsDataURL(file);
+  }
+  /* camera and gallery are separate inputs: one accept="image/*" alone opens the gallery in the
+     Android WebView, so "take a photo" needs its own input with capture */
+  ['itImgCam', 'itImg'].forEach(function (id) {
+    $(id).addEventListener('change', function (e) { shrink(e.target.files[0], function (d) { editImg = d; showPrev(); }); });
   });
-  $('itImgDel').addEventListener('click', function () { editImg = null; $('itImg').value = ''; showPrev(); });
+  $('itImgDel').addEventListener('click', function () {
+    editImg = null; $('itImg').value = ''; $('itImgCam').value = ''; showPrev();
+  });
+  function showAddPrev() {
+    $('addPrev').classList.toggle('hidden', !addImg);
+    if (addImg) $('addPrevImg').src = addImg;
+  }
+  ['addImgCam', 'addImgGal'].forEach(function (id) {
+    $(id).addEventListener('change', function (e) { shrink(e.target.files[0], function (d) { addImg = d; showAddPrev(); }); });
+  });
+  $('addImgDel').addEventListener('click', function () {
+    addImg = null; $('addImgCam').value = ''; $('addImgGal').value = ''; showAddPrev();
+  });
   $('itSave').addEventListener('click', async function () {
     var name = $('itName').value.trim(); if (!name) { Pop.toast('צריך שם לפריט', 'error'); $('itName').focus(); return; }
     var body = { name: name, quantity: Math.max(1, parseInt($('itQty').value, 10) || 1), category: chipValue('itCats'), image: editImg || '' };

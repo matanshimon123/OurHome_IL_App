@@ -33,6 +33,20 @@
   }
   function clearErr() { authFail = false; var e = $('expErr'); if (e) e.classList.add('hidden'); }
 
+  /* the 📅 button doubles as the read-out: "היום" until another day is picked, then that day */
+  function paintWhen() {
+    var today = Pop.iso(new Date()), d = $('expDate').value, back = !!d && d !== today;
+    $('expWhenT').textContent = back ? Pop.dayLabel(d) : 'היום';
+    $('expWhen').classList.toggle('on', back);
+  }
+  /* one rule set for both flows, mirroring what the server enforces */
+  function badDate(d) {
+    if (!d) return 'בחרו תאריך';
+    if (d > $('expDate').max) return 'אי אפשר לבחור תאריך עתידי';
+    if ($('expDate').min && d < $('expDate').min) return 'אפשר לבחור תאריך רק מתוך המחזור הנוכחי';
+    return '';
+  }
+
   async function loadCats() {
     if (cats) return cats;
     var r = await Pop.api('GET', '/api/categories');
@@ -59,7 +73,7 @@
     opts = opts || {}; onSaved = opts.onSaved || null;
     await loadCats();
     var p = opts.payment || null; editId = p ? p.id : null;
-    if (p) await loadCycle();
+    await loadCycle();   /* both flows need the cycle start: it is the earliest date either can use */
     var last = null; try { last = localStorage.getItem(LAST); } catch (e) {}
     cat = p ? p.category : (opts.category || (cats.some(function (c) { return c.name === last; }) ? last : (cats[0] && cats[0].name)));
     amt = p ? String(+p.amount) : (opts.amount ? String(opts.amount) : '');
@@ -69,12 +83,17 @@
     $('expSaveT').textContent = p ? 'שמירה' : 'הוספת ההוצאה';
     $('expDelete').classList.toggle('hidden', !p);
     $('expWho').classList.toggle('hidden', !!p);
-    // date: editable when editing, limited to the current cycle and today
-    origDate = p && p.date ? String(p.date).slice(0, 10) : '';
-    $('expDateWrap').classList.toggle('hidden', !p);
+    /* Date. Editing shows the field outright; adding keeps it behind the 📅 button next to the
+       description, so the common case (an expense from just now) stays a two-tap flow.
+       Either way it is limited to this cycle and cannot be in the future. */
+    var today = Pop.iso(new Date());
+    origDate = p && p.date ? String(p.date).slice(0, 10) : today;
     $('expDate').value = origDate;
-    $('expDate').max = Pop.iso(new Date());
+    $('expDate').max = today;
     if (cycle && cycle.start_date) $('expDate').min = cycle.start_date; else $('expDate').removeAttribute('min');
+    $('expDateWrap').classList.toggle('hidden', !p);
+    $('expWhen').classList.toggle('hidden', !!p);
+    paintWhen();
     catManual = !!p;   /* editing: the saved category wins, never re-guess it from the description */
     $('expAutoHint').classList.add('hidden');
     paintAmt(); paintCats(); clearErr();
@@ -96,6 +115,12 @@
       }
       Pop.squish(k); paintAmt(); clearErr();
     });
+    $('expWhen').addEventListener('click', function () {
+      var wrap = $('expDateWrap'), show = wrap.classList.contains('hidden');
+      wrap.classList.toggle('hidden', !show);
+      if (show) $('expDate').focus();
+    });
+    $('expDate').addEventListener('change', paintWhen);
     $('expCats').addEventListener('click', function (e) {
       var b = e.target.closest('[data-cat]'); if (!b) return;
       cat = b.getAttribute('data-cat'); catManual = true;   /* the user chose: stop guessing */
@@ -116,12 +141,15 @@
       if (!a || a <= 0) { Pop.toast('הקלידו סכום בעזרת המקלדת', 'error'); Pop.squish($('expAmt').parentNode); return; }
       var desc = $('expDesc').value.trim() || cat;
       var body = { description: desc, amount: a, category: cat };
-      if (editId) {
-        var d = $('expDate').value;
-        if (!d) { Pop.toast('בחרו תאריך', 'error'); $('expDate').focus(); return; }
-        if (d > $('expDate').max) { Pop.toast('אי אפשר לבחור תאריך עתידי', 'error'); $('expDate').focus(); return; }
-        if ($('expDate').min && d < $('expDate').min) { Pop.toast('אפשר לבחור תאריך רק מתוך המחזור הנוכחי', 'error'); $('expDate').focus(); return; }
-        if (d !== origDate) body.date = d;
+      var d = $('expDate').value, today = Pop.iso(new Date());
+      if (editId || d !== today) {   /* only send a date when it is not simply "now" */
+        var bad = badDate(d);
+        if (bad) {
+          Pop.toast(bad, 'error');
+          $('expDateWrap').classList.remove('hidden'); $('expDate').focus();
+          return;
+        }
+        if (!editId || d !== origDate) body.date = d;
       }
       var btn = $('expSave');
       btn.disabled = true; $('expRetry').disabled = true; clearErr();

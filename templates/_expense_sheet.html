@@ -10,8 +10,12 @@
     <div class="label">קטגוריה <small class="muted hidden" id="expAutoHint">· נבחרה לפי התיאור, אפשר לשנות</small></div>
     <div class="chip-scroll mb-2" id="expCats" role="radiogroup" aria-label="קטגוריה"></div>
     <div class="field exp-field">
-      <label class="label" for="expDesc">על מה? <span class="muted" style="font-weight:700">(לא חובה)</span></label>
-      <input class="input" type="text" id="expDesc" maxlength="120" placeholder="למשל: שופרסל, דלק, גן" autocomplete="off">
+      {# the date button sits next to the description, for an expense being recorded after the fact #}
+      <div class="row between" style="gap:8px;align-items:center">
+        <label class="label" for="expDesc" style="margin:0">על מה? <span class="muted" style="font-weight:700">(לא חובה)</span></label>
+        <button type="button" class="chip-btn exp-when hidden" id="expWhen">📅 <span id="expWhenT">היום</span></button>
+      </div>
+      <input class="input mt-1" type="text" id="expDesc" maxlength="120" placeholder="למשל: שופרסל, דלק, גן" autocomplete="off">
       <div class="hint exp-hint">אם משאירים ריק, נרשום את שם הקטגוריה</div>
     </div>
     <div class="field exp-field hidden" id="expDateWrap">

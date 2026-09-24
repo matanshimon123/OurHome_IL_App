@@ -17,7 +17,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Rubik:wght@500;700;800;900&family=Varela+Round&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=pop4">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}?v=pop5">
     {% block head %}{% endblock %}
 </head>
 {% set has_nav = session.user_id and session.family_id %}
@@ -57,7 +57,7 @@
         return _origFetch(url, opts);
     };
     </script>
-    <script src="{{ url_for('static', filename='js/pop.js') }}?v=pop4"></script>
+    <script src="{{ url_for('static', filename='js/pop.js') }}?v=pop5"></script>
     <script>
     (function () {   /* status bar icons readable over this page's hero (overlay mode draws the hero under the bar) */
         try {
