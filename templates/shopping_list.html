@@ -872,7 +872,8 @@
     /* the quick-add card fills the weekly list, so it steps aside on the events tab */
     $('evPanel').classList.toggle('hidden', t !== 'ev'); $('addCard').classList.toggle('hidden', t === 'ev');
   }
-  document.querySelectorAll('.seg [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab); }); });
+  /* a tab tap leaves an open event, so 🎉 אירועים always lands on all the events */
+  document.querySelectorAll('.seg [data-tab]').forEach(function (b) { b.addEventListener('click', function () { if (evOpen) closeEvent(); setTab(b.dataset.tab); }); });
   $('emptyFavs').addEventListener('click', function () { setTab('fav'); });
   $('shareBtn').addEventListener('click', function () {
     var open = items.filter(function (i) { return !i.checked; });
@@ -889,8 +890,11 @@
   catChips('addCats', ''); syncAdd();
   if (/[?&]add=1/.test(location.search)) setTimeout(function () { $('addName').focus(); }, 400);
   load();
+  /* the home countdown links to ?ev=<id>: the event opens over a clean entry on the events tab, so back steps to all the events, then home */
+  var deepEv = /[?&]ev=(\d+)/.exec(location.search);
+  if (deepEv) { try { history.replaceState(null, '', location.pathname); } catch (e) {} setTab('ev'); openEvent(+deepEv[1]); }
   /* a reload keeps the open event (it lives in the history entry) */
-  if (history.state && history.state.ev) { setTab('ev'); openEvent(history.state.ev, true); } else loadEvents();
+  else if (history.state && history.state.ev) { setTab('ev'); openEvent(history.state.ev, true); } else loadEvents();
 })();
 </script>
 {% endblock %}

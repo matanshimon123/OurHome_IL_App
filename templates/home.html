@@ -47,6 +47,29 @@
 .band i{position:absolute;top:0;bottom:0}
 .band .now{width:3px;background:var(--coral-ink)}
 .band-lbl{display:flex;justify-content:space-between;font:800 13px var(--font-display);color:var(--ink-2);margin-top:4px;direction:ltr}
+/* event countdown: the next dated 🎉 lists, each card in its colour from the events tab; a second one peeks in from the side */
+.soon{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:4px 4px 8px;margin:14px -4px -4px}
+.soon::-webkit-scrollbar{display:none}
+.soon .cd{flex:none;width:100%;margin:0;scroll-snap-align:start}
+.soon.many .cd{width:calc(100% - 40px)}
+a.cd{display:flex;align-items:center;gap:12px;padding:12px 14px}   /* a.cd: outranks the shared a.sticker{display:block} */
+.cd.c0{background:var(--sun-soft)} .cd.c1{background:var(--mint-soft)} .cd.c2{background:var(--peach-soft)}
+.cd.c3{background:var(--sky-soft)} .cd.c4{background:var(--grape-soft)} .cd.c5{background:var(--coral-soft)}
+.cd-tile{width:60px;flex:none;display:flex;flex-direction:column;align-items:center;background:#fff;border:2.5px solid var(--ink);border-radius:14px;box-shadow:2px 2px 0 var(--ink);overflow:hidden}
+.cd-tile i{position:relative;align-self:stretch;height:14px;background:var(--coral);border-bottom:2.5px solid var(--ink)}
+.cd-tile i::before,.cd-tile i::after{content:'';position:absolute;top:3px;width:6px;height:6px;border-radius:50%;background:var(--ink)}
+.cd-tile i::before{inset-inline-start:12px} .cd-tile i::after{inset-inline-end:12px}
+.cd-tile b{font:900 28px/1 var(--font-display);margin-top:6px}
+.cd-tile b.l3{font-size:22px} .cd-tile b.l4{font-size:17px}
+.cd-tile small{font:800 13px/1 var(--font-display);color:var(--ink-2);margin:4px 0 7px}
+.cd-tile.today{background:var(--sun)} .cd-tile.today small{color:var(--ink)}
+.cd .t{display:flex;align-items:center;gap:6px;font:900 18px var(--font-display)}
+.cd .t span:last-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cd .s{display:block;font:700 14px var(--font-display);color:var(--ink-2);margin-top:2px}
+.cd .s span{display:inline-block}   /* wraps between the date and the progress, never inside one */
+.cd .bar{display:block;height:12px;border-width:2px;margin-top:8px}
+.cd .bar>i{border-inline-end-width:2px}
+.cd .chev{width:20px;height:20px;flex:none;stroke:var(--ink-2);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
 </style>
 {% endblock %}
 {% block body_class %}has-fab{% endblock %}
@@ -81,6 +104,9 @@
 </header>
 
 <main class="content">
+  <!-- event countdown (only when an event list has a date ahead); a card opens that list -->
+  <section class="soon pop d1 hidden" id="soon" aria-label="אירועים קרובים"></section>
+
   <!-- smart forecast -->
   <section class="sticker ink smart tilt-l pop d1 mt-3" id="smartCard">
     <div class="row between" style="align-items:flex-start">
@@ -220,6 +246,7 @@
   var $ = function (id) { return document.getElementById(id); };
   var esc = Pop.esc, money = Pop.money0;
   var feedSecs = null, feedAt = 0, lastData = null, firstLoad = true;
+  var SHOP_URL = {{ url_for('shopping_list')|tojson }};
   if (window.history && window.history.replaceState) window.history.replaceState(null, '', window.location.href);
   $('dateLine').textContent = Pop.longDate(new Date());
 
@@ -328,10 +355,31 @@
   }
   setInterval(tick, 1000);
 
+  /* ── event countdown: a tear-off calendar of the days left, then the list's progress ── */
+  var soonSig = '';
+  function renderSoon(list) {
+    var sig = JSON.stringify(list); if (sig === soonSig) return; soonSig = sig;   /* a refresh mid-swipe shouldn't rebuild the row */
+    $('soon').classList.toggle('hidden', !list.length); $('soon').classList.toggle('many', list.length > 1);
+    $('soon').innerHTML = list.map(function (e) {
+      var n = e.days, d = new Date(e.event_date + 'T12:00:00'), digits = String(n).length;
+      var day = n === 0 ? 'זה היום!' : n === 1 ? 'מחר' : 'יום ' + Pop.HE_DAYS_SHORT[d.getDay()] + ' ' + d.getDate() + '.' + (d.getMonth() + 1);
+      var when = n === 0 ? 'היום' : n === 1 ? 'מחר' : n === 2 ? 'בעוד יומיים' : 'בעוד ' + n + ' ימים';
+      var prog = e.total ? e.done + ' מתוך ' + e.total + ' נקנו' : 'עוד אין פריטים', pct = e.total ? Math.round(100 * e.done / e.total) : 0;
+      var tile = n === 0 ? '<b>🎉</b><small>היום</small>' : '<b class="num' + (digits > 3 ? ' l4' : digits > 2 ? ' l3' : '') + '">' + n + '</b><small>' + (n === 1 ? 'יום' : 'ימים') + '</small>';
+      return '<a class="sticker cd pressable c' + (e.id % 6) + '" href="' + SHOP_URL + '?ev=' + e.id + '" aria-label="' + esc(e.name + ', ' + when + ', ' + prog) + '">' +
+        '<span class="cd-tile' + (n === 0 ? ' today' : '') + '" aria-hidden="true"><i></i>' + tile + '</span>' +
+        '<span class="grow"><span class="t"><span aria-hidden="true">' + esc(e.emoji || '🎉') + '</span><span>' + esc(e.name) + '</span></span>' +
+        '<span class="s"><span>' + day + '</span> <span>· ' + prog + '</span></span>' +
+        '<span class="bar" aria-hidden="true"><i class="' + (pct ? '' : 'zero') + '" style="width:' + pct + '%"></i></span></span>' +
+        '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></a>';
+    }).join('');
+  }
+
   async function load() {
     var r = await Pop.api('GET', '/api/home-summary'); if (!r.ok || !r.data) return;
     lastData = r.data;
     $('greet').textContent = greet(r.data.hour);
+    renderSoon(r.data.events || []);
     renderFinance(r.data.finance); renderShopping(r.data.shopping); renderBaby(r.data.baby);
     firstLoad = false;
   }
@@ -362,6 +410,7 @@
   $('itemName').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); saveItem(); } });
   $('howBtn').addEventListener('click', function () { Pop.openSheet('howSheet'); });
 
+  renderSoon({{ events_soon|tojson }});   /* in the page already, so the cards below don't jump when the summary lands */
   load();
   setInterval(load, 30000);
   Pop.onVisible(load);

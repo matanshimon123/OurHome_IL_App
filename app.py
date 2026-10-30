@@ -1149,6 +1149,24 @@ def handle_unexpected_exception(e):
     return _render_error_page(500)
 
 
+def _events_soon(conn, fid, now):
+    """The home countdown: the family's next dated event lists (today or later), nearest first."""
+    today = now.date()
+    rows = conn.execute(
+        'SELECT e.id,e.name,e.emoji,e.event_date,COUNT(i.id) as total,COALESCE(SUM(i.checked),0) as done '
+        'FROM shopping_events e LEFT JOIN shopping_event_items i ON i.event_id=e.id AND i.family_id=e.family_id '
+        'WHERE e.family_id=? AND e.event_date>=? GROUP BY e.id ORDER BY e.event_date, e.id LIMIT 3',
+        (fid, today.isoformat())).fetchall()
+    events = []
+    for r in rows:
+        try:
+            days = (datetime.strptime(r['event_date'], '%Y-%m-%d').date() - today).days
+        except ValueError:
+            continue
+        events.append(dict(r, days=days))
+    return events
+
+
 @app.route('/home')
 @require_auth
 def home():
@@ -1156,7 +1174,10 @@ def home():
         family = conn.execute('SELECT name FROM families WHERE id=?', (session['family_id'],)).fetchone()
         members = conn.execute('SELECT id, display_name, username FROM users WHERE family_id=? ORDER BY id',
                                (session['family_id'],)).fetchall()
-    return render_template('home.html', family_name=family['name'] if family else '', members=members)
+        # rendered with the page so the countdown doesn't push the cards down when the summary arrives
+        events_soon = _events_soon(conn, session['family_id'], now_israel())
+    return render_template('home.html', family_name=family['name'] if family else '', members=members,
+                           events_soon=events_soon)
 
 
 @app.route('/api/home-summary')
@@ -1224,6 +1245,7 @@ def home_summary():
         gap_min, next_expected = _feeding_rhythm(conn, fid, now)
         baby_recent = conn.execute('SELECT COUNT(*) as c FROM feedings WHERE family_id=? AND date >= ?',
                                    (fid, (now - timedelta(days=14)).strftime('%Y-%m-%d'))).fetchone()['c']
+        events_soon = _events_soon(conn, fid, now)
     finance = {'total': float(fin['total']), 'count': fin['count'],
                'last': {'desc': last_payment['description'],
                         'amount': float(last_payment['amount'])} if last_payment else None,
@@ -1232,6 +1254,7 @@ def home_summary():
     return jsonify({
         'finance': finance,
         'shopping': {'total': shop_total, 'done': shop_done, 'left': shop_left, 'items': shop_items},
+        'events': events_soon,
         'hour': now.hour,
         'baby': {
             'count': baby_all['c'],

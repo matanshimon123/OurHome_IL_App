@@ -188,6 +188,13 @@ One-off lists (a birthday, a trip to Eilat, a laptop) are kept apart from the we
 
 **Verified on a copy of a real database.** Migration ran three times, and row counts of all 15 existing tables were identical before and after. 80 API checks covered links, photos, prices, family isolation and family deletion. 65 headless-browser checks at 320, 360 and 412px covered tap targets ≥44px, text ≥13px, no sideways scroll, XSS in names and notes, back button, create/edit/check/delete, and the weekly list still working.
 
+**Tapping a tab leaves an open event.** 🎉 אירועים therefore always lands on all the events, never back inside the last one opened. The event's history entry is popped along with it, so the back button stays in step.
+
+**Home countdown.** The home page shows a countdown when an event has a date of today or later. It sits under the header, above the forecast, so it is seen without scrolling. Families without dated events see no change. Each card has a tear-off-calendar tile with the days left (🎉 היום on the day itself), plus the symbol, the name, the date and a "1 מתוך 4 נקנו" bar. Cards use the event's colour from the events tab. The nearest three sit in a swipe row in which the next card peeks in.
+- **Data:** `_events_soon()` feeds both the page render (so the cards don't push the page down when the summary lands) and `/api/home-summary` → `events`. Days are counted in Israel time. A refresh rebuilds the row only if the data changed, so a swipe isn't reset every 30 seconds.
+- **Tapping a card** goes to `/shopping-list?ev=<id>`. The shopping page swaps that address for a clean one and opens the event on top of it. Back therefore steps to all the events and then home, and a reload doesn't reopen it. A deleted or foreign id shows "האירוע הזה כבר לא קיים" and the events list.
+- No schema change.
+
 ## 9. Follow-ups (flagged, not implemented)
 
 - **The weekly list's item photo has no server-side size cap.** `POST/PUT /api/shopping-items` only check the `data:image/` prefix. The event photos added a 600KB cap and a format check (8e); the same could apply here, but it changes an existing route, so it was left alone.
