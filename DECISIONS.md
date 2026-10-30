@@ -169,7 +169,29 @@ Why this and not a donut or a ranked list with inline bars: any per-category *co
 
 One audit rule was narrowed: a button whose entire content is a real photograph and which carries an `aria-label` is no longer counted as an unlabelled icon. The rule exists to catch emoji-only buttons, and those are still flagged. This surfaced because photos on new items make the list thumbnails far more common.
 
+## 8e. Event lists: the "🎉 אירועים" tab of the shopping list
+
+One-off lists (a birthday, a trip to Eilat, a laptop) are kept apart from the weekly list. **Placement:** a third tab next to 📝 הרשימה and ⭐ מועדפים, chosen with the owner over a strip of event chips above the add card and a two-mode switch in the hero. A tab costs no space for families who never use it. On that tab the quick-add card steps aside, since it fills the weekly list. Tapping an event opens it in place. The open event is a history entry, so the phone's back button and swipe-back return to the list, and a reload keeps it open.
+
+**The tabs now show icon and count over the word** (`📝 5` above `הרשימה`). With a third tab, "מועדפים (12)" no longer fit a 360px phone and was cut to "מועדפים (1…", hiding the number the tab exists to show. With the count beside the icon each tab is only as wide as its word, and the tabs fit 320px even with three-digit counts.
+
+**What an event holds:**
+- A name, a symbol from a fixed set of 12 (guessed from the name with the shared `Pop.guessRules`, like the departments), and an optional date. The list sorts upcoming events first with a countdown, then undated ones, then past ones.
+- Items with an optional price, an optional product link, a note and up to 4 photos. Progress shows as "3 מתוך 8 נקנו", plus a total and how much is already bought when any item has a price.
+- The price sits in the item's sub-line rather than in a badge, and names get two lines before the ellipsis. Both keep the name readable next to the photo and edit buttons. The link is a chip under the row, because a link can't sit inside the check button. It shows the shop's name (KSP, Ivory, BUG, זאפ…) or else the domain, and opens in a new tab. Inside the Android app, Capacitor hands any non-app host to the system browser.
+
+**Backend.** Three new tables, created with `CREATE TABLE IF NOT EXISTS`: `shopping_events`, `shopping_event_items`, `shopping_event_photos`. Nothing existing is altered, and they are added to `FAMILY_SCOPED_TABLES` so deleting a family removes them too. Endpoints live under `/api/shopping-events`, every query is scoped by `family_id`, and updates use literal per-column SQL like `PAYMENT_UPDATE_SQL`. Rules:
+- **Links:** only `http`/`https` with a real dotted host get through. `javascript:`, `data:`, `file:`, `user:pass@`, whitespace and control characters are refused with a Hebrew message. A bare `ksp.co.il/…` gains `https://`. The page applies the same check before saving, and again before any stored link becomes an `href`.
+- **Photos** are stored the way `shopping_items.image` is: a `data:image/…` URL, after the same 800px JPEG resize on the device. They go in their own table so an event's item list carries only photo ids. `GET /api/shopping-events/photos/<id>` serves each one once, as an image with long private caching. The server accepts only JPEG, PNG and WebP whose bytes really start like that format, up to 600KB each and 4 per item. Responses carry `nosniff` and `Content-Security-Policy: default-src 'none'`. An oversized request body gets a 413 before it is parsed.
+- **Editing an item** changes its fields, adds photos and removes photos in one transaction. A change that would exceed 4 photos is refused before anything is written.
+- **Push:** a new event notifies the family (`module='shopping'`, not the author). Adding or checking event items does not; planning a trip means adding many items in a row.
+
+**Verified on a copy of a real database.** Migration ran three times, and row counts of all 15 existing tables were identical before and after. 80 API checks covered links, photos, prices, family isolation and family deletion. 65 headless-browser checks at 320, 360 and 412px covered tap targets ≥44px, text ≥13px, no sideways scroll, XSS in names and notes, back button, create/edit/check/delete, and the weekly list still working.
+
 ## 9. Follow-ups (flagged, not implemented)
+
+- **The weekly list's item photo has no server-side size cap.** `POST/PUT /api/shopping-items` only check the `data:image/` prefix. The event photos added a 600KB cap and a format check (8e); the same could apply here, but it changes an existing route, so it was left alone.
+- **Event lists poll every 15 seconds with the rest of the page.** They are light (photo ids, not photos), but there is no "changed since" check.
 
 - **Partner spending race and settle-up.** Needs a payer/settlement model.
 - **Swipe-to-split an expense.**

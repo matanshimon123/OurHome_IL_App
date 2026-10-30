@@ -54,6 +54,56 @@
 .file-btn input{position:absolute;inset:0;opacity:0;cursor:pointer;font-size:0}
 .img-btns{display:flex;flex-wrap:wrap;gap:8px}
 .img-btns .file-btn{flex:1 1 0;min-width:120px;justify-content:center}
+/* three tabs: icon + count over the label, so a tab is only as wide as its word (the compact-chip lesson)
+   and all three fit a 320px phone even with three-digit counts. 44px floor plus the icon line. */
+.seg button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-width:0;padding:3px 4px;line-height:1.15}
+.seg button .ic{display:inline-flex;align-items:center;gap:4px;font-size:17px;line-height:1.1}
+.seg button .n{font:900 14px/1 var(--font-display)}
+.seg button .tl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* ── 🎉 events: one-off lists, apart from the weekly one ── */
+.evc{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;text-align:start;font:inherit}
+#evList .evc + .evc{margin-top:12px}
+.ev-ico{width:48px;height:48px;flex:none;display:grid;place-items:center;border:2.5px solid var(--ink);border-radius:16px;box-shadow:2px 2px 0 var(--ink);font-size:24px;line-height:1}
+.ev-ico.c0{background:var(--sun-soft)} .ev-ico.c1{background:var(--mint-soft)} .ev-ico.c2{background:var(--peach-soft)}
+.ev-ico.c3{background:var(--sky-soft)} .ev-ico.c4{background:var(--grape-soft)} .ev-ico.c5{background:var(--coral-soft)}
+.evc .t{display:block;font:900 18px var(--font-display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.evc .s{display:block;font:700 14px var(--font-display);color:var(--ink-2);margin-top:2px}
+.evc .s span{display:inline-block}   /* wraps between the parts (progress · total · date), never inside one */
+.evc .bar,.ev-head .bar{display:block;height:12px;border-width:2px;margin-top:8px}
+.evc .bar>i,.ev-head .bar>i{border-inline-end-width:2px}
+.evc .chev{width:20px;height:20px;flex:none;stroke:var(--ink-2);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ev-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:26px}
+.ev-top .row{gap:8px}
+.ev-top .btn.sm{padding:0 12px}
+.ev-head{margin-top:14px}
+.ev-head .row{gap:12px}
+.ev-head .ev-ico{width:56px;height:56px;font-size:28px}
+.ev-head h2{font:900 22px/1.15 var(--font-display);overflow-wrap:anywhere}
+.ev-head .s{font:700 14px var(--font-display);color:var(--ink-2);margin-top:3px}
+.ev-head .bar-legend{flex-wrap:wrap}
+.erow{margin-bottom:10px}
+.erow .srow{margin-bottom:0}
+/* event items are fewer and longer ("מחשב נייד Lenovo ThinkPad E14") than weekly ones: two lines before the ellipsis */
+.erow .pill .nm>span{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow-wrap:anywhere;line-height:1.2}
+.erow .pill .nm small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.erow .pill .nm small b{font-weight:900;color:var(--ink)}
+.srow .thumb{position:relative}
+.srow .thumb b{position:absolute;bottom:3px;inset-inline-start:3px;background:var(--ink);color:#fff;border-radius:8px;padding:0 5px;font:800 13px/1.35 var(--font-display)}
+/* product link: a chip under the row (a link can't sit inside the check button), as wide as the site name */
+.elink{display:inline-flex;align-items:center;gap:6px;max-width:calc(100% - 44px);min-height:44px;margin-top:6px;margin-inline-start:44px;padding:0 14px;border:2.5px solid var(--ink);border-radius:var(--r-pill);background:var(--sky-soft);box-shadow:2px 2px 0 var(--ink);font:800 14px var(--font-display);color:var(--ink);transition:transform .15s var(--spring),box-shadow .15s var(--spring)}
+.elink:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
+.elink bdi{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.elink svg{width:15px;height:15px;flex:none;stroke:currentColor;stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.ph-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
+.ph-grid:empty{display:none}
+.ph{display:flex;flex-direction:column;gap:6px;min-width:0}
+.ph img{width:100%;height:72px;object-fit:cover;border:2.5px solid var(--ink);border-radius:14px}
+.ph .btn.sm{padding:0 4px;font-size:14px;border-width:2px}
+.em-pick .chip-btn{min-width:52px;padding:0 8px;font-size:22px}
+.ev-date{display:flex;align-items:center;gap:8px}
+.ev-date .input{flex:1;min-width:0}
+.ev-imgs{display:flex;flex-direction:column;gap:12px}
 </style>
 {% endblock %}
 {% block content %}
@@ -79,7 +129,7 @@
 
 <main class="content">
   <!-- quick add -->
-  <section class="sticker pad pop d1">
+  <section class="sticker pad pop d1" id="addCard">
     <form id="addForm" autocomplete="off" novalidate>
       <label class="label" for="addName">מה צריך לקנות?</label>
       <div class="add-row">
@@ -104,9 +154,10 @@
     </form>
   </section>
 
-  <div class="seg mt-4 pop d2" role="tablist" aria-label="תצוגה">
-    <button type="button" class="on" role="tab" aria-selected="true" data-tab="list" id="tabList">📝 הרשימה</button>
-    <button type="button" role="tab" aria-selected="false" data-tab="fav" id="tabFav">⭐ מועדפים</button>
+  <div class="seg mt-4 pop d2" role="tablist" aria-label="תצוגה" id="tabsSeg">
+    <button type="button" class="on" role="tab" aria-selected="true" data-tab="list" id="tabList"><span class="ic"><span aria-hidden="true">📝</span><b class="n"></b></span><span class="tl">הרשימה</span></button>
+    <button type="button" role="tab" aria-selected="false" data-tab="fav" id="tabFav"><span class="ic"><span aria-hidden="true">⭐</span><b class="n"></b></span><span class="tl">מועדפים</span></button>
+    <button type="button" role="tab" aria-selected="false" data-tab="ev" id="tabEv"><span class="ic"><span aria-hidden="true">🎉</span><b class="n"></b></span><span class="tl">אירועים</span></button>
   </div>
 
   <!-- the list -->
@@ -124,6 +175,30 @@
     <button type="button" class="btn sun block mt-4" id="favAll">⚡ כל המועדפים לרשימה</button>
     <section class="sticker pad mt-3" id="favCard"><div id="favList"></div></section>
     <button type="button" class="btn white block mt-3" id="favNew">⭐ מועדף חדש</button>
+  </div>
+
+  <!-- 🎉 events: one-off lists (a birthday, a trip, a laptop), kept apart from the weekly list -->
+  <div id="evPanel" class="hidden" role="tabpanel" aria-labelledby="tabEv">
+    <div id="evHome">
+      <div id="evList" class="mt-4"></div>
+      <div id="evNone" class="empty hidden mt-4"><div class="e">🎉</div><div class="t">עוד אין אירועים</div><p class="muted">יום הולדת, טיול לאילת, חופשה בחו״ל או מחשב חדש: לכל אחד רשימת קניות משלו, בנפרד מהרשימה השבועית.</p></div>
+      <button type="button" class="btn sun block mt-3" id="evNew">🎉 אירוע חדש</button>
+    </div>
+    <div id="evView" class="hidden">
+      <div class="ev-top">
+        <button type="button" class="back-btn" id="evBack" aria-label="חזרה לכל האירועים"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>חזרה</button>
+        <div class="row"><button type="button" class="btn white sm" id="evShare">📤 שיתוף</button><button type="button" class="btn white sm" id="evEdit">✏️ עריכה</button></div>
+      </div>
+      <section class="sticker pad ev-head">
+        <div class="row"><span class="ev-ico" id="evIco" aria-hidden="true"></span><div class="grow"><h2 id="evName"></h2><div class="s" id="evWhen"></div></div></div>
+        <div class="bar" aria-hidden="true"><i id="evBar"></i></div>
+        <div class="bar-legend"><span id="evProg"></span><span id="evMoney"></span></div>
+      </section>
+      <button type="button" class="btn peach block mt-3" id="evAddItem">➕ פריט לאירוע</button>
+      <div id="evOpenList" class="mt-3"></div>
+      <div id="evItemsEmpty" class="empty hidden"><div class="e">📝</div><div class="t">עוד אין פריטים</div><p class="muted">מה צריך לקנות לאירוע? לכל פריט אפשר להוסיף מחיר, קישור למוצר ותמונות.</p></div>
+      <div id="evDoneWrap" class="hidden"><div class="done-head"><b id="evDoneTitle">✅ כבר נקנו</b></div><div id="evDoneList"></div></div>
+    </div>
   </div>
 </main>
 
@@ -181,6 +256,57 @@
     <div class="sheet-actions"><button type="button" class="btn white block" data-close="imgSheet">סגירה</button></div>
   </div>
 </div>
+
+<!-- new / edit event -->
+<div class="sheet-ov" id="evSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="evTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="evTitle">🎉 אירוע חדש</h3>
+    <div class="field"><label class="label" for="evNameIn">שם האירוע</label><input class="input" type="text" id="evNameIn" maxlength="60" placeholder="למשל: טיול לאילת"></div>
+    <div class="field"><span class="label" id="evEmLbl">סמל <small class="muted hidden" id="evEmHint">· נבחר לפי השם, אפשר לשנות</small></span><div class="chip-scroll em-pick" id="evEmojis" role="radiogroup" aria-labelledby="evEmLbl"></div></div>
+    <div class="field"><label class="label" for="evDate">תאריך <small>(לא חובה)</small></label><div class="ev-date"><input class="input" type="date" id="evDate"><button type="button" class="btn white sm hidden" id="evDateClr">בלי תאריך</button></div></div>
+    <div class="sheet-actions">
+      <button type="button" class="btn sun block" id="evSave">🎉 יצירת האירוע</button>
+      <button type="button" class="btn danger block hidden" id="evDel">🗑️ מחיקת האירוע</button>
+      <button type="button" class="text-btn" data-close="evSheet">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- new / edit event item -->
+<div class="sheet-ov" id="eiSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="eiTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="eiTitle">➕ פריט לאירוע</h3>
+    <div class="field"><label class="label" for="eiName">מה צריך?</label><input class="input" type="text" id="eiName" maxlength="80" placeholder="למשל: בלונים, מטען נייד"></div>
+    <div class="field"><label class="label" for="eiPrice">מחיר <small>(לא חובה)</small></label><div class="prefix"><span aria-hidden="true">₪</span><input class="input ltr" type="text" id="eiPrice" inputmode="decimal" maxlength="12" placeholder="0" autocomplete="off"></div></div>
+    <div class="field"><label class="label" for="eiLink">קישור למוצר <small>(לא חובה)</small></label><input class="input ltr" type="url" id="eiLink" inputmode="url" maxlength="1000" placeholder="https://ksp.co.il/…" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="hint" id="eiLinkHint" aria-live="polite"></div></div>
+    <div class="field"><label class="label" for="eiNote">הערה <small>(לא חובה)</small></label><input class="input" type="text" id="eiNote" maxlength="200" placeholder="למשל: מידה M, בצבע כחול"></div>
+    <div class="field">
+      <span class="label">תמונות <small id="eiPhCount"></small></span>
+      <div class="ph-grid" id="eiPhotos"></div>
+      <div class="img-btns" id="eiPhBtns">
+        <label class="btn white sm file-btn">📷 <span>צילום</span><input type="file" id="eiCam" accept="image/*" capture="environment" aria-label="צילום תמונה של הפריט"></label>
+        <label class="btn white sm file-btn">🖼️ <span>גלריה</span><input type="file" id="eiGal" accept="image/*" multiple aria-label="בחירת תמונות מהגלריה"></label>
+      </div>
+    </div>
+    <div class="sheet-actions">
+      <button type="button" class="btn peach block" id="eiSave">💾 שמירה</button>
+      <button type="button" class="btn danger block hidden" id="eiDel">🗑️ מחיקה מהאירוע</button>
+      <button type="button" class="text-btn" data-close="eiSheet">ביטול</button>
+    </div>
+  </div>
+</div>
+
+<!-- event item photos -->
+<div class="sheet-ov" id="evImgSheet">
+  <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="evImgTitle">
+    <div class="sheet-handle"></div>
+    <h3 class="sheet-title" id="evImgTitle"></h3>
+    <div class="ev-imgs" id="evImgs"></div>
+    <div class="sheet-actions"><button type="button" class="btn white block" data-close="evImgSheet">סגירה</button></div>
+  </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -234,7 +360,7 @@
     $('ring').setAttribute('aria-label', done + ' מתוך ' + total + ' פריטים כבר בעגלה');
     $('ringFl').style.strokeDashoffset = 201 * (1 - (total ? done / total : 0));
     $('heroSub').textContent = !total ? 'הרשימה ריקה' : !left ? 'הכול בעגלה! 🎉' : left === 1 ? 'עוד פריט אחד' : 'עוד ' + left + ' פריטים';
-    $('tabList').textContent = '📝 הרשימה (' + left + ')'; $('tabFav').textContent = '⭐ מועדפים (' + favs.length + ')';
+    $('tabList').querySelector('.n').textContent = left; $('tabFav').querySelector('.n').textContent = favs.length;
     return { left: left, done: done };
   }
   function pill(i) {
@@ -434,11 +560,317 @@
     await load(); setTab('list');
   });
 
+  /* ── 🎉 events: one-off lists (a birthday, a trip, a laptop), kept apart from the weekly list ── */
+  var EV_EMOJIS = {{ event_emojis|tojson }}, EV_MAX_PH = {{ event_max_photos|int }};
+  var EV_EMOJI_NAMES = { '🎉': 'מסיבה', '🎂': 'יום הולדת', '🎁': 'מתנה', '✈️': 'טיסה', '🏖️': 'חופשה', '🧳': 'נסיעה', '🏕️': 'טיול', '💻': 'קנייה גדולה', '🏠': 'בית', '👶': 'תינוק', '🎓': 'לימודים', '💍': 'חתונה' };
+  /* the symbol follows the name until one is tapped: the same shared guessing as the departments above */
+  var EV_GUESS = Pop.guessRules([
+    ['🎂', 'יום הולדת|יומולדת|בר מצו|בת מצו'],
+    ['💍', 'חתונ|אירוסי|חינה'],
+    ['👶', 'לידה|ברית|תינוק'],
+    ['✈️', 'חו.?ל|טיסה'],
+    ['🏖️', 'אילת|חוף|צימר|מלון|חופש'],
+    ['🏕️', 'קמפינג|טיול'],
+    ['🧳', 'נסיע|מזוודה'],
+    ['💻', 'מחשב|לפטופ|טלוויזי|טלפון|אייפון|מקרר|מכונת|מזגן'],
+    ['🏠', 'דירה|מעבר|שיפוץ|ריהוט|רהיט'],
+    ['🎓', 'סיום|לימודים|בית ספר'],
+    ['🎁', 'מתנה|מתנות|חג|פסח|חנוכה|ראש השנה']
+  ]);
+  /* a product link reads as the shop's name; anything else as its domain */
+  var SHOPS = [[/(^|\.)ksp\.co\.il$/, 'KSP'], [/(^|\.)ivory\.co\.il$/, 'Ivory'], [/(^|\.)bug\.co\.il$/, 'BUG'], [/(^|\.)zap\.co\.il$/, 'זאפ'],
+    [/(^|\.)shufersal\.co\.il$/, 'שופרסל'], [/(^|\.)terminalx\.com$/, 'Terminal X'], [/(^|\.)amazon\.[a-z.]+$/, 'Amazon'],
+    [/(^|\.)aliexpress\.[a-z.]+$/, 'AliExpress'], [/(^|\.)ikea\.[a-z.]+$/, 'IKEA'], [/(^|\.)ebay\.[a-z.]+$/, 'eBay'], [/(^|\.)shein\.[a-z.]+$/, 'SHEIN']];
+  var evs = [], evOpen = null, evData = null, evBusy = {}, evEditing = null, evEmoji = EV_EMOJIS[0], evEmojiManual = false, eiEditing = null, eiKeep = [], eiNew = [];
+
+  function photoUrl(id) { return '/api/shopping-events/photos/' + id; }
+  function siteOf(url) {
+    var h; try { h = new URL(url).hostname.toLowerCase().replace(/^www\./, ''); } catch (e) { return ''; }
+    for (var i = 0; i < SHOPS.length; i++) if (SHOPS[i][0].test(h)) return SHOPS[i][1];
+    return h;
+  }
+  /* mirrors clean_event_link in app.py: '' = no link, null = not a web address, else the link to save */
+  function cleanLink(v) {
+    v = (v || '').trim(); if (!v) return '';
+    if (v.length > 1000 || /[\s\x00-\x1f\x7f]/.test(v)) return null;
+    if (v.indexOf('://') < 0 && /^[\w-]+(\.[\w-]+)+([\/?#:]|$)/.test(v)) v = 'https://' + v;
+    var u; try { u = new URL(v); } catch (e) { return null; }
+    if (!/^https?:$/.test(u.protocol) || u.username || u.password || u.hostname.indexOf('.') < 0) return null;
+    return v;
+  }
+  function evDay(d) {
+    var x = new Date(d + 'T12:00:00'); if (!d || isNaN(x)) return '';
+    return x.getDate() + '.' + (x.getMonth() + 1) + (x.getFullYear() !== new Date().getFullYear() ? '.' + String(x.getFullYear()).slice(2) : '');
+  }
+  function evWhen(d) {
+    var day = evDay(d); if (!day) return '';
+    var t = new Date(); t.setHours(12, 0, 0, 0);
+    var n = Math.round((new Date(d + 'T12:00:00') - t) / 864e5);
+    return '📅 ' + day + (n === 0 ? ' · היום' : n === 1 ? ' · מחר' : n > 1 && n <= 60 ? ' · בעוד ' + n + ' ימים' : n < 0 ? ' · עבר' : '');
+  }
+  /* coming up first (soonest on top), then undated (newest first), then the ones already past */
+  function evSorted() {
+    var today = Pop.iso(new Date()), rank = function (e) { return !e.event_date ? 1 : e.event_date >= today ? 0 : 2; };
+    return evs.slice().sort(function (a, b) {
+      var d = rank(a) - rank(b); if (d) return d;
+      if (rank(a) === 1) return b.id - a.id;
+      var c = a.event_date < b.event_date ? -1 : a.event_date > b.event_date ? 1 : 0;
+      return rank(a) === 0 ? c : -c;
+    });
+  }
+  function evById(id) { return evs.find(function (e) { return e.id === id; }) || (evData && evData.event.id === id ? evData.event : null); }
+  function evColor(id) { return 'c' + (id % 6); }
+  function sumPrice(list) { return list.reduce(function (s, i) { return s + (i.price != null ? Number(i.price) : 0); }, 0); }
+
+  function renderEvents() {
+    $('tabEv').querySelector('.n').textContent = evs.length;
+    $('evList').innerHTML = evSorted().map(function (e) {
+      var pct = e.total ? Math.round(100 * e.done / e.total) : 0;
+      var bits = [e.total ? e.done + ' מתוך ' + e.total + ' נקנו' : 'עוד אין פריטים'];
+      if (e.priced) bits.push(Pop.money0(e.price_total));
+      if (e.event_date) bits.push(evWhen(e.event_date));
+      return '<button type="button" class="sticker evc pressable" data-ev="' + e.id + '">' +
+        '<span class="ev-ico ' + evColor(e.id) + '" aria-hidden="true">' + esc(e.emoji || '🎉') + '</span>' +
+        '<span class="grow"><span class="t">' + esc(e.name) + '</span><span class="s">' + bits.map(function (b, n) { return '<span>' + (n ? '· ' : '') + esc(b) + '</span>'; }).join(' ') + '</span>' +
+        '<span class="bar" aria-hidden="true"><i class="' + (pct ? '' : 'zero') + '" style="width:' + pct + '%"></i></span></span>' +
+        '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></button>';
+    }).join('');
+    $('evNone').classList.toggle('hidden', evs.length > 0);
+    $('evHome').classList.toggle('hidden', !!evOpen);
+    $('evView').classList.toggle('hidden', !evOpen);
+    if (evOpen) renderEvView();
+  }
+  function evRow(i) {
+    var ph = i.photos || [], nm = esc(i.name), bits = [];
+    /* the price rides in the sub line, not a badge, so the name keeps the width of the row */
+    if (i.price != null) bits.push('<b>' + esc(Pop.money(i.price)) + '</b>');
+    if (i.note) bits.push(esc(i.note)); else if (i.added_by_name) bits.push('נוסף ע״י ' + esc(i.added_by_name.split(' ')[0]));
+    var sub = bits.length ? '<small>' + bits.join(' · ') + '</small>' : '';
+    var site = cleanLink(i.link) ? siteOf(i.link) : '';   /* the server only stores http(s); checked again before it becomes an href */
+    return '<div class="erow" data-id="' + i.id + '"><div class="srow' + (i.checked ? ' done' : '') + '">' +
+      '<button type="button" class="pill' + (i.checked ? ' done' : '') + '" data-act="check" aria-pressed="' + !!i.checked + '"><span class="cb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span>' +
+      '<span class="nm"><span>' + nm + '</span>' + sub + '</span></button>' +
+      (ph.length ? '<button type="button" class="thumb" data-act="img" aria-label="' + (ph.length > 1 ? ph.length + ' תמונות של ' : 'תמונה של ') + nm + '"><img src="' + photoUrl(ph[0]) + '" alt="" loading="lazy">' + (ph.length > 1 ? '<b aria-hidden="true">+' + (ph.length - 1) + '</b>' : '') + '</button>' : '') +
+      '<button type="button" class="edit" data-act="edit" aria-label="עריכת ' + nm + '"><span aria-hidden="true">✏️</span>עריכה</button></div>' +
+      (site ? '<a class="elink" href="' + esc(i.link) + '" target="_blank" rel="noopener noreferrer" aria-label="' + nm + ' באתר ' + esc(site) + ' (נפתח בחלון חדש)"><span aria-hidden="true">🔗</span><bdi>' + esc(site) + '</bdi>' +
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg></a>' : '') +
+      '</div>';
+  }
+  function renderEvView() {
+    var e = evById(evOpen); if (!e) return;
+    var items = evData ? evData.items : null;
+    $('evIco').textContent = e.emoji || '🎉'; $('evIco').className = 'ev-ico ' + evColor(e.id);
+    $('evName').textContent = e.name;
+    $('evWhen').textContent = evWhen(e.event_date); $('evWhen').classList.toggle('hidden', !e.event_date);
+    /* the totals come from the items once they're here, so a check-off shows at once */
+    var total = items ? items.length : e.total, done = items ? items.filter(function (i) { return i.checked; }).length : e.done;
+    var priced = items ? items.some(function (i) { return i.price != null; }) : e.priced > 0;
+    var sum = items ? sumPrice(items) : e.price_total, sumDone = items ? sumPrice(items.filter(function (i) { return i.checked; })) : e.price_done;
+    $('evBar').style.width = (total ? Math.round(100 * done / total) : 0) + '%'; $('evBar').classList.toggle('zero', !done);
+    $('evProg').textContent = total ? done + ' מתוך ' + total + ' נקנו' : 'עוד אין פריטים';
+    $('evMoney').textContent = priced ? 'סה״כ ' + Pop.money(sum) + (sumDone ? ' · נקנה ' + Pop.money(sumDone) : '') : '';
+    if (!items) return;
+    var open = items.filter(function (i) { return !i.checked; }), dn = items.filter(function (i) { return i.checked; });
+    $('evOpenList').innerHTML = open.map(evRow).join('');
+    $('evItemsEmpty').classList.toggle('hidden', items.length > 0);
+    $('evDoneWrap').classList.toggle('hidden', !dn.length);
+    $('evDoneTitle').textContent = '✅ כבר נקנו (' + dn.length + ')';
+    $('evDoneList').innerHTML = dn.map(evRow).join('');
+  }
+  async function loadEvents() {
+    var id = evOpen;
+    var res = await Promise.all([Pop.api('GET', '/api/shopping-events'), id ? Pop.api('GET', '/api/shopping-events/' + id + '/items') : null]);
+    if (res[0].ok) evs = res[0].data;
+    if (id && id === evOpen && res[1]) {
+      if (res[1].ok) evData = res[1].data;
+      else if (res[1].status === 404) { Pop.toast('האירוע הזה כבר לא קיים', 'info'); closeEvent(); return; }
+    }
+    renderEvents();
+  }
+
+  /* an open event is a history entry, so the phone's back button (and swipe-back) returns to the events */
+  function openEvent(id, viaHistory) {
+    if (!viaHistory) { try { history.pushState({ ev: id }, ''); } catch (e) {} }
+    evOpen = id; evData = null; evBusy = {};
+    $('evOpenList').innerHTML = ''; $('evDoneList').innerHTML = ''; $('evItemsEmpty').classList.add('hidden'); $('evDoneWrap').classList.add('hidden');
+    renderEvents(); loadEvents();
+    var top = $('tabsSeg').getBoundingClientRect().top + window.scrollY - 12;
+    if (window.scrollY > top) window.scrollTo(0, top);
+  }
+  function closeEvent(viaHistory) {
+    evOpen = null; evData = null; renderEvents();
+    if (!viaHistory && history.state && history.state.ev) { try { history.back(); } catch (e) {} }
+  }
+  window.addEventListener('popstate', function (e) {
+    var id = e.state && e.state.ev;
+    document.querySelectorAll('.sheet-ov.open').forEach(function (s) { Pop.closeSheet(s); });
+    if (id) { setTab('ev'); openEvent(id, true); } else if (evOpen) closeEvent(true);
+  });
+  $('evList').addEventListener('click', function (e) { var b = e.target.closest('[data-ev]'); if (b) openEvent(+b.dataset.ev); });
+  $('evBack').addEventListener('click', function () { closeEvent(); });
+
+  function onEvItemClick(e) {
+    var b = e.target.closest('[data-act]'); if (!b || !evData) return;
+    var id = +b.closest('.erow').dataset.id, it = evData.items.find(function (x) { return x.id === id; }); if (!it) return;
+    if (b.dataset.act === 'check') evToggle(it, b);
+    else if (b.dataset.act === 'edit') openItem(it);
+    else if (b.dataset.act === 'img') {
+      $('evImgTitle').textContent = it.name;
+      $('evImgs').innerHTML = it.photos.map(function (p, n) { return '<img class="img-full" src="' + photoUrl(p) + '" alt="תמונה ' + (n + 1) + ' של ' + esc(it.name) + '">'; }).join('');
+      Pop.openSheet('evImgSheet');
+    }
+  }
+  $('evOpenList').addEventListener('click', onEvItemClick);
+  $('evDoneList').addEventListener('click', onEvItemClick);
+  async function evToggle(it, btn) {
+    if (evBusy[it.id]) return; evBusy[it.id] = true;
+    var now = !it.checked;
+    btn.classList.toggle('done', now); btn.setAttribute('aria-pressed', now); if (now) btn.classList.add('pop-check');
+    var r = await Pop.api('PUT', '/api/shopping-events/items/' + it.id, { checked: now });
+    evBusy[it.id] = false;
+    if (!r.ok) { Pop.toast(Pop.netMsg(r, 'לא הצלחנו לעדכן'), 'error'); loadEvents(); return; }
+    it.checked = now ? 1 : 0;
+    if (now && evData.items.every(function (i) { return i.checked; })) { Pop.confetti(btn, 60); Pop.toast('הכול נקנה! 🎉', 'success'); }
+    setTimeout(function () { renderEvents(); loadEvents(); }, now ? 380 : 0);
+  }
+
+  /* ── event sheet (new / rename / date / delete) ── */
+  function emojiChips() {
+    $('evEmojis').innerHTML = EV_EMOJIS.map(function (m) {
+      var on = m === evEmoji;
+      return '<button type="button" class="chip-btn' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" aria-label="' + esc(EV_EMOJI_NAMES[m] || m) + '" data-em="' + esc(m) + '">' + esc(m) + '</button>';
+    }).join('');
+  }
+  function syncDateClr() { $('evDateClr').classList.toggle('hidden', !$('evDate').value); }
+  function openEvSheet(e) {
+    evEditing = e || null; evEmoji = e && EV_EMOJIS.indexOf(e.emoji) >= 0 ? e.emoji : EV_EMOJIS[0]; evEmojiManual = !!e;
+    $('evTitle').textContent = e ? '✏️ עריכת אירוע' : '🎉 אירוע חדש';
+    $('evSave').textContent = e ? '💾 שמירה' : '🎉 יצירת האירוע';
+    $('evNameIn').value = e ? e.name : ''; $('evDate').value = e ? (e.event_date || '') : ''; syncDateClr();
+    $('evDel').classList.toggle('hidden', !e); $('evEmHint').classList.add('hidden');
+    emojiChips(); Pop.openSheet('evSheet');
+  }
+  $('evNew').addEventListener('click', function () { openEvSheet(null); });
+  $('evEdit').addEventListener('click', function () { openEvSheet(evById(evOpen)); });
+  $('evEmojis').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-em]'); if (!b) return;
+    evEmoji = b.dataset.em; evEmojiManual = true; $('evEmHint').classList.add('hidden'); emojiChips();
+  });
+  $('evNameIn').addEventListener('input', function () {
+    if (evEmojiManual) return;
+    var g = Pop.guessFrom(EV_GUESS, this.value); evEmoji = g || EV_EMOJIS[0];
+    $('evEmHint').classList.toggle('hidden', !g); emojiChips();
+  });
+  $('evDate').addEventListener('input', syncDateClr); $('evDate').addEventListener('change', syncDateClr);
+  $('evDateClr').addEventListener('click', function () { $('evDate').value = ''; syncDateClr(); });
+  $('evSave').addEventListener('click', async function () {
+    var name = $('evNameIn').value.trim(); if (!name) { Pop.toast('צריך שם לאירוע', 'error'); $('evNameIn').focus(); return; }
+    var body = { name: name, emoji: evEmoji, event_date: $('evDate').value || '' }, b = this, ed = evEditing;
+    b.disabled = true;
+    var r = ed ? await Pop.api('PUT', '/api/shopping-events/' + ed.id, body) : await Pop.api('POST', '/api/shopping-events', body);
+    b.disabled = false;
+    if (!r.ok) { Pop.toast(Pop.netMsg(r, 'לא הצלחנו לשמור'), 'error'); return; }
+    Pop.closeSheet('evSheet');
+    if (ed) { Pop.toast('נשמר ✓', 'success'); loadEvents(); }
+    else { Pop.toast(evEmoji + ' "' + name + '" נוצר', 'success'); openEvent(r.data.id); }
+  });
+  $('evDel').addEventListener('click', async function () {
+    var e = evEditing, n = (evs.find(function (x) { return x.id === e.id; }) || {}).total || 0;
+    var text = (n === 1 ? 'גם הפריט שבו יימחק, עם התמונות שלו. ' : n ? 'גם ' + n + ' הפריטים שבו יימחקו, עם התמונות שלהם. ' : '') + 'הרשימה השבועית לא מושפעת.';
+    if (!(await Pop.confirm({ title: 'למחוק את "' + e.name + '"?', text: text, ok: '🗑️ מחיקה', danger: true }))) return;
+    var r = await Pop.api('DELETE', '/api/shopping-events/' + e.id);
+    if (!r.ok) { Pop.toast(Pop.netMsg(r, 'לא הצלחנו למחוק'), 'error'); return; }
+    Pop.closeSheet('evSheet'); Pop.toast('האירוע נמחק', 'success');
+    evs = evs.filter(function (x) { return x.id !== e.id; });
+    if (evOpen === e.id) closeEvent(); else renderEvents();
+    loadEvents();
+  });
+  $('evShare').addEventListener('click', function () {
+    var e = evById(evOpen), items = evData ? evData.items : [];
+    if (!e || !items.length) { Pop.toast('אין מה לשתף — עוד אין פריטים', 'info'); return; }
+    var text = (e.emoji || '🎉') + ' ' + e.name + (e.event_date ? ' · ' + evDay(e.event_date) : '') + '\n';
+    items.forEach(function (i) {
+      text += '\n' + (i.checked ? '✅ ' : '• ') + i.name + (i.price != null ? ' — ' + Pop.money(i.price) : '') + (i.note ? ' (' + i.note + ')' : '') + (i.link ? '\n   ' + i.link : '');
+    });
+    if (items.some(function (i) { return i.price != null; })) text += '\n\nסה״כ: ' + Pop.money(sumPrice(items));
+    Pop.share(e.name, text);
+  });
+
+  /* ── event item sheet (name, price, link, note, up to EV_MAX_PH photos) ── */
+  function linkHint(strict) {
+    var c = cleanLink($('eiLink').value), h = $('eiLinkHint'), bad = c === null && strict;
+    h.className = 'hint' + (bad ? ' bad' : c ? ' good' : '');
+    h.textContent = bad ? 'הקישור לא תקין. צריך כתובת אתר, למשל https://ksp.co.il/…' : c ? '🔗 יופיע ככפתור: ' + siteOf(c) : 'מעתיקים את הכתובת מדף המוצר באתר החנות';
+  }
+  $('eiLink').addEventListener('input', function () { linkHint(false); });
+  $('eiLink').addEventListener('blur', function () { if (this.value.trim()) linkHint(true); });
+  function eiPhotos() {
+    var tiles = eiKeep.map(function (id) { return ['k' + id, photoUrl(id)]; }).concat(eiNew.map(function (d, n) { return ['n' + n, d]; }));
+    $('eiPhotos').innerHTML = tiles.map(function (t, n) {
+      return '<div class="ph"><img src="' + esc(t[1]) + '" alt="תמונה ' + (n + 1) + '"><button type="button" class="btn white sm" data-ph="' + t[0] + '" aria-label="הסרה של תמונה ' + (n + 1) + '">הסרה</button></div>';
+    }).join('');
+    $('eiPhBtns').classList.toggle('hidden', tiles.length >= EV_MAX_PH);
+    $('eiPhCount').textContent = tiles.length ? '(' + tiles.length + ' מתוך ' + EV_MAX_PH + ')' : '(לא חובה, עד ' + EV_MAX_PH + ')';
+  }
+  $('eiPhotos').addEventListener('click', function (e) {
+    var b = e.target.closest('[data-ph]'); if (!b) return;
+    var k = b.dataset.ph, n = +k.slice(1);
+    if (k.charAt(0) === 'k') eiKeep = eiKeep.filter(function (id) { return id !== n; }); else eiNew.splice(n, 1);
+    eiPhotos();
+  });
+  /* same shrink as the weekly list's photo (800px JPEG); the gallery can hand over several at once */
+  ['eiCam', 'eiGal'].forEach(function (id) {
+    $(id).addEventListener('change', function (e) {
+      var files = Array.prototype.slice.call(e.target.files || []), room = EV_MAX_PH - eiKeep.length - eiNew.length;
+      e.target.value = '';
+      if (files.length > room) Pop.toast('אפשר עד ' + EV_MAX_PH + ' תמונות לפריט', 'info');
+      files.slice(0, Math.max(0, room)).forEach(function (f) {
+        shrink(f, function (d) { if (eiKeep.length + eiNew.length < EV_MAX_PH) { eiNew.push(d); eiPhotos(); } });
+      });
+    });
+  });
+  function openItem(it) {
+    eiEditing = it || null; eiKeep = it ? it.photos.slice() : []; eiNew = [];
+    $('eiTitle').textContent = it ? '✏️ עריכת פריט' : '➕ פריט לאירוע';
+    $('eiName').value = it ? it.name : ''; $('eiNote').value = it ? (it.note || '') : '';
+    $('eiLink').value = it ? (it.link || '') : ''; $('eiPrice').value = it && it.price != null ? it.price : '';
+    $('eiDel').classList.toggle('hidden', !it);
+    linkHint(false); eiPhotos(); Pop.openSheet('eiSheet');
+  }
+  $('evAddItem').addEventListener('click', function () { openItem(null); });
+  $('eiSave').addEventListener('click', async function () {
+    var name = $('eiName').value.trim(); if (!name) { Pop.toast('צריך שם לפריט', 'error'); $('eiName').focus(); return; }
+    var link = cleanLink($('eiLink').value);
+    if (link === null) { linkHint(true); Pop.toast('הקישור לא תקין', 'error'); $('eiLink').focus(); return; }
+    var p = $('eiPrice').value.replace(/[\s,₪]/g, ''), price = p === '' ? null : Number(p);
+    if (price !== null && !(isFinite(price) && price >= 0 && price <= 10000000)) { Pop.toast('מחיר לא תקין', 'error'); $('eiPrice').focus(); return; }
+    var body = { name: name, note: $('eiNote').value.trim(), link: link, price: price }, b = this, ed = eiEditing, r;
+    b.disabled = true;
+    if (ed) {
+      body.add_images = eiNew;
+      body.remove_photo_ids = ed.photos.filter(function (id) { return eiKeep.indexOf(id) < 0; });
+      r = await Pop.api('PUT', '/api/shopping-events/items/' + ed.id, body);
+    } else {
+      body.images = eiNew;
+      r = await Pop.api('POST', '/api/shopping-events/' + evOpen + '/items', body);
+    }
+    b.disabled = false;
+    if (!r.ok) { Pop.toast(Pop.netMsg(r, 'לא הצלחנו לשמור'), 'error'); return; }
+    Pop.closeSheet('eiSheet'); Pop.toast(ed ? 'נשמר ✓' : '"' + name + '" נוסף לאירוע', 'success'); loadEvents();
+  });
+  $('eiDel').addEventListener('click', async function () {
+    if (!(await Pop.confirm({ title: 'למחוק את "' + eiEditing.name + '"?', ok: '🗑️ מחיקה', danger: true }))) return;
+    var r = await Pop.api('DELETE', '/api/shopping-events/items/' + eiEditing.id);
+    if (r.ok) { Pop.closeSheet('eiSheet'); Pop.toast('נמחק מהאירוע', 'success'); loadEvents(); } else Pop.toast(Pop.netMsg(r, 'לא הצלחנו למחוק'), 'error');
+  });
+
   /* ── tabs, share, refresh ── */
   function setTab(t) {
     tab = t;
     document.querySelectorAll('.seg [data-tab]').forEach(function (b) { var on = b.dataset.tab === t; b.classList.toggle('on', on); b.setAttribute('aria-selected', on); });
     $('listPanel').classList.toggle('hidden', t !== 'list'); $('favPanel').classList.toggle('hidden', t !== 'fav');
+    /* the quick-add card fills the weekly list, so it steps aside on the events tab */
+    $('evPanel').classList.toggle('hidden', t !== 'ev'); $('addCard').classList.toggle('hidden', t === 'ev');
   }
   document.querySelectorAll('.seg [data-tab]').forEach(function (b) { b.addEventListener('click', function () { setTab(b.dataset.tab); }); });
   $('emptyFavs').addEventListener('click', function () { setTab('fav'); });
@@ -451,12 +883,14 @@
     Pop.share('רשימת קניות', text.trim());
   });
   var anyOpen = function () { return !!document.querySelector('.sheet-ov.open, .dialog-ov'); };
-  setInterval(function () { if (!document.hidden && !anyOpen()) load(); }, 15000);
-  document.addEventListener('visibilitychange', function () { if (!document.hidden && !anyOpen()) load(); });
+  setInterval(function () { if (!document.hidden && !anyOpen()) { load(); loadEvents(); } }, 15000);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && !anyOpen()) { load(); loadEvents(); } });
 
   catChips('addCats', ''); syncAdd();
   if (/[?&]add=1/.test(location.search)) setTimeout(function () { $('addName').focus(); }, 400);
   load();
+  /* a reload keeps the open event (it lives in the history entry) */
+  if (history.state && history.state.ev) { setTab('ev'); openEvent(history.state.ev, true); } else loadEvents();
 })();
 </script>
 {% endblock %}

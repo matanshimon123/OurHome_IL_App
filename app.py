@@ -2,6 +2,8 @@ import os
 import re
 import json
 import math
+import base64
+import binascii
 import sqlite3
 import threading
 import uuid
@@ -15,6 +17,7 @@ import string
 from datetime import datetime, timedelta, timezone
 from functools import wraps
 from collections import defaultdict
+from urllib.parse import urlsplit
 import io
 from flask import Flask, render_template, request, redirect, url_for, flash, session, jsonify, send_file
 from flask_wtf.csrf import CSRFProtect, generate_csrf
@@ -685,6 +688,21 @@ def init_db():
             job_name TEXT PRIMARY KEY,
             owner TEXT NOT NULL,
             expires_at TEXT NOT NULL);
+        CREATE TABLE IF NOT EXISTS shopping_events (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, family_id INTEGER NOT NULL,
+            name TEXT NOT NULL, emoji TEXT DEFAULT '', event_date TEXT DEFAULT '',
+            created_by INTEGER DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS shopping_event_items (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, family_id INTEGER NOT NULL,
+            event_id INTEGER NOT NULL, name TEXT NOT NULL, note TEXT DEFAULT '',
+            link TEXT DEFAULT '', price REAL DEFAULT NULL, checked BOOLEAN DEFAULT FALSE,
+            added_by INTEGER DEFAULT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+        CREATE TABLE IF NOT EXISTS shopping_event_photos (
+            id INTEGER PRIMARY KEY AUTOINCREMENT, family_id INTEGER NOT NULL,
+            item_id INTEGER NOT NULL, image TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
     """)
     for t, c, ct in [
         ('users','email','TEXT DEFAULT ""'),
@@ -743,6 +761,9 @@ def init_db():
         'CREATE INDEX IF NOT EXISTS idx_archived_family ON archived_cycles(family_id)',
         'CREATE INDEX IF NOT EXISTS idx_categories_family ON categories(family_id)',
         'CREATE INDEX IF NOT EXISTS idx_login_attempts_key ON login_attempts(attempt_key, attempted_at)',
+        'CREATE INDEX IF NOT EXISTS idx_shopping_events_family ON shopping_events(family_id)',
+        'CREATE INDEX IF NOT EXISTS idx_shopping_event_items_event ON shopping_event_items(family_id, event_id)',
+        'CREATE INDEX IF NOT EXISTS idx_shopping_event_photos_item ON shopping_event_photos(family_id, item_id)',
     ]:
         try: conn.execute(idx)
         except: pass
@@ -1348,6 +1369,7 @@ def leave_family():
 FAMILY_SCOPED_TABLES = (
     'payments', 'categories', 'archived_cycles', 'shopping_items',
     'shopping_favorites', 'feedings', 'recurring_payments', 'family_settings',
+    'shopping_events', 'shopping_event_items', 'shopping_event_photos',
 )
 
 
@@ -2149,7 +2171,8 @@ def history_month_detail():
 
 @app.route('/shopping-list')
 @require_auth
-def shopping_list(): return render_template('shopping_list.html')
+def shopping_list():
+    return render_template('shopping_list.html', event_emojis=EVENT_EMOJIS, event_max_photos=EVENT_ITEM_MAX_PHOTOS)
 
 
 @app.route('/api/shopping-items', methods=['GET'])
@@ -2350,6 +2373,362 @@ def clear_completed_items():
             exclude_user_id=user_id, module='shopping')
 
     return jsonify({'success': True})
+
+
+# ──────────────────────────────────────────────
+# EVENT LISTS (the 🎉 אירועים tab of the shopping list)
+# ──────────────────────────────────────────────
+# One-off lists — a birthday, a trip, a laptop — kept apart from the weekly list. Photos are stored the
+# way shopping_items.image is (a data:image/… URL in a TEXT column, shrunk to an 800px JPEG by the page),
+# but in their own table, so an event's item list carries only photo ids and each photo is fetched once.
+EVENT_NAME_MAX = 60
+EVENT_ITEM_NAME_MAX = 80
+EVENT_NOTE_MAX = 200
+EVENT_LINK_MAX = 1000
+EVENT_PRICE_MAX = 10000000
+EVENT_ITEM_MAX_PHOTOS = 4
+EVENT_PHOTO_MAX_BYTES = 600 * 1024  # decoded; an 800px JPEG from the page is ~100-200KB
+# whole request body for an item with all its photos (base64 is 4/3 of the bytes) plus the text fields
+EVENT_ITEM_MAX_BODY = EVENT_ITEM_MAX_PHOTOS * (EVENT_PHOTO_MAX_BYTES * 4 // 3 + 64) + 16 * 1024
+# the page offers exactly these; anything else falls back to the first
+EVENT_EMOJIS = ('🎉', '🎂', '🎁', '✈️', '🏖️', '🧳', '🏕️', '💻', '🏠', '👶', '🎓', '💍')
+_EVENT_PHOTO_RE = re.compile(r'data:image/(jpeg|png|webp);base64,([A-Za-z0-9+/]+={0,2})')
+_EVENT_HOST_RE = re.compile(r'[\w-]+(\.[\w-]+)+')
+
+
+def clean_event_link(raw):
+    """The link as stored: '' for none, the URL for a valid http(s) address, None to reject it.
+    Only http/https with a real host get through: no javascript:, data:, file: or user:pass@host.
+    A bare 'ksp.co.il/…' gains https://, so a link pasted without its scheme still works."""
+    if raw is None:
+        return ''
+    if not isinstance(raw, str):
+        return None
+    s = raw.strip()
+    if not s:
+        return ''
+    if len(s) > EVENT_LINK_MAX or any(c.isspace() or ord(c) < 32 or ord(c) == 127 for c in s):
+        return None
+    if '://' not in s and re.match(r'[\w-]+(\.[\w-]+)+([/?#:]|$)', s):
+        s = 'https://' + s
+    try:
+        parts = urlsplit(s)
+        host = parts.hostname
+        parts.port  # raises ValueError for a malformed port
+    except ValueError:
+        return None
+    if parts.scheme.lower() not in ('http', 'https') or parts.username or parts.password:
+        return None
+    if not host or not _EVENT_HOST_RE.fullmatch(host):
+        return None
+    return s
+
+
+def clean_event_photo(raw):
+    """(data_url, None) for a JPEG/PNG/WebP data URL within EVENT_PHOTO_MAX_BYTES, else (None, reason).
+    The decoded bytes must really start like the declared format, so nothing else can be served back as one."""
+    if not isinstance(raw, str):
+        return None, 'תמונה לא תקינה'
+    if len(raw) > EVENT_PHOTO_MAX_BYTES * 4 // 3 + 64:
+        return None, 'התמונה גדולה מדי'
+    m = _EVENT_PHOTO_RE.fullmatch(raw)
+    if not m:
+        return None, 'תמונה לא תקינה'
+    try:
+        blob = base64.b64decode(m.group(2), validate=True)
+    except (binascii.Error, ValueError):
+        return None, 'תמונה לא תקינה'
+    if len(blob) > EVENT_PHOTO_MAX_BYTES:
+        return None, 'התמונה גדולה מדי'
+    kind = m.group(1)
+    if not ((kind == 'jpeg' and blob.startswith(b'\xff\xd8\xff')) or
+            (kind == 'png' and blob.startswith(b'\x89PNG\r\n\x1a\n')) or
+            (kind == 'webp' and blob[:4] == b'RIFF' and blob[8:12] == b'WEBP')):
+        return None, 'תמונה לא תקינה'
+    return raw, None
+
+
+def _event_fields(data, creating):
+    """Validated columns from an event body, or an error. On update only the keys that were sent."""
+    out = {}
+    if creating or 'name' in data:
+        name = data.get('name')
+        if not isinstance(name, str) or not name.strip():
+            return None, 'צריך שם לאירוע'
+        out['name'] = name.strip()[:EVENT_NAME_MAX]
+    if creating or 'emoji' in data:
+        emoji = data.get('emoji')
+        out['emoji'] = emoji if emoji in EVENT_EMOJIS else EVENT_EMOJIS[0]
+    if 'event_date' in data:
+        d = data.get('event_date') or ''
+        if d:
+            try:
+                if not isinstance(d, str) or not 2000 <= datetime.strptime(d, '%Y-%m-%d').year <= 2100:
+                    raise ValueError
+            except ValueError:
+                return None, 'תאריך לא תקין'
+        out['event_date'] = d
+    return out, None
+
+
+def _event_item_fields(data, creating):
+    """Validated columns from an event item body, or an error. On update only the keys that were sent."""
+    out = {}
+    if creating or 'name' in data:
+        name = data.get('name')
+        if not isinstance(name, str) or not name.strip():
+            return None, 'צריך שם לפריט'
+        out['name'] = name.strip()[:EVENT_ITEM_NAME_MAX]
+    if 'note' in data:
+        note = data.get('note') or ''
+        if not isinstance(note, str):
+            return None, 'הערה לא תקינה'
+        out['note'] = note.strip()[:EVENT_NOTE_MAX]
+    if 'link' in data:
+        link = clean_event_link(data.get('link'))
+        if link is None:
+            return None, 'הקישור לא תקין — אפשר רק כתובת אתר שמתחילה ב-http או https'
+        out['link'] = link
+    if 'price' in data:
+        price = data.get('price')
+        if price is None or price == '':
+            out['price'] = None
+        else:
+            try:
+                if isinstance(price, bool):
+                    raise ValueError
+                price = float(price)
+            except (TypeError, ValueError):
+                return None, 'מחיר לא תקין'
+            if not math.isfinite(price) or price < 0 or price > EVENT_PRICE_MAX:
+                return None, 'מחיר לא תקין'
+            out['price'] = round(price, 2)
+    if 'checked' in data:
+        out['checked'] = bool(data.get('checked'))
+    return out, None
+
+
+def _event_photos_from(data, key):
+    """The validated data URLs in data[key] (a list), or an error."""
+    images = data.get(key) or []
+    if not isinstance(images, list):
+        return None, 'תמונה לא תקינה'
+    if len(images) > EVENT_ITEM_MAX_PHOTOS:
+        return None, f'אפשר עד {EVENT_ITEM_MAX_PHOTOS} תמונות לפריט'
+    photos = []
+    for raw in images:
+        url, err = clean_event_photo(raw)
+        if err:
+            return None, err
+        photos.append(url)
+    return photos, None
+
+
+# Literal UPDATE per column, as for PAYMENT_UPDATE_SQL above.
+SHOPPING_EVENT_UPDATE_SQL = {
+    'name': 'UPDATE shopping_events SET name=? WHERE id=? AND family_id=?',
+    'emoji': 'UPDATE shopping_events SET emoji=? WHERE id=? AND family_id=?',
+    'event_date': 'UPDATE shopping_events SET event_date=? WHERE id=? AND family_id=?',
+}
+SHOPPING_EVENT_ITEM_UPDATE_SQL = {
+    'name': 'UPDATE shopping_event_items SET name=? WHERE id=? AND family_id=?',
+    'note': 'UPDATE shopping_event_items SET note=? WHERE id=? AND family_id=?',
+    'link': 'UPDATE shopping_event_items SET link=? WHERE id=? AND family_id=?',
+    'price': 'UPDATE shopping_event_items SET price=? WHERE id=? AND family_id=?',
+    'checked': 'UPDATE shopping_event_items SET checked=? WHERE id=? AND family_id=?',
+}
+
+
+@app.route('/api/shopping-events', methods=['GET'])
+@require_auth
+def get_shopping_events():
+    fid = get_family_id()
+    with get_db() as conn:
+        events = conn.execute(
+            'SELECT e.id,e.name,e.emoji,e.event_date,COUNT(i.id) as total,COALESCE(SUM(i.checked),0) as done,'
+            'COUNT(i.price) as priced,COALESCE(SUM(i.price),0) as price_total,'
+            'COALESCE(SUM(CASE WHEN i.checked THEN i.price END),0) as price_done '
+            'FROM shopping_events e LEFT JOIN shopping_event_items i ON i.event_id=e.id AND i.family_id=e.family_id '
+            'WHERE e.family_id=? GROUP BY e.id ORDER BY e.id DESC',
+            (fid,)).fetchall()
+    return jsonify([dict(e) for e in events])
+
+
+@app.route('/api/shopping-events', methods=['POST'])
+@require_auth
+def add_shopping_event():
+    fid = get_family_id()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
+    fields, err = _event_fields(data, creating=True)
+    if err:
+        return jsonify({'error': err}), 400
+    user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+    with get_db() as conn:
+        cur = conn.execute(
+            'INSERT INTO shopping_events (family_id,name,emoji,event_date,created_by) VALUES (?,?,?,?,?)',
+            (fid, fields['name'], fields['emoji'], fields.get('event_date', ''), user_id))
+
+    user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
+    send_push_to_family(fid,
+        f'{fields["emoji"]} רשימה חדשה לאירוע',
+        f'{user_name} פתח/ה רשימה: {fields["name"]}',
+        exclude_user_id=user_id, module='shopping')
+
+    return jsonify({'id': cur.lastrowid}), 201
+
+
+@app.route('/api/shopping-events/<int:eid>', methods=['PUT'])
+@require_auth
+def update_shopping_event(eid):
+    fid = get_family_id()
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
+    fields, err = _event_fields(data, creating=False)
+    if err:
+        return jsonify({'error': err}), 400
+    with get_db() as conn:
+        if not conn.execute('SELECT id FROM shopping_events WHERE id=? AND family_id=?', (eid, fid)).fetchone():
+            return jsonify({'error': 'האירוע לא נמצא'}), 404
+        for f, sql in SHOPPING_EVENT_UPDATE_SQL.items():
+            if f in fields: conn.execute(sql, (fields[f], eid, fid))
+    return jsonify({'success': True})
+
+
+@app.route('/api/shopping-events/<int:eid>', methods=['DELETE'])
+@require_auth
+def delete_shopping_event(eid):
+    """The event with its items and their photos, in one transaction. Rows of the new event tables only."""
+    fid = get_family_id()
+    with get_db() as conn:
+        if not conn.execute('SELECT id FROM shopping_events WHERE id=? AND family_id=?', (eid, fid)).fetchone():
+            return jsonify({'error': 'האירוע לא נמצא'}), 404
+        conn.execute(
+            'DELETE FROM shopping_event_photos WHERE family_id=? AND item_id IN '
+            '(SELECT id FROM shopping_event_items WHERE event_id=? AND family_id=?)', (fid, eid, fid))
+        conn.execute('DELETE FROM shopping_event_items WHERE event_id=? AND family_id=?', (eid, fid))
+        conn.execute('DELETE FROM shopping_events WHERE id=? AND family_id=?', (eid, fid))
+    return jsonify({'success': True})
+
+
+@app.route('/api/shopping-events/<int:eid>/items', methods=['GET'])
+@require_auth
+def get_shopping_event_items(eid):
+    fid = get_family_id()
+    with get_db() as conn:
+        event = conn.execute('SELECT id,name,emoji,event_date FROM shopping_events WHERE id=? AND family_id=?',
+                             (eid, fid)).fetchone()
+        if not event:
+            return jsonify({'error': 'האירוע לא נמצא'}), 404
+        items = conn.execute(
+            'SELECT i.id,i.name,i.note,i.link,i.price,i.checked,'
+            "COALESCE(NULLIF(u.display_name,''),u.username,'') as added_by_name "
+            'FROM shopping_event_items i LEFT JOIN users u ON u.id=i.added_by '
+            'WHERE i.event_id=? AND i.family_id=? ORDER BY i.checked ASC, i.id DESC',
+            (eid, fid)).fetchall()
+        photos = conn.execute(
+            'SELECT p.id,p.item_id FROM shopping_event_photos p JOIN shopping_event_items i ON i.id=p.item_id '
+            'WHERE i.event_id=? AND p.family_id=? AND i.family_id=? ORDER BY p.id',
+            (eid, fid, fid)).fetchall()
+    by_item = defaultdict(list)
+    for p in photos:
+        by_item[p['item_id']].append(p['id'])
+    return jsonify({'event': dict(event),
+                    'items': [dict(dict(i), photos=by_item.get(i['id'], [])) for i in items]})
+
+
+@app.route('/api/shopping-events/<int:eid>/items', methods=['POST'])
+@require_auth
+def add_shopping_event_item(eid):
+    fid = get_family_id()
+    if (request.content_length or 0) > EVENT_ITEM_MAX_BODY:
+        return jsonify({'error': 'התמונות גדולות מדי'}), 413
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
+    fields, err = _event_item_fields(data, creating=True)
+    if err:
+        return jsonify({'error': err}), 400
+    photos, err = _event_photos_from(data, 'images')
+    if err:
+        return jsonify({'error': err}), 400
+    user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
+    with get_db() as conn:
+        if not conn.execute('SELECT id FROM shopping_events WHERE id=? AND family_id=?', (eid, fid)).fetchone():
+            return jsonify({'error': 'האירוע לא נמצא'}), 404
+        iid = conn.execute(
+            'INSERT INTO shopping_event_items (family_id,event_id,name,note,link,price,checked,added_by) '
+            'VALUES (?,?,?,?,?,?,FALSE,?)',
+            (fid, eid, fields['name'], fields.get('note', ''), fields.get('link', ''), fields.get('price'),
+             user_id)).lastrowid
+        for url in photos:
+            conn.execute('INSERT INTO shopping_event_photos (family_id,item_id,image) VALUES (?,?,?)', (fid, iid, url))
+    return jsonify({'id': iid}), 201
+
+
+@app.route('/api/shopping-events/items/<int:iid>', methods=['PUT'])
+@require_auth
+def update_shopping_event_item(iid):
+    """Fields that were sent, plus photos: add_images (data URLs) and remove_photo_ids, all in one transaction."""
+    fid = get_family_id()
+    if (request.content_length or 0) > EVENT_ITEM_MAX_BODY:
+        return jsonify({'error': 'התמונות גדולות מדי'}), 413
+    data = get_json_object()
+    if data is None:
+        return jsonify({'error': 'Invalid data'}), 400
+    fields, err = _event_item_fields(data, creating=False)
+    if err:
+        return jsonify({'error': err}), 400
+    photos, err = _event_photos_from(data, 'add_images')
+    if err:
+        return jsonify({'error': err}), 400
+    remove = data.get('remove_photo_ids') or []
+    if not isinstance(remove, list) or any(isinstance(p, bool) or not isinstance(p, int) for p in remove):
+        return jsonify({'error': 'Invalid data'}), 400
+    with get_db() as conn:
+        if not conn.execute('SELECT id FROM shopping_event_items WHERE id=? AND family_id=?', (iid, fid)).fetchone():
+            return jsonify({'error': 'הפריט לא נמצא'}), 404
+        have = conn.execute('SELECT id FROM shopping_event_photos WHERE item_id=? AND family_id=?',
+                            (iid, fid)).fetchall()
+        if len([p for p in have if p['id'] not in remove]) + len(photos) > EVENT_ITEM_MAX_PHOTOS:
+            return jsonify({'error': f'אפשר עד {EVENT_ITEM_MAX_PHOTOS} תמונות לפריט'}), 400
+        for f, sql in SHOPPING_EVENT_ITEM_UPDATE_SQL.items():
+            if f in fields: conn.execute(sql, (fields[f], iid, fid))
+        for pid in remove:
+            conn.execute('DELETE FROM shopping_event_photos WHERE id=? AND item_id=? AND family_id=?', (pid, iid, fid))
+        for url in photos:
+            conn.execute('INSERT INTO shopping_event_photos (family_id,item_id,image) VALUES (?,?,?)', (fid, iid, url))
+    return jsonify({'success': True})
+
+
+@app.route('/api/shopping-events/items/<int:iid>', methods=['DELETE'])
+@require_auth
+def delete_shopping_event_item(iid):
+    fid = get_family_id()
+    with get_db() as conn:
+        conn.execute('DELETE FROM shopping_event_photos WHERE item_id=? AND family_id=?', (iid, fid))
+        conn.execute('DELETE FROM shopping_event_items WHERE id=? AND family_id=?', (iid, fid))
+    return jsonify({'success': True})
+
+
+@app.route('/api/shopping-events/photos/<int:pid>', methods=['GET'])
+@require_auth
+def get_shopping_event_photo(pid):
+    """One photo as an image, for <img src>. Ids are never reused and a photo never changes, so it caches for good.
+    Served with nosniff and a no-everything CSP: only the validated image types are ever stored."""
+    fid = get_family_id()
+    with get_db() as conn:
+        row = conn.execute('SELECT image FROM shopping_event_photos WHERE id=? AND family_id=?', (pid, fid)).fetchone()
+    m = _EVENT_PHOTO_RE.fullmatch(row['image']) if row else None
+    if not m:
+        return jsonify({'error': 'התמונה לא נמצאה'}), 404
+    resp = app.response_class(base64.b64decode(m.group(2)), mimetype='image/' + m.group(1))
+    resp.headers['Cache-Control'] = 'private, max-age=31536000, immutable'
+    resp.headers['X-Content-Type-Options'] = 'nosniff'
+    resp.headers['Content-Security-Policy'] = "default-src 'none'"
+    return resp
 
 
 @app.route('/api/recurring', methods=['GET'])

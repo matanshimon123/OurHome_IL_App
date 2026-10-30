@@ -45,7 +45,8 @@ test_files/
 ## Database Tables
 families, users, payments, categories, archived_cycles, app_settings,
 shopping_items, shopping_favorites, feedings, recurring_payments,
-push_tokens, family_settings, notification_prefs (per-user on/off per kind of push)
+push_tokens, family_settings, notification_prefs (per-user on/off per kind of push),
+shopping_events, shopping_event_items, shopping_event_photos (the 🎉 אירועים tab; see DECISIONS.md 8e)
 
 ## Key Architecture Decisions
 
@@ -88,6 +89,7 @@ push_tokens, family_settings, notification_prefs (per-user on/off per kind of pu
 - Duplicate email check in API register
 
 ## Recent Changes (Latest First)
+00. Event lists: 🎉 אירועים tab in the shopping list (one-off lists with price, product link, up to 4 photos), `/api/shopping-events/*`
 0. Design refresh (branch `design-refresh`): Concept A "Pop" design system on every screen, cycle analysis view, bill detective, feeding rhythm, offline page — see DECISIONS.md
 1. Billing cycle feature (cycle_day, auto-archive, cycle labels)
 2. Category management (family isolation, delete, duplicates fix)
