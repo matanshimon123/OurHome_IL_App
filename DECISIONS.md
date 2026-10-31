@@ -196,9 +196,18 @@ One-off lists (a birthday, a trip to Eilat, a laptop) are kept apart from the we
 - No schema change.
 
 **Optional last day and quantity.** Both were added at the owner's request, and both stay out of the way when unused:
-- **Last day (`shopping_events.end_date`).** The "עד תאריך" field appears only once a first day is set, with the hint "לטיול או חופשה". A birthday's sheet looks as before. The server refuses a last day without a first day, or one before it, with a Hebrew message. A last day equal to the first is stored as a one-day event, and clearing the first day clears the last. While a range is under way the events tab says "עכשיו", and on its last day "יום אחרון". It sorts with the upcoming events until it ends. On Home it keeps its card until the last day, showing "🎉 עכשיו" and "עד יום א׳ 15.11".
+- **Last day (`shopping_events.end_date`).** The event sheet has a "מתי?" card with two rows, התחלה and סיום. Both rows are there from the start, including when creating an event. An earlier version showed סיום only after a start date was set, and the owner didn't find it on a new event. Under the card, a hint explains that a birthday only needs a start date. Once both dates are set, the hint shows the length ("🗓️ 4 ימים · 10.11-13.11"). The server refuses a last day without a first day, or one before it, with a Hebrew message. A last day equal to the first is stored as a one-day event, and clearing the first day clears the last. While a range is under way the events tab says "עכשיו", and on its last day "יום אחרון". It sorts with the upcoming events until it ends. On Home it keeps its card until the last day, showing "🎉 עכשיו" and "עד יום א׳ 15.11".
 - **Ranges use a plain hyphen** ("10.11-13.11"), not an en dash. In RTL text the en dash breaks the run and the dates appear flipped ("13.11–10.11"). A hyphen between numbers keeps them one left-to-right run. A browser check confirms the first day is painted left of the last.
 - **Quantity (`shopping_event_items.quantity`, default 1).** It sits on the same line as "מה צריך?", in a 112px column with placeholder "1". Empty means one. Whole numbers 1 to 999 are accepted; the server and the sheet refuse anything else. The row shows the weekly list's ×N badge, and sharing writes "×N". The price stays what was typed for the whole line, and totals add exactly that. The sheet says so ("המחיר לכל הכמות, לא ליחידה") as soon as the quantity is above 1.
+- **The event and item sheets were redesigned** after the owner found them messy:
+  - A line under the title ("רק השם חובה, כל השאר לפי הצורך") replaces "(לא חובה)" on every label.
+  - Optional fields sit in one card of label | value rows (`.fgrp` / `.grp-row`, in the style of the `.kv` summary rows). Values are right-aligned; before, left-to-right fields were centered and names right-aligned.
+  - The 12 symbols are a 6×2 grid in view instead of a sideways-scrolling row.
+  - Photos and two square add tiles (צילום / גלריה) share one grid.
+  - The link hint appears only once there is a link.
+  - Edit mode ends with "ביטול" and a quiet "🗑️ מחיקה" (red text on white) beside it, instead of a second full-width red button.
+  - The class is `.fgrp`, not `.grp`, which is the weekly list's department header.
+  - Date rows use short labels and 16px, so "10/11/2026" with Chrome's picker icon and "ניקוי" fits a 320px phone. A browser check compares each date box with the input's natural width.
 - **Migration.** The two columns are added through the `init_db()` ALTER list, so existing rows read `''` and `1`. Tested three times each on a copy of the owner's local database, on a copy without the event tables (which get created and then gain the columns) and on a new file. Row counts were identical throughout, and only the two event tables changed.
 
 ## 9. Follow-ups (flagged, not implemented)

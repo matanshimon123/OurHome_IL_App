@@ -95,18 +95,41 @@
 .elink:active{transform:translate(2px,2px);box-shadow:0 0 0 var(--ink)}
 .elink bdi{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .elink svg{width:15px;height:15px;flex:none;stroke:currentColor;stroke-width:2.6;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.ph-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:10px}
-.ph-grid:empty{display:none}
+/* ── event + item sheets: the one required field up top, the optional ones grouped as label | value rows
+   (the .kv rows of the summary cards), everything start-aligned ── */
+.ei-row{display:grid;grid-template-columns:minmax(0,1fr) 96px;gap:10px;align-items:end}   /* name + optional quantity */
+.ei-row .label{white-space:nowrap}
+.ei-row #eiQty{text-align:center}
+/* (not .grp: that is the weekly list's department header) */
+.fgrp{background:#fff;border:var(--line) solid var(--ink);border-radius:18px;box-shadow:3px 3px 0 var(--ink);overflow:hidden}
+.grp-row{display:flex;align-items:center;gap:8px;min-height:56px;padding-inline:12px 6px;transition:background .15s}
+.grp-row+.grp-row{border-top:2px dashed var(--cream-2)}
+.grp-row:focus-within{background:var(--sun-soft);box-shadow:inset 0 0 0 3px var(--sun)}   /* the design system's input focus, on the row */
+.grp-row .k{flex:none;width:76px;font:800 15px var(--font-display);color:var(--ink-2)}
+/* dates: short labels and 16px, so "10/11/2026" plus the picker icon and "ניקוי" fit a 320px phone */
+#evSheet .grp-row .k{width:52px}
+.fgrp .grp-row input[type=date]{font-size:16px}
+.fgrp .grp-row .input{flex:1;min-width:0;min-height:54px;padding:0 6px;border:0;border-radius:0;box-shadow:none;background:transparent;font-size:17px;text-align:right}
+.fgrp .grp-row .input:focus,.fgrp .grp-row .input:focus-visible{box-shadow:none;outline:none}
+.grp-row .clr{flex:none;min-height:44px;min-width:44px;padding:0 4px;border-radius:12px;font:800 14px var(--font-display);color:var(--ink-2);text-decoration:underline;text-underline-offset:3px}
+.grp-row .clr:active{background:var(--cream-2)}
+.fgrp+.hint{margin-top:8px}
+/* 12 symbols, all in view: 6 to a row (2 rows; the column gap shrinks so a 320px phone keeps 44px tiles) */
+.em-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:8px 6px}
+.em-grid .chip-btn{min-width:0;min-height:48px;padding:0;border-radius:14px;font-size:22px}
+@media (max-width:340px){.em-grid{column-gap:3px}}
+/* photos and the add tiles share one grid; the two inner boxes are re-rendered separately */
+.ph-wrap{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;align-items:start}
+.ph-wrap>div{display:contents}
 .ph{display:flex;flex-direction:column;gap:6px;min-width:0}
 .ph img{width:100%;height:72px;object-fit:cover;border:2.5px solid var(--ink);border-radius:14px}
 .ph .btn.sm{padding:0 4px;font-size:14px;border-width:2px}
-.em-pick .chip-btn{min-width:52px;padding:0 8px;font-size:22px}
-.ev-date{display:flex;align-items:center;gap:8px}
-.ev-date .input{flex:1;min-width:0}
-/* item name and its optional quantity share a line; inputs line up at the bottom */
-.ei-row{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:10px;align-items:end}
-.ei-row .label{white-space:nowrap}
-.ei-row #eiQty{text-align:center}
+.ph-add{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:72px;border:2.5px dashed var(--ink-3);border-radius:14px;background:var(--cream);font:800 14px var(--font-display);color:var(--ink);cursor:pointer}
+.ph-add>span{font-size:22px;line-height:1}
+.ph-add:active{background:var(--cream-2)}
+@supports (aspect-ratio:1){.ph img,.ph-add{height:auto;aspect-ratio:1}}
+/* edit mode: cancel and a quiet delete side by side under the main button */
+.btn.del{color:var(--coral-ink)}
 .ev-imgs{display:flex;flex-direction:column;gap:12px}
 </style>
 {% endblock %}
@@ -266,14 +289,21 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="evTitle">
     <div class="sheet-handle"></div>
     <h3 class="sheet-title" id="evTitle">🎉 אירוע חדש</h3>
+    <p class="sheet-sub">רק השם חובה, כל השאר לפי הצורך</p>
     <div class="field"><label class="label" for="evNameIn">שם האירוע</label><input class="input" type="text" id="evNameIn" maxlength="60" placeholder="למשל: טיול לאילת"></div>
-    <div class="field"><span class="label" id="evEmLbl">סמל <small class="muted hidden" id="evEmHint">· נבחר לפי השם, אפשר לשנות</small></span><div class="chip-scroll em-pick" id="evEmojis" role="radiogroup" aria-labelledby="evEmLbl"></div></div>
-    <div class="field"><label class="label" for="evDate">תאריך <small>(לא חובה)</small></label><div class="ev-date"><input class="input" type="date" id="evDate"><button type="button" class="btn white sm hidden" id="evDateClr">בלי תאריך</button></div></div>
-    <div class="field hidden" id="evEndWrap"><label class="label" for="evEnd">עד תאריך <small>(לא חובה · לטיול או חופשה)</small></label><div class="ev-date"><input class="input" type="date" id="evEnd"><button type="button" class="btn white sm hidden" id="evEndClr">יום אחד</button></div></div>
+    <div class="field"><span class="label" id="evEmLbl">סמל <small class="hidden" id="evEmHint">· נבחר לפי השם, אפשר לשנות</small></span><div class="em-grid" id="evEmojis" role="radiogroup" aria-labelledby="evEmLbl"></div></div>
+    <div class="field">
+      <span class="label" id="evWhenLbl">מתי?</span>
+      <div class="fgrp" role="group" aria-labelledby="evWhenLbl">
+        <div class="grp-row"><label class="k" for="evDate">התחלה</label><input class="input" type="date" id="evDate"><button type="button" class="clr hidden" id="evDateClr" aria-label="ניקוי התאריכים">ניקוי</button></div>
+        <div class="grp-row"><label class="k" for="evEnd">סיום</label><input class="input" type="date" id="evEnd"><button type="button" class="clr hidden" id="evEndClr" aria-label="ניקוי תאריך הסיום">ניקוי</button></div>
+      </div>
+      <div class="hint" id="evWhenHint"></div>
+    </div>
     <div class="sheet-actions">
       <button type="button" class="btn sun block" id="evSave">🎉 יצירת האירוע</button>
-      <button type="button" class="btn danger block hidden" id="evDel">🗑️ מחיקת האירוע</button>
-      <button type="button" class="text-btn" data-close="evSheet">ביטול</button>
+      <div class="btn-row hidden" id="evEditActs"><button type="button" class="btn white sm" data-close="evSheet">ביטול</button><button type="button" class="btn white sm del" id="evDel">🗑️ מחיקה</button></div>
+      <button type="button" class="text-btn" data-close="evSheet" id="evCancel">ביטול</button>
     </div>
   </div>
 </div>
@@ -283,25 +313,35 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="eiTitle">
     <div class="sheet-handle"></div>
     <h3 class="sheet-title" id="eiTitle">➕ פריט לאירוע</h3>
+    <p class="sheet-sub">רק השם חובה, כל השאר לפי הצורך</p>
     <div class="field ei-row">
-      <div><label class="label" for="eiName">מה צריך?</label><input class="input" type="text" id="eiName" maxlength="80" placeholder="למשל: בלונים, מטען נייד"></div>
-      <div><label class="label" for="eiQty">כמות <small>(לא חובה)</small></label><input class="input ltr" type="text" id="eiQty" inputmode="numeric" maxlength="3" placeholder="1" autocomplete="off"></div>
+      <div><label class="label" for="eiName">מה צריך?</label><input class="input" type="text" id="eiName" maxlength="80" placeholder="למשל: בלונים"></div>
+      <div><label class="label" for="eiQty">כמות</label><input class="input ltr" type="text" id="eiQty" inputmode="numeric" maxlength="3" placeholder="1" autocomplete="off"></div>
     </div>
-    <div class="field"><label class="label" for="eiPrice">מחיר <small>(לא חובה)</small></label><div class="prefix"><span aria-hidden="true">₪</span><input class="input ltr" type="text" id="eiPrice" inputmode="decimal" maxlength="12" placeholder="0" autocomplete="off"></div><div class="hint hidden" id="eiPriceHint">המחיר לכל הכמות, לא ליחידה</div></div>
-    <div class="field"><label class="label" for="eiLink">קישור למוצר <small>(לא חובה)</small></label><input class="input ltr" type="url" id="eiLink" inputmode="url" maxlength="1000" placeholder="https://ksp.co.il/…" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="hint" id="eiLinkHint" aria-live="polite"></div></div>
-    <div class="field"><label class="label" for="eiNote">הערה <small>(לא חובה)</small></label><input class="input" type="text" id="eiNote" maxlength="200" placeholder="למשל: מידה M, בצבע כחול"></div>
+    <div class="field">
+      <span class="label" id="eiMoreLbl">פרטים</span>
+      <div class="fgrp" role="group" aria-labelledby="eiMoreLbl">
+        <div class="grp-row"><label class="k" for="eiPrice">₪ מחיר</label><input class="input ltr" type="text" id="eiPrice" inputmode="decimal" maxlength="12" placeholder="0" autocomplete="off"></div>
+        <div class="grp-row"><label class="k" for="eiLink">🔗 קישור</label><input class="input ltr" type="url" id="eiLink" inputmode="url" maxlength="1000" placeholder="מדביקים מאתר החנות" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        <div class="grp-row"><label class="k" for="eiNote">📝 הערה</label><input class="input" type="text" id="eiNote" maxlength="200" placeholder="מידה, צבע…"></div>
+      </div>
+      <div class="hint hidden" id="eiPriceHint">המחיר לכל הכמות, לא ליחידה</div>
+      <div class="hint hidden" id="eiLinkHint" aria-live="polite"></div>
+    </div>
     <div class="field">
       <span class="label">תמונות <small id="eiPhCount"></small></span>
-      <div class="ph-grid" id="eiPhotos"></div>
-      <div class="img-btns" id="eiPhBtns">
-        <label class="btn white sm file-btn">📷 <span>צילום</span><input type="file" id="eiCam" accept="image/*" capture="environment" aria-label="צילום תמונה של הפריט"></label>
-        <label class="btn white sm file-btn">🖼️ <span>גלריה</span><input type="file" id="eiGal" accept="image/*" multiple aria-label="בחירת תמונות מהגלריה"></label>
+      <div class="ph-wrap">
+        <div id="eiPhotos"></div>
+        <div id="eiPhBtns">
+          <label class="ph-add file-btn"><span aria-hidden="true">📷</span>צילום<input type="file" id="eiCam" accept="image/*" capture="environment" aria-label="צילום תמונה של הפריט"></label>
+          <label class="ph-add file-btn"><span aria-hidden="true">🖼️</span>גלריה<input type="file" id="eiGal" accept="image/*" multiple aria-label="בחירת תמונות מהגלריה"></label>
+        </div>
       </div>
     </div>
     <div class="sheet-actions">
-      <button type="button" class="btn peach block" id="eiSave">💾 שמירה</button>
-      <button type="button" class="btn danger block hidden" id="eiDel">🗑️ מחיקה מהאירוע</button>
-      <button type="button" class="text-btn" data-close="eiSheet">ביטול</button>
+      <button type="button" class="btn peach block" id="eiSave">➕ הוספה לאירוע</button>
+      <div class="btn-row hidden" id="eiEditActs"><button type="button" class="btn white sm" data-close="eiSheet">ביטול</button><button type="button" class="btn white sm del" id="eiDel">🗑️ מחיקה</button></div>
+      <button type="button" class="text-btn" data-close="eiSheet" id="eiCancel">ביטול</button>
     </div>
   </div>
 </div>
@@ -753,18 +793,19 @@
     }).join('');
   }
   function syncDateClr() {
-    var s = $('evDate').value;
-    $('evDateClr').classList.toggle('hidden', !s);
-    /* a last day only once there's a first one: a trip needs it, a birthday never sees it */
-    $('evEndWrap').classList.toggle('hidden', !s); if (!s) $('evEnd').value = '';
-    $('evEnd').min = s; $('evEndClr').classList.toggle('hidden', !$('evEnd').value);
+    var s = $('evDate').value, en = $('evEnd').value;
+    $('evDateClr').classList.toggle('hidden', !s); $('evEndClr').classList.toggle('hidden', !en);
+    $('evEnd').min = s;
+    /* the hint says what the dates are for, and turns into the length once there's a range */
+    var n = s && en >= s ? Math.round((new Date(en + 'T12:00:00') - new Date(s + 'T12:00:00')) / 864e5) + 1 : 0;
+    $('evWhenHint').textContent = n > 1 ? '🗓️ ' + n + ' ימים · ' + evDay(s) + '-' + evDay(en) : 'ליום הולדת מספיק תאריך התחלה. סיום — לטיול או חופשה של כמה ימים.';
   }
   function openEvSheet(e) {
     evEditing = e || null; evEmoji = e && EV_EMOJIS.indexOf(e.emoji) >= 0 ? e.emoji : EV_EMOJIS[0]; evEmojiManual = !!e;
     $('evTitle').textContent = e ? '✏️ עריכת אירוע' : '🎉 אירוע חדש';
     $('evSave').textContent = e ? '💾 שמירה' : '🎉 יצירת האירוע';
     $('evNameIn').value = e ? e.name : ''; $('evDate').value = e ? (e.event_date || '') : ''; $('evEnd').value = e ? (e.end_date || '') : ''; syncDateClr();
-    $('evDel').classList.toggle('hidden', !e); $('evEmHint').classList.add('hidden');
+    $('evEditActs').classList.toggle('hidden', !e); $('evCancel').classList.toggle('hidden', !!e); $('evEmHint').classList.add('hidden');
     emojiChips(); Pop.openSheet('evSheet');
   }
   $('evNew').addEventListener('click', function () { openEvSheet(null); });
@@ -779,12 +820,14 @@
     $('evEmHint').classList.toggle('hidden', !g); emojiChips();
   });
   $('evDate').addEventListener('input', syncDateClr); $('evDate').addEventListener('change', syncDateClr);
-  $('evDateClr').addEventListener('click', function () { $('evDate').value = ''; syncDateClr(); });
+  /* a last day can't stand alone, so clearing the first day clears both */
+  $('evDateClr').addEventListener('click', function () { $('evDate').value = ''; $('evEnd').value = ''; syncDateClr(); });
   $('evEnd').addEventListener('input', syncDateClr); $('evEnd').addEventListener('change', syncDateClr);
   $('evEndClr').addEventListener('click', function () { $('evEnd').value = ''; syncDateClr(); });
   $('evSave').addEventListener('click', async function () {
     var name = $('evNameIn').value.trim(); if (!name) { Pop.toast('צריך שם לאירוע', 'error'); $('evNameIn').focus(); return; }
-    var start = $('evDate').value || '', end = start ? $('evEnd').value || '' : '';
+    var start = $('evDate').value || '', end = $('evEnd').value || '';
+    if (end && !start) { Pop.toast('צריך קודם תאריך התחלה', 'error'); $('evDate').focus(); return; }
     if (end && end < start) { Pop.toast('תאריך הסיום לפני תאריך ההתחלה', 'error'); $('evEnd').focus(); return; }
     var body = { name: name, emoji: evEmoji, event_date: start, end_date: end }, b = this, ed = evEditing;
     b.disabled = true;
@@ -820,8 +863,9 @@
   /* ── event item sheet (name, price, link, note, up to EV_MAX_PH photos) ── */
   function linkHint(strict) {
     var c = cleanLink($('eiLink').value), h = $('eiLinkHint'), bad = c === null && strict;
-    h.className = 'hint' + (bad ? ' bad' : c ? ' good' : '');
-    h.textContent = bad ? 'הקישור לא תקין. צריך כתובת אתר, למשל https://ksp.co.il/…' : c ? '🔗 יופיע ככפתור: ' + siteOf(c) : 'מעתיקים את הכתובת מדף המוצר באתר החנות';
+    /* only says something once there is a link: the shop it'll show as, or why it can't be saved */
+    h.textContent = bad ? 'הקישור לא תקין. צריך כתובת אתר, למשל https://ksp.co.il/…' : c ? '🔗 יופיע ככפתור: ' + siteOf(c) : '';
+    h.className = 'hint' + (bad ? ' bad' : c ? ' good' : '') + (h.textContent ? '' : ' hidden');
   }
   $('eiLink').addEventListener('input', function () { linkHint(false); });
   $('eiLink').addEventListener('blur', function () { if (this.value.trim()) linkHint(true); });
@@ -831,7 +875,7 @@
       return '<div class="ph"><img src="' + esc(t[1]) + '" alt="תמונה ' + (n + 1) + '"><button type="button" class="btn white sm" data-ph="' + t[0] + '" aria-label="הסרה של תמונה ' + (n + 1) + '">הסרה</button></div>';
     }).join('');
     $('eiPhBtns').classList.toggle('hidden', tiles.length >= EV_MAX_PH);
-    $('eiPhCount').textContent = tiles.length ? '(' + tiles.length + ' מתוך ' + EV_MAX_PH + ')' : '(לא חובה, עד ' + EV_MAX_PH + ')';
+    $('eiPhCount').textContent = tiles.length ? '(' + tiles.length + ' מתוך ' + EV_MAX_PH + ')' : '(עד ' + EV_MAX_PH + ')';
   }
   $('eiPhotos').addEventListener('click', function (e) {
     var b = e.target.closest('[data-ph]'); if (!b) return;
@@ -856,7 +900,8 @@
     $('eiName').value = it ? it.name : ''; $('eiNote').value = it ? (it.note || '') : '';
     $('eiLink').value = it ? (it.link || '') : ''; $('eiPrice').value = it && it.price != null ? it.price : '';
     $('eiQty').value = it && it.quantity > 1 ? it.quantity : ''; qtyHint();
-    $('eiDel').classList.toggle('hidden', !it);
+    $('eiSave').textContent = it ? '💾 שמירה' : '➕ הוספה לאירוע';
+    $('eiEditActs').classList.toggle('hidden', !it); $('eiCancel').classList.toggle('hidden', !!it);
     linkHint(false); eiPhotos(); Pop.openSheet('eiSheet');
   }
   /* with a quantity, say whether the price is per unit: it's what was typed, for the whole line */
