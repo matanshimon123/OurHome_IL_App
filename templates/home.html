@@ -410,7 +410,9 @@ a.cd{display:flex;align-items:center;gap:12px;padding:12px 14px}   /* a.cd: outr
   $('itemName').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); saveItem(); } });
   $('howBtn').addEventListener('click', function () { Pop.openSheet('howSheet'); });
 
-  renderSoon({{ events_soon|tojson }});   /* in the page already, so the cards below don't jump when the summary lands */
+  /* in the page already, so the cards below don't jump when the summary lands; "or []" keeps home up on a server
+     still running code from before the countdown (it rendered home.html without events_soon: a 500) */
+  renderSoon({{ (events_soon or [])|tojson }});
   load();
   setInterval(load, 30000);
   Pop.onVisible(load);
