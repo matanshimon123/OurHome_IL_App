@@ -47,12 +47,21 @@
 .band i{position:absolute;top:0;bottom:0}
 .band .now{width:3px;background:var(--coral-ink)}
 .band-lbl{display:flex;justify-content:space-between;font:800 13px var(--font-display);color:var(--ink-2);margin-top:4px;direction:ltr}
-/* event countdown: the next dated 🎉 lists, each card in its colour from the events tab; a second one peeks in from the side */
-.soon{display:flex;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;padding:4px 4px 8px;margin:14px -4px -4px}
-.soon::-webkit-scrollbar{display:none}
-.soon .cd{flex:none;width:100%;margin:0;scroll-snap-align:start}
-.soon.many .cd{width:calc(100% - 40px)}
+/* event countdown: the next dated 🎉 lists, each card in its colour from the events tab.
+   Two to a row (.half, stacked); a lone last card spans the row and keeps the wide layout */
+.soon{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px;margin-top:18px}
+.soon .cd{grid-column:1/-1;margin:0}
+.soon .cd.half{grid-column:auto}
 a.cd{display:flex;align-items:center;gap:12px;padding:12px 14px}   /* a.cd: outranks the shared a.sticker{display:block} */
+a.cd.half{flex-direction:column;align-items:stretch;gap:0;padding:12px}
+.cd.half .top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.cd.half .em{font-size:26px;line-height:1;margin-top:4px}
+.cd.half .t{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;overflow:hidden;overflow-wrap:anywhere;font:900 16px/1.25 var(--font-display);margin-top:8px}
+/* progress is the bar plus "1/4" on one line; margin-top:auto lines it up at the bottom of a row when one name takes two lines */
+.cd.half .pr{display:flex;align-items:center;gap:6px;margin-top:auto;padding-top:8px}
+.cd.half .pr .bar{flex:1;min-width:0;margin-top:0}
+.cd.half .pr b{font:800 13px var(--font-display);color:var(--ink-2)}
+.cd.half .pr.none{font:700 14px var(--font-display);color:var(--ink-2)}
 .cd.c0{background:var(--sun-soft)} .cd.c1{background:var(--mint-soft)} .cd.c2{background:var(--peach-soft)}
 .cd.c3{background:var(--sky-soft)} .cd.c4{background:var(--grape-soft)} .cd.c5{background:var(--coral-soft)}
 .cd-tile{width:60px;flex:none;display:flex;flex-direction:column;align-items:center;background:#fff;border:2.5px solid var(--ink);border-radius:14px;box-shadow:2px 2px 0 var(--ink);overflow:hidden}
@@ -358,19 +367,24 @@ a.cd{display:flex;align-items:center;gap:12px;padding:12px 14px}   /* a.cd: outr
   /* ── event countdown: a tear-off calendar of the days left, then the list's progress ── */
   var soonSig = '';
   function renderSoon(list) {
-    var sig = JSON.stringify(list); if (sig === soonSig) return; soonSig = sig;   /* a refresh mid-swipe shouldn't rebuild the row */
-    $('soon').classList.toggle('hidden', !list.length); $('soon').classList.toggle('many', list.length > 1);
-    $('soon').innerHTML = list.map(function (e) {
+    var sig = JSON.stringify(list); if (sig === soonSig) return; soonSig = sig;   /* unchanged data isn't rebuilt: no flicker, no lost press */
+    $('soon').classList.toggle('hidden', !list.length);
+    $('soon').innerHTML = list.map(function (e, k) {
       var n = e.days, d = new Date(e.event_date + 'T12:00:00'), digits = String(n).length;
       var day = n === 0 ? 'זה היום!' : n === 1 ? 'מחר' : 'יום ' + Pop.HE_DAYS_SHORT[d.getDay()] + ' ' + d.getDate() + '.' + (d.getMonth() + 1);
       var when = n === 0 ? 'היום' : n === 1 ? 'מחר' : n === 2 ? 'בעוד יומיים' : 'בעוד ' + n + ' ימים';
       var prog = e.total ? e.done + ' מתוך ' + e.total + ' נקנו' : 'עוד אין פריטים', pct = e.total ? Math.round(100 * e.done / e.total) : 0;
       var tile = n === 0 ? '<b>🎉</b><small>היום</small>' : '<b class="num' + (digits > 3 ? ' l4' : digits > 2 ? ' l3' : '') + '">' + n + '</b><small>' + (n === 1 ? 'יום' : 'ימים') + '</small>';
-      return '<a class="sticker cd pressable c' + (e.id % 6) + '" href="' + SHOP_URL + '?ev=' + e.id + '" aria-label="' + esc(e.name + ', ' + when + ', ' + prog) + '">' +
-        '<span class="cd-tile' + (n === 0 ? ' today' : '') + '" aria-hidden="true"><i></i>' + tile + '</span>' +
-        '<span class="grow"><span class="t"><span aria-hidden="true">' + esc(e.emoji || '🎉') + '</span><span>' + esc(e.name) + '</span></span>' +
-        '<span class="s"><span>' + day + '</span> <span>· ' + prog + '</span></span>' +
-        '<span class="bar" aria-hidden="true"><i class="' + (pct ? '' : 'zero') + '" style="width:' + pct + '%"></i></span></span>' +
+      /* two to a row; a lone last card spans the row */
+      var half = list.length > 1 && !(list.length % 2 && k === list.length - 1);
+      var a = '<a class="sticker cd pressable c' + (e.id % 6) + (half ? ' half' : '') + '" href="' + SHOP_URL + '?ev=' + e.id + '" aria-label="' + esc(e.name + ', ' + when + ', ' + prog) + '">';
+      var cal = '<span class="cd-tile' + (n === 0 ? ' today' : '') + '" aria-hidden="true"><i></i>' + tile + '</span>';
+      var bar = '<span class="bar" aria-hidden="true"><i class="' + (pct ? '' : 'zero') + '" style="width:' + pct + '%"></i></span>';
+      if (half) return a + '<span class="top">' + cal + '<span class="em" aria-hidden="true">' + esc(e.emoji || '🎉') + '</span></span>' +
+        '<span class="t">' + esc(e.name) + '</span><span class="s">' + day + '</span>' +
+        (e.total ? '<span class="pr">' + bar + '<b class="num">' + e.done + '/' + e.total + '</b></span>' : '<span class="pr none">' + prog + '</span>') + '</a>';
+      return a + cal + '<span class="grow"><span class="t"><span aria-hidden="true">' + esc(e.emoji || '🎉') + '</span><span>' + esc(e.name) + '</span></span>' +
+        '<span class="s"><span>' + day + '</span> <span>· ' + prog + '</span></span>' + bar + '</span>' +
         '<svg class="chev" viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg></a>';
     }).join('');
   }
