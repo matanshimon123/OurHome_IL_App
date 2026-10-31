@@ -89,7 +89,7 @@ shopping_events, shopping_event_items, shopping_event_photos (the 🎉 אירו�
 - Duplicate email check in API register
 
 ## Recent Changes (Latest First)
-00. Event lists: 🎉 אירועים tab in the shopping list (one-off lists with price, product link, up to 4 photos), `/api/shopping-events/*`; home countdown cards for dated events (`/api/home-summary` → `events`, deep link `/shopping-list?ev=<id>`)
+00. Event lists: 🎉 אירועים tab in the shopping list (one-off lists with price, product link, up to 4 photos), `/api/shopping-events/*`; home countdown cards for dated events (`/api/home-summary` → `events`, deep link `/shopping-list?ev=<id>`); optional last day (`shopping_events.end_date`) and item quantity (`shopping_event_items.quantity`)
 0. Design refresh (branch `design-refresh`): Concept A "Pop" design system on every screen, cycle analysis view, bill detective, feeding rhythm, offline page — see DECISIONS.md
 1. Billing cycle feature (cycle_day, auto-archive, cycle labels)
 2. Category management (family isolation, delete, duplicates fix)

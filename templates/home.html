@@ -366,19 +366,23 @@ a.cd.half{flex-direction:column;align-items:stretch;gap:0;padding:12px}
 
   /* ── event countdown: a tear-off calendar of the days left, then the list's progress ── */
   var soonSig = '';
+  function dm(s) { var x = new Date(s + 'T12:00:00'); return x.getDate() + '.' + (x.getMonth() + 1); }
+  function wd(s) { return 'יום ' + Pop.HE_DAYS_SHORT[new Date(s + 'T12:00:00').getDay()] + ' ' + dm(s); }
   function renderSoon(list) {
     var sig = JSON.stringify(list); if (sig === soonSig) return; soonSig = sig;   /* unchanged data isn't rebuilt: no flicker, no lost press */
     $('soon').classList.toggle('hidden', !list.length);
     $('soon').innerHTML = list.map(function (e, k) {
-      var n = e.days, d = new Date(e.event_date + 'T12:00:00'), digits = String(n).length;
-      var day = n === 0 ? 'זה היום!' : n === 1 ? 'מחר' : 'יום ' + Pop.HE_DAYS_SHORT[d.getDay()] + ' ' + d.getDate() + '.' + (d.getMonth() + 1);
-      var when = n === 0 ? 'היום' : n === 1 ? 'מחר' : n === 2 ? 'בעוד יומיים' : 'בעוד ' + n + ' ימים';
+      /* on: started and not over (a trip with a last day); the server only sends events that haven't ended */
+      var n = e.days, on = n < 0, digits = String(n).length, till = e.end_date ? ' עד ' + dm(e.end_date) : '';
+      var day = on ? (e.end_days === 0 ? 'יום אחרון!' : 'עד ' + wd(e.end_date)) : n === 0 ? 'זה היום!' + till : n === 1 ? 'מחר' + till
+        : e.end_date ? dm(e.event_date) + '-' + dm(e.end_date) : wd(e.event_date);   /* hyphen: stays left-to-right in RTL (see shopping_list evWhen) */
+      var when = on ? 'עכשיו, ' + day : n === 0 ? 'היום' : n === 1 ? 'מחר' : n === 2 ? 'בעוד יומיים' : 'בעוד ' + n + ' ימים';
       var prog = e.total ? e.done + ' מתוך ' + e.total + ' נקנו' : 'עוד אין פריטים', pct = e.total ? Math.round(100 * e.done / e.total) : 0;
-      var tile = n === 0 ? '<b>🎉</b><small>היום</small>' : '<b class="num' + (digits > 3 ? ' l4' : digits > 2 ? ' l3' : '') + '">' + n + '</b><small>' + (n === 1 ? 'יום' : 'ימים') + '</small>';
+      var tile = n <= 0 ? '<b>🎉</b><small>' + (on ? 'עכשיו' : 'היום') + '</small>' : '<b class="num' + (digits > 3 ? ' l4' : digits > 2 ? ' l3' : '') + '">' + n + '</b><small>' + (n === 1 ? 'יום' : 'ימים') + '</small>';
       /* two to a row; a lone last card spans the row */
       var half = list.length > 1 && !(list.length % 2 && k === list.length - 1);
       var a = '<a class="sticker cd pressable c' + (e.id % 6) + (half ? ' half' : '') + '" href="' + SHOP_URL + '?ev=' + e.id + '" aria-label="' + esc(e.name + ', ' + when + ', ' + prog) + '">';
-      var cal = '<span class="cd-tile' + (n === 0 ? ' today' : '') + '" aria-hidden="true"><i></i>' + tile + '</span>';
+      var cal = '<span class="cd-tile' + (n <= 0 ? ' today' : '') + '" aria-hidden="true"><i></i>' + tile + '</span>';
       var bar = '<span class="bar" aria-hidden="true"><i class="' + (pct ? '' : 'zero') + '" style="width:' + pct + '%"></i></span>';
       if (half) return a + '<span class="top">' + cal + '<span class="em" aria-hidden="true">' + esc(e.emoji || '🎉') + '</span></span>' +
         '<span class="t">' + esc(e.name) + '</span><span class="s">' + day + '</span>' +

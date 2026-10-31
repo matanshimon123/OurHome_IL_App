@@ -744,6 +744,9 @@ def init_db():
         ('notification_prefs','baby','INTEGER DEFAULT 1'),
         ('notification_prefs','feeding_reminder','INTEGER DEFAULT 1'),
         ('notification_prefs','family','INTEGER DEFAULT 1'),
+        # event lists: an optional last day (a trip) and an optional quantity per item
+        ('shopping_events','end_date','TEXT DEFAULT ""'),
+        ('shopping_event_items','quantity','INTEGER DEFAULT 1'),
     ]:
         try: conn.execute(f'ALTER TABLE {t} ADD COLUMN {c} {ct}')
         except sqlite3.OperationalError: pass
@@ -1150,20 +1153,23 @@ def handle_unexpected_exception(e):
 
 
 def _events_soon(conn, fid, now):
-    """The home countdown: the family's next dated event lists (today or later), nearest first."""
+    """The home countdown: the family's dated event lists that haven't ended (a trip stays while it's on),
+    nearest first. days = to the first day (negative once it has started); end_days = to the last day, if any."""
     today = now.date()
     rows = conn.execute(
-        'SELECT e.id,e.name,e.emoji,e.event_date,COUNT(i.id) as total,COALESCE(SUM(i.checked),0) as done '
+        'SELECT e.id,e.name,e.emoji,e.event_date,e.end_date,COUNT(i.id) as total,COALESCE(SUM(i.checked),0) as done '
         'FROM shopping_events e LEFT JOIN shopping_event_items i ON i.event_id=e.id AND i.family_id=e.family_id '
-        'WHERE e.family_id=? AND e.event_date>=? GROUP BY e.id ORDER BY e.event_date, e.id LIMIT 3',
+        "WHERE e.family_id=? AND e.event_date!='' AND COALESCE(NULLIF(e.end_date,''),e.event_date)>=? "
+        'GROUP BY e.id ORDER BY e.event_date, e.id LIMIT 3',
         (fid, today.isoformat())).fetchall()
     events = []
     for r in rows:
         try:
             days = (datetime.strptime(r['event_date'], '%Y-%m-%d').date() - today).days
+            end_days = (datetime.strptime(r['end_date'], '%Y-%m-%d').date() - today).days if r['end_date'] else None
         except ValueError:
             continue
-        events.append(dict(r, days=days))
+        events.append(dict(r, days=days, end_days=end_days))
     return events
 
 
@@ -2409,6 +2415,7 @@ EVENT_ITEM_NAME_MAX = 80
 EVENT_NOTE_MAX = 200
 EVENT_LINK_MAX = 1000
 EVENT_PRICE_MAX = 10000000
+EVENT_QTY_MAX = 999
 EVENT_ITEM_MAX_PHOTOS = 4
 EVENT_PHOTO_MAX_BYTES = 600 * 1024  # decoded; an 800px JPEG from the page is ~100-200KB
 # whole request body for an item with all its photos (base64 is 4/3 of the bytes) plus the text fields
@@ -2482,16 +2489,36 @@ def _event_fields(data, creating):
     if creating or 'emoji' in data:
         emoji = data.get('emoji')
         out['emoji'] = emoji if emoji in EVENT_EMOJIS else EVENT_EMOJIS[0]
-    if 'event_date' in data:
-        d = data.get('event_date') or ''
-        if d:
-            try:
-                if not isinstance(d, str) or not 2000 <= datetime.strptime(d, '%Y-%m-%d').year <= 2100:
-                    raise ValueError
-            except ValueError:
-                return None, 'תאריך לא תקין'
-        out['event_date'] = d
+    for key in ('event_date', 'end_date'):
+        if key in data:
+            d = data.get(key) or ''
+            if d:
+                try:
+                    if not isinstance(d, str) or not 2000 <= datetime.strptime(d, '%Y-%m-%d').year <= 2100:
+                        raise ValueError
+                except ValueError:
+                    return None, 'תאריך לא תקין'
+            out[key] = d
     return out, None
+
+
+def _event_dates(fields, start, end):
+    """Merge the dates being sent over the stored ones (start, end) and check the pair; returns an error or None.
+    The last day is optional and needs a first day before it; clearing the first day clears it, and a last day
+    equal to the first is stored as '' (a one-day event)."""
+    start = fields.get('event_date', start)
+    end = fields.get('end_date', end)
+    if 'event_date' in fields and not start and 'end_date' not in fields:
+        end = ''
+    if end and not start:
+        return 'צריך קודם תאריך התחלה'
+    if end and end < start:
+        return 'תאריך הסיום לפני תאריך ההתחלה'
+    if end == start:
+        end = ''
+    if 'event_date' in fields or 'end_date' in fields:
+        fields['end_date'] = end
+    return None
 
 
 def _event_item_fields(data, creating):
@@ -2526,6 +2553,20 @@ def _event_item_fields(data, creating):
             if not math.isfinite(price) or price < 0 or price > EVENT_PRICE_MAX:
                 return None, 'מחיר לא תקין'
             out['price'] = round(price, 2)
+    if 'quantity' in data:
+        qty = data.get('quantity')
+        if qty is None or qty == '':
+            out['quantity'] = 1   # optional: no quantity means one
+        else:
+            try:
+                if isinstance(qty, bool) or (isinstance(qty, float) and not qty.is_integer()):
+                    raise ValueError
+                qty = int(qty)
+            except (TypeError, ValueError):
+                return None, 'כמות לא תקינה'
+            if not 1 <= qty <= EVENT_QTY_MAX:
+                return None, 'כמות לא תקינה'
+            out['quantity'] = qty
     if 'checked' in data:
         out['checked'] = bool(data.get('checked'))
     return out, None
@@ -2552,12 +2593,14 @@ SHOPPING_EVENT_UPDATE_SQL = {
     'name': 'UPDATE shopping_events SET name=? WHERE id=? AND family_id=?',
     'emoji': 'UPDATE shopping_events SET emoji=? WHERE id=? AND family_id=?',
     'event_date': 'UPDATE shopping_events SET event_date=? WHERE id=? AND family_id=?',
+    'end_date': 'UPDATE shopping_events SET end_date=? WHERE id=? AND family_id=?',
 }
 SHOPPING_EVENT_ITEM_UPDATE_SQL = {
     'name': 'UPDATE shopping_event_items SET name=? WHERE id=? AND family_id=?',
     'note': 'UPDATE shopping_event_items SET note=? WHERE id=? AND family_id=?',
     'link': 'UPDATE shopping_event_items SET link=? WHERE id=? AND family_id=?',
     'price': 'UPDATE shopping_event_items SET price=? WHERE id=? AND family_id=?',
+    'quantity': 'UPDATE shopping_event_items SET quantity=? WHERE id=? AND family_id=?',
     'checked': 'UPDATE shopping_event_items SET checked=? WHERE id=? AND family_id=?',
 }
 
@@ -2568,7 +2611,7 @@ def get_shopping_events():
     fid = get_family_id()
     with get_db() as conn:
         events = conn.execute(
-            'SELECT e.id,e.name,e.emoji,e.event_date,COUNT(i.id) as total,COALESCE(SUM(i.checked),0) as done,'
+            'SELECT e.id,e.name,e.emoji,e.event_date,e.end_date,COUNT(i.id) as total,COALESCE(SUM(i.checked),0) as done,'
             'COUNT(i.price) as priced,COALESCE(SUM(i.price),0) as price_total,'
             'COALESCE(SUM(CASE WHEN i.checked THEN i.price END),0) as price_done '
             'FROM shopping_events e LEFT JOIN shopping_event_items i ON i.event_id=e.id AND i.family_id=e.family_id '
@@ -2585,13 +2628,14 @@ def add_shopping_event():
     if data is None:
         return jsonify({'error': 'Invalid data'}), 400
     fields, err = _event_fields(data, creating=True)
+    err = err or _event_dates(fields, '', '')
     if err:
         return jsonify({'error': err}), 400
     user_id = request.api_user['user_id'] if hasattr(request, 'api_user') else session.get('user_id')
     with get_db() as conn:
         cur = conn.execute(
-            'INSERT INTO shopping_events (family_id,name,emoji,event_date,created_by) VALUES (?,?,?,?,?)',
-            (fid, fields['name'], fields['emoji'], fields.get('event_date', ''), user_id))
+            'INSERT INTO shopping_events (family_id,name,emoji,event_date,end_date,created_by) VALUES (?,?,?,?,?,?)',
+            (fid, fields['name'], fields['emoji'], fields.get('event_date', ''), fields.get('end_date', ''), user_id))
 
     user_name = request.api_user['display_name'] if hasattr(request, 'api_user') else session.get('display_name', '')
     send_push_to_family(fid,
@@ -2613,8 +2657,13 @@ def update_shopping_event(eid):
     if err:
         return jsonify({'error': err}), 400
     with get_db() as conn:
-        if not conn.execute('SELECT id FROM shopping_events WHERE id=? AND family_id=?', (eid, fid)).fetchone():
+        row = conn.execute('SELECT event_date,end_date FROM shopping_events WHERE id=? AND family_id=?',
+                           (eid, fid)).fetchone()
+        if not row:
             return jsonify({'error': 'האירוע לא נמצא'}), 404
+        err = _event_dates(fields, row['event_date'] or '', row['end_date'] or '')
+        if err:
+            return jsonify({'error': err}), 400
         for f, sql in SHOPPING_EVENT_UPDATE_SQL.items():
             if f in fields: conn.execute(sql, (fields[f], eid, fid))
     return jsonify({'success': True})
@@ -2641,12 +2690,12 @@ def delete_shopping_event(eid):
 def get_shopping_event_items(eid):
     fid = get_family_id()
     with get_db() as conn:
-        event = conn.execute('SELECT id,name,emoji,event_date FROM shopping_events WHERE id=? AND family_id=?',
+        event = conn.execute('SELECT id,name,emoji,event_date,end_date FROM shopping_events WHERE id=? AND family_id=?',
                              (eid, fid)).fetchone()
         if not event:
             return jsonify({'error': 'האירוע לא נמצא'}), 404
         items = conn.execute(
-            'SELECT i.id,i.name,i.note,i.link,i.price,i.checked,'
+            'SELECT i.id,i.name,i.note,i.link,i.price,i.quantity,i.checked,'
             "COALESCE(NULLIF(u.display_name,''),u.username,'') as added_by_name "
             'FROM shopping_event_items i LEFT JOIN users u ON u.id=i.added_by '
             'WHERE i.event_id=? AND i.family_id=? ORDER BY i.checked ASC, i.id DESC',
@@ -2682,10 +2731,10 @@ def add_shopping_event_item(eid):
         if not conn.execute('SELECT id FROM shopping_events WHERE id=? AND family_id=?', (eid, fid)).fetchone():
             return jsonify({'error': 'האירוע לא נמצא'}), 404
         iid = conn.execute(
-            'INSERT INTO shopping_event_items (family_id,event_id,name,note,link,price,checked,added_by) '
-            'VALUES (?,?,?,?,?,?,FALSE,?)',
+            'INSERT INTO shopping_event_items (family_id,event_id,name,note,link,price,quantity,checked,added_by) '
+            'VALUES (?,?,?,?,?,?,?,FALSE,?)',
             (fid, eid, fields['name'], fields.get('note', ''), fields.get('link', ''), fields.get('price'),
-             user_id)).lastrowid
+             fields.get('quantity', 1), user_id)).lastrowid
         for url in photos:
             conn.execute('INSERT INTO shopping_event_photos (family_id,item_id,image) VALUES (?,?,?)', (fid, iid, url))
     return jsonify({'id': iid}), 201

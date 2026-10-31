@@ -103,6 +103,10 @@
 .em-pick .chip-btn{min-width:52px;padding:0 8px;font-size:22px}
 .ev-date{display:flex;align-items:center;gap:8px}
 .ev-date .input{flex:1;min-width:0}
+/* item name and its optional quantity share a line; inputs line up at the bottom */
+.ei-row{display:grid;grid-template-columns:minmax(0,1fr) 112px;gap:10px;align-items:end}
+.ei-row .label{white-space:nowrap}
+.ei-row #eiQty{text-align:center}
 .ev-imgs{display:flex;flex-direction:column;gap:12px}
 </style>
 {% endblock %}
@@ -265,6 +269,7 @@
     <div class="field"><label class="label" for="evNameIn">שם האירוע</label><input class="input" type="text" id="evNameIn" maxlength="60" placeholder="למשל: טיול לאילת"></div>
     <div class="field"><span class="label" id="evEmLbl">סמל <small class="muted hidden" id="evEmHint">· נבחר לפי השם, אפשר לשנות</small></span><div class="chip-scroll em-pick" id="evEmojis" role="radiogroup" aria-labelledby="evEmLbl"></div></div>
     <div class="field"><label class="label" for="evDate">תאריך <small>(לא חובה)</small></label><div class="ev-date"><input class="input" type="date" id="evDate"><button type="button" class="btn white sm hidden" id="evDateClr">בלי תאריך</button></div></div>
+    <div class="field hidden" id="evEndWrap"><label class="label" for="evEnd">עד תאריך <small>(לא חובה · לטיול או חופשה)</small></label><div class="ev-date"><input class="input" type="date" id="evEnd"><button type="button" class="btn white sm hidden" id="evEndClr">יום אחד</button></div></div>
     <div class="sheet-actions">
       <button type="button" class="btn sun block" id="evSave">🎉 יצירת האירוע</button>
       <button type="button" class="btn danger block hidden" id="evDel">🗑️ מחיקת האירוע</button>
@@ -278,8 +283,11 @@
   <div class="sheet" role="dialog" aria-modal="true" aria-labelledby="eiTitle">
     <div class="sheet-handle"></div>
     <h3 class="sheet-title" id="eiTitle">➕ פריט לאירוע</h3>
-    <div class="field"><label class="label" for="eiName">מה צריך?</label><input class="input" type="text" id="eiName" maxlength="80" placeholder="למשל: בלונים, מטען נייד"></div>
-    <div class="field"><label class="label" for="eiPrice">מחיר <small>(לא חובה)</small></label><div class="prefix"><span aria-hidden="true">₪</span><input class="input ltr" type="text" id="eiPrice" inputmode="decimal" maxlength="12" placeholder="0" autocomplete="off"></div></div>
+    <div class="field ei-row">
+      <div><label class="label" for="eiName">מה צריך?</label><input class="input" type="text" id="eiName" maxlength="80" placeholder="למשל: בלונים, מטען נייד"></div>
+      <div><label class="label" for="eiQty">כמות <small>(לא חובה)</small></label><input class="input ltr" type="text" id="eiQty" inputmode="numeric" maxlength="3" placeholder="1" autocomplete="off"></div>
+    </div>
+    <div class="field"><label class="label" for="eiPrice">מחיר <small>(לא חובה)</small></label><div class="prefix"><span aria-hidden="true">₪</span><input class="input ltr" type="text" id="eiPrice" inputmode="decimal" maxlength="12" placeholder="0" autocomplete="off"></div><div class="hint hidden" id="eiPriceHint">המחיר לכל הכמות, לא ליחידה</div></div>
     <div class="field"><label class="label" for="eiLink">קישור למוצר <small>(לא חובה)</small></label><input class="input ltr" type="url" id="eiLink" inputmode="url" maxlength="1000" placeholder="https://ksp.co.il/…" autocomplete="off" autocapitalize="off" spellcheck="false"><div class="hint" id="eiLinkHint" aria-live="polite"></div></div>
     <div class="field"><label class="label" for="eiNote">הערה <small>(לא חובה)</small></label><input class="input" type="text" id="eiNote" maxlength="200" placeholder="למשל: מידה M, בצבע כחול"></div>
     <div class="field">
@@ -602,15 +610,18 @@
     var x = new Date(d + 'T12:00:00'); if (!d || isNaN(x)) return '';
     return x.getDate() + '.' + (x.getMonth() + 1) + (x.getFullYear() !== new Date().getFullYear() ? '.' + String(x.getFullYear()).slice(2) : '');
   }
-  function evWhen(d) {
-    var day = evDay(d); if (!day) return '';
-    var t = new Date(); t.setHours(12, 0, 0, 0);
-    var n = Math.round((new Date(d + 'T12:00:00') - t) / 864e5);
-    return '📅 ' + day + (n === 0 ? ' · היום' : n === 1 ? ' · מחר' : n > 1 && n <= 60 ? ' · בעוד ' + n + ' ימים' : n < 0 ? ' · עבר' : '');
+  function evIn(d) { var t = new Date(); t.setHours(12, 0, 0, 0); return Math.round((new Date(d + 'T12:00:00') - t) / 864e5); }
+  /* "📅 12.11 · בעוד 5 ימים"; with a last day "📅 12.11-15.11", and while it's on "· עכשיו" / "· יום אחרון".
+     A plain hyphen, not an en dash: in RTL text "12.11-15.11" stays one left-to-right run, "–" would flip it to "15.11–12.11" */
+  function evWhen(e) {
+    var day = evDay(e.event_date); if (!day) return '';
+    var n = evIn(e.event_date), m = e.end_date ? evIn(e.end_date) : n;
+    var w = n === 0 ? 'היום' : n === 1 ? 'מחר' : n > 1 && n <= 60 ? 'בעוד ' + n + ' ימים' : n < 0 && m > 0 ? 'עכשיו' : n < 0 && m === 0 ? 'יום אחרון' : n < 0 ? 'עבר' : '';
+    return '📅 ' + day + (e.end_date ? '-' + evDay(e.end_date) : '') + (w ? ' · ' + w : '');
   }
-  /* coming up first (soonest on top), then undated (newest first), then the ones already past */
+  /* coming up or under way first (soonest on top), then undated (newest first), then the ones already over */
   function evSorted() {
-    var today = Pop.iso(new Date()), rank = function (e) { return !e.event_date ? 1 : e.event_date >= today ? 0 : 2; };
+    var today = Pop.iso(new Date()), rank = function (e) { return !e.event_date ? 1 : (e.end_date || e.event_date) >= today ? 0 : 2; };
     return evs.slice().sort(function (a, b) {
       var d = rank(a) - rank(b); if (d) return d;
       if (rank(a) === 1) return b.id - a.id;
@@ -628,7 +639,7 @@
       var pct = e.total ? Math.round(100 * e.done / e.total) : 0;
       var bits = [e.total ? e.done + ' מתוך ' + e.total + ' נקנו' : 'עוד אין פריטים'];
       if (e.priced) bits.push(Pop.money0(e.price_total));
-      if (e.event_date) bits.push(evWhen(e.event_date));
+      if (e.event_date) bits.push(evWhen(e));
       return '<button type="button" class="sticker evc pressable" data-ev="' + e.id + '">' +
         '<span class="ev-ico ' + evColor(e.id) + '" aria-hidden="true">' + esc(e.emoji || '🎉') + '</span>' +
         '<span class="grow"><span class="t">' + esc(e.name) + '</span><span class="s">' + bits.map(function (b, n) { return '<span>' + (n ? '· ' : '') + esc(b) + '</span>'; }).join(' ') + '</span>' +
@@ -649,7 +660,7 @@
     var site = cleanLink(i.link) ? siteOf(i.link) : '';   /* the server only stores http(s); checked again before it becomes an href */
     return '<div class="erow" data-id="' + i.id + '"><div class="srow' + (i.checked ? ' done' : '') + '">' +
       '<button type="button" class="pill' + (i.checked ? ' done' : '') + '" data-act="check" aria-pressed="' + !!i.checked + '"><span class="cb"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5 9-10"/></svg></span>' +
-      '<span class="nm"><span>' + nm + '</span>' + sub + '</span></button>' +
+      '<span class="nm"><span>' + nm + '</span>' + sub + '</span>' + (i.quantity > 1 ? '<span class="q" aria-label="כמות ' + esc(i.quantity) + '">×' + esc(i.quantity) + '</span>' : '') + '</button>' +
       (ph.length ? '<button type="button" class="thumb" data-act="img" aria-label="' + (ph.length > 1 ? ph.length + ' תמונות של ' : 'תמונה של ') + nm + '"><img src="' + photoUrl(ph[0]) + '" alt="" loading="lazy">' + (ph.length > 1 ? '<b aria-hidden="true">+' + (ph.length - 1) + '</b>' : '') + '</button>' : '') +
       '<button type="button" class="edit" data-act="edit" aria-label="עריכת ' + nm + '"><span aria-hidden="true">✏️</span>עריכה</button></div>' +
       (site ? '<a class="elink" href="' + esc(i.link) + '" target="_blank" rel="noopener noreferrer" aria-label="' + nm + ' באתר ' + esc(site) + ' (נפתח בחלון חדש)"><span aria-hidden="true">🔗</span><bdi>' + esc(site) + '</bdi>' +
@@ -661,7 +672,7 @@
     var items = evData ? evData.items : null;
     $('evIco').textContent = e.emoji || '🎉'; $('evIco').className = 'ev-ico ' + evColor(e.id);
     $('evName').textContent = e.name;
-    $('evWhen').textContent = evWhen(e.event_date); $('evWhen').classList.toggle('hidden', !e.event_date);
+    $('evWhen').textContent = evWhen(e); $('evWhen').classList.toggle('hidden', !e.event_date);
     /* the totals come from the items once they're here, so a check-off shows at once */
     var total = items ? items.length : e.total, done = items ? items.filter(function (i) { return i.checked; }).length : e.done;
     var priced = items ? items.some(function (i) { return i.price != null; }) : e.priced > 0;
@@ -741,12 +752,18 @@
       return '<button type="button" class="chip-btn' + (on ? ' on' : '') + '" role="radio" aria-checked="' + on + '" aria-label="' + esc(EV_EMOJI_NAMES[m] || m) + '" data-em="' + esc(m) + '">' + esc(m) + '</button>';
     }).join('');
   }
-  function syncDateClr() { $('evDateClr').classList.toggle('hidden', !$('evDate').value); }
+  function syncDateClr() {
+    var s = $('evDate').value;
+    $('evDateClr').classList.toggle('hidden', !s);
+    /* a last day only once there's a first one: a trip needs it, a birthday never sees it */
+    $('evEndWrap').classList.toggle('hidden', !s); if (!s) $('evEnd').value = '';
+    $('evEnd').min = s; $('evEndClr').classList.toggle('hidden', !$('evEnd').value);
+  }
   function openEvSheet(e) {
     evEditing = e || null; evEmoji = e && EV_EMOJIS.indexOf(e.emoji) >= 0 ? e.emoji : EV_EMOJIS[0]; evEmojiManual = !!e;
     $('evTitle').textContent = e ? '✏️ עריכת אירוע' : '🎉 אירוע חדש';
     $('evSave').textContent = e ? '💾 שמירה' : '🎉 יצירת האירוע';
-    $('evNameIn').value = e ? e.name : ''; $('evDate').value = e ? (e.event_date || '') : ''; syncDateClr();
+    $('evNameIn').value = e ? e.name : ''; $('evDate').value = e ? (e.event_date || '') : ''; $('evEnd').value = e ? (e.end_date || '') : ''; syncDateClr();
     $('evDel').classList.toggle('hidden', !e); $('evEmHint').classList.add('hidden');
     emojiChips(); Pop.openSheet('evSheet');
   }
@@ -763,9 +780,13 @@
   });
   $('evDate').addEventListener('input', syncDateClr); $('evDate').addEventListener('change', syncDateClr);
   $('evDateClr').addEventListener('click', function () { $('evDate').value = ''; syncDateClr(); });
+  $('evEnd').addEventListener('input', syncDateClr); $('evEnd').addEventListener('change', syncDateClr);
+  $('evEndClr').addEventListener('click', function () { $('evEnd').value = ''; syncDateClr(); });
   $('evSave').addEventListener('click', async function () {
     var name = $('evNameIn').value.trim(); if (!name) { Pop.toast('צריך שם לאירוע', 'error'); $('evNameIn').focus(); return; }
-    var body = { name: name, emoji: evEmoji, event_date: $('evDate').value || '' }, b = this, ed = evEditing;
+    var start = $('evDate').value || '', end = start ? $('evEnd').value || '' : '';
+    if (end && end < start) { Pop.toast('תאריך הסיום לפני תאריך ההתחלה', 'error'); $('evEnd').focus(); return; }
+    var body = { name: name, emoji: evEmoji, event_date: start, end_date: end }, b = this, ed = evEditing;
     b.disabled = true;
     var r = ed ? await Pop.api('PUT', '/api/shopping-events/' + ed.id, body) : await Pop.api('POST', '/api/shopping-events', body);
     b.disabled = false;
@@ -788,9 +809,9 @@
   $('evShare').addEventListener('click', function () {
     var e = evById(evOpen), items = evData ? evData.items : [];
     if (!e || !items.length) { Pop.toast('אין מה לשתף — עוד אין פריטים', 'info'); return; }
-    var text = (e.emoji || '🎉') + ' ' + e.name + (e.event_date ? ' · ' + evDay(e.event_date) : '') + '\n';
+    var text = (e.emoji || '🎉') + ' ' + e.name + (e.event_date ? ' · ' + evDay(e.event_date) + (e.end_date ? '-' + evDay(e.end_date) : '') : '') + '\n';
     items.forEach(function (i) {
-      text += '\n' + (i.checked ? '✅ ' : '• ') + i.name + (i.price != null ? ' — ' + Pop.money(i.price) : '') + (i.note ? ' (' + i.note + ')' : '') + (i.link ? '\n   ' + i.link : '');
+      text += '\n' + (i.checked ? '✅ ' : '• ') + i.name + (i.quantity > 1 ? ' ×' + i.quantity : '') + (i.price != null ? ' — ' + Pop.money(i.price) : '') + (i.note ? ' (' + i.note + ')' : '') + (i.link ? '\n   ' + i.link : '');
     });
     if (items.some(function (i) { return i.price != null; })) text += '\n\nסה״כ: ' + Pop.money(sumPrice(items));
     Pop.share(e.name, text);
@@ -834,9 +855,13 @@
     $('eiTitle').textContent = it ? '✏️ עריכת פריט' : '➕ פריט לאירוע';
     $('eiName').value = it ? it.name : ''; $('eiNote').value = it ? (it.note || '') : '';
     $('eiLink').value = it ? (it.link || '') : ''; $('eiPrice').value = it && it.price != null ? it.price : '';
+    $('eiQty').value = it && it.quantity > 1 ? it.quantity : ''; qtyHint();
     $('eiDel').classList.toggle('hidden', !it);
     linkHint(false); eiPhotos(); Pop.openSheet('eiSheet');
   }
+  /* with a quantity, say whether the price is per unit: it's what was typed, for the whole line */
+  function qtyHint() { $('eiPriceHint').classList.toggle('hidden', !(+$('eiQty').value > 1)); }
+  $('eiQty').addEventListener('input', qtyHint);
   $('evAddItem').addEventListener('click', function () { openItem(null); });
   $('eiSave').addEventListener('click', async function () {
     var name = $('eiName').value.trim(); if (!name) { Pop.toast('צריך שם לפריט', 'error'); $('eiName').focus(); return; }
@@ -844,7 +869,9 @@
     if (link === null) { linkHint(true); Pop.toast('הקישור לא תקין', 'error'); $('eiLink').focus(); return; }
     var p = $('eiPrice').value.replace(/[\s,₪]/g, ''), price = p === '' ? null : Number(p);
     if (price !== null && !(isFinite(price) && price >= 0 && price <= 10000000)) { Pop.toast('מחיר לא תקין', 'error'); $('eiPrice').focus(); return; }
-    var body = { name: name, note: $('eiNote').value.trim(), link: link, price: price }, b = this, ed = eiEditing, r;
+    var q = $('eiQty').value.trim(), qty = q === '' ? 1 : Number(q);
+    if (!(Number.isInteger(qty) && qty >= 1 && qty <= 999)) { Pop.toast('כמות לא תקינה — מספר שלם מ־1 עד 999', 'error'); $('eiQty').focus(); return; }
+    var body = { name: name, quantity: qty, note: $('eiNote').value.trim(), link: link, price: price }, b = this, ed = eiEditing, r;
     b.disabled = true;
     if (ed) {
       body.add_images = eiNew;

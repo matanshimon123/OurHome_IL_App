@@ -195,6 +195,12 @@ One-off lists (a birthday, a trip to Eilat, a laptop) are kept apart from the we
 - **Tapping a card** goes to `/shopping-list?ev=<id>`. The shopping page swaps that address for a clean one and opens the event on top of it. Back therefore steps to all the events and then home, and a reload doesn't reopen it. A deleted or foreign id shows "האירוע הזה כבר לא קיים" and the events list.
 - No schema change.
 
+**Optional last day and quantity.** Both were added at the owner's request, and both stay out of the way when unused:
+- **Last day (`shopping_events.end_date`).** The "עד תאריך" field appears only once a first day is set, with the hint "לטיול או חופשה". A birthday's sheet looks as before. The server refuses a last day without a first day, or one before it, with a Hebrew message. A last day equal to the first is stored as a one-day event, and clearing the first day clears the last. While a range is under way the events tab says "עכשיו", and on its last day "יום אחרון". It sorts with the upcoming events until it ends. On Home it keeps its card until the last day, showing "🎉 עכשיו" and "עד יום א׳ 15.11".
+- **Ranges use a plain hyphen** ("10.11-13.11"), not an en dash. In RTL text the en dash breaks the run and the dates appear flipped ("13.11–10.11"). A hyphen between numbers keeps them one left-to-right run. A browser check confirms the first day is painted left of the last.
+- **Quantity (`shopping_event_items.quantity`, default 1).** It sits on the same line as "מה צריך?", in a 112px column with placeholder "1". Empty means one. Whole numbers 1 to 999 are accepted; the server and the sheet refuse anything else. The row shows the weekly list's ×N badge, and sharing writes "×N". The price stays what was typed for the whole line, and totals add exactly that. The sheet says so ("המחיר לכל הכמות, לא ליחידה") as soon as the quantity is above 1.
+- **Migration.** The two columns are added through the `init_db()` ALTER list, so existing rows read `''` and `1`. Tested three times each on a copy of the owner's local database, on a copy without the event tables (which get created and then gain the columns) and on a new file. Row counts were identical throughout, and only the two event tables changed.
+
 ## 9. Follow-ups (flagged, not implemented)
 
 - **The weekly list's item photo has no server-side size cap.** `POST/PUT /api/shopping-items` only check the `data:image/` prefix. The event photos added a 600KB cap and a format check (8e); the same could apply here, but it changes an existing route, so it was left alone.
