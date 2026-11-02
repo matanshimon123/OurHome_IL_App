@@ -60,6 +60,14 @@
 .seg button .ic{display:inline-flex;align-items:center;gap:4px;font-size:17px;line-height:1.1}
 .seg button .n{font:900 14px/1 var(--font-display)}
 .seg button .tl{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* the tabs open the hero: the summary under them belongs to the tab (the list, all the events, one event),
+   and they stay put however tall the content of a tab is */
+.hero .seg{background:#fff;margin-bottom:16px}
+.hero h1{overflow-wrap:anywhere}
+.hero h1.ev-t{font-size:25px}
+.hero h1.ev-t.long{font-size:21px}   /* an event's name runs to 60 characters, and it's shown whole: nowhere else on the screen has it */
+#heroSub span{display:inline-block}   /* wraps between chunks: a name stays with its symbol, a range with its days */
+.stat3 b.tight{font-size:16px}   /* "₪4,650" on a 320px phone */
 
 /* ── 🎉 events: one-off lists, apart from the weekly one ── */
 .evc{display:flex;align-items:center;gap:12px;width:100%;padding:12px 14px;text-align:start;font:inherit}
@@ -70,18 +78,12 @@
 .evc .t{display:block;font:900 18px var(--font-display);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .evc .s{display:block;font:700 14px var(--font-display);color:var(--ink-2);margin-top:2px}
 .evc .s span{display:inline-block}   /* wraps between the parts (progress · total · date), never inside one */
-.evc .bar,.ev-head .bar{display:block;height:12px;border-width:2px;margin-top:8px}
-.evc .bar>i,.ev-head .bar>i{border-inline-end-width:2px}
+.evc .bar{display:block;height:12px;border-width:2px;margin-top:8px}
+.evc .bar>i{border-inline-end-width:2px}
 .evc .chev{width:20px;height:20px;flex:none;stroke:var(--ink-2);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
-.ev-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:26px}
+.ev-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:16px}
 .ev-top .row{gap:8px}
 .ev-top .btn.sm{padding:0 12px}
-.ev-head{margin-top:14px}
-.ev-head .row{gap:12px}
-.ev-head .ev-ico{width:56px;height:56px;font-size:28px}
-.ev-head h2{font:900 22px/1.15 var(--font-display);overflow-wrap:anywhere}
-.ev-head .s{font:700 14px var(--font-display);color:var(--ink-2);margin-top:3px}
-.ev-head .bar-legend{flex-wrap:wrap}
 .erow{margin-bottom:10px}
 .erow .srow{margin-bottom:0}
 /* event items are fewer and longer ("מחשב נייד Lenovo ThinkPad E14") than weekly ones: two lines before the ellipsis */
@@ -136,9 +138,14 @@
 {% block content %}
 <header class="hero hero-peach pop">
   <div class="blob b1"></div><div class="blob b2"></div>
+  <div class="seg" role="tablist" aria-label="תצוגה" id="tabsSeg">
+    <button type="button" class="on" role="tab" aria-selected="true" data-tab="list" id="tabList"><span class="ic"><span aria-hidden="true">📝</span><b class="n"></b></span><span class="tl">הרשימה</span></button>
+    <button type="button" role="tab" aria-selected="false" data-tab="fav" id="tabFav"><span class="ic"><span aria-hidden="true">⭐</span><b class="n"></b></span><span class="tl">מועדפים</span></button>
+    <button type="button" role="tab" aria-selected="false" data-tab="ev" id="tabEv"><span class="ic"><span aria-hidden="true">🎉</span><b class="n"></b></span><span class="tl">אירועים</span></button>
+  </div>
   <div class="shop-top">
     <div class="grow">
-      <h1>🛒 רשימת קניות</h1>
+      <h1 id="heroTitle">🛒 רשימת קניות</h1>
       <p class="sub" id="heroSub">טוען…</p>
     </div>
     <div class="ring" role="img" id="ring" aria-label="">
@@ -147,9 +154,9 @@
     </div>
   </div>
   <div class="stats3 mt-3">
-    <div class="stat3 hot"><b class="num" id="sLeft">–</b><small>נשארו לקנות</small></div>
-    <div class="stat3"><b class="num" id="sDone">–</b><small>כבר בעגלה</small></div>
-    <div class="stat3"><b class="num" id="sTotal">–</b><small>בסך הכול</small></div>
+    <div class="stat3 hot"><b class="num" id="sLeft">–</b><small id="sLeftL">נשארו לקנות</small></div>
+    <div class="stat3"><b class="num" id="sDone">–</b><small id="sDoneL">כבר בעגלה</small></div>
+    <div class="stat3"><b class="num" id="sTotal">–</b><small id="sTotalL">בסך הכול</small></div>
   </div>
   <button type="button" class="btn white sm mt-3" id="shareBtn" style="position:relative;z-index:1">📤 שיתוף הרשימה</button>
 </header>
@@ -181,12 +188,6 @@
     </form>
   </section>
 
-  <div class="seg mt-4 pop d2" role="tablist" aria-label="תצוגה" id="tabsSeg">
-    <button type="button" class="on" role="tab" aria-selected="true" data-tab="list" id="tabList"><span class="ic"><span aria-hidden="true">📝</span><b class="n"></b></span><span class="tl">הרשימה</span></button>
-    <button type="button" role="tab" aria-selected="false" data-tab="fav" id="tabFav"><span class="ic"><span aria-hidden="true">⭐</span><b class="n"></b></span><span class="tl">מועדפים</span></button>
-    <button type="button" role="tab" aria-selected="false" data-tab="ev" id="tabEv"><span class="ic"><span aria-hidden="true">🎉</span><b class="n"></b></span><span class="tl">אירועים</span></button>
-  </div>
-
   <!-- the list -->
   <div id="listPanel" role="tabpanel" aria-labelledby="tabList">
     <div id="groups"></div>
@@ -216,11 +217,7 @@
         <button type="button" class="back-btn" id="evBack" aria-label="חזרה לכל האירועים"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 18 6-6-6-6"/></svg>חזרה</button>
         <div class="row"><button type="button" class="btn white sm" id="evShare">📤 שיתוף</button><button type="button" class="btn white sm" id="evEdit">✏️ עריכה</button></div>
       </div>
-      <section class="sticker pad ev-head">
-        <div class="row"><span class="ev-ico" id="evIco" aria-hidden="true"></span><div class="grow"><h2 id="evName"></h2><div class="s" id="evWhen"></div></div></div>
-        <div class="bar" aria-hidden="true"><i id="evBar"></i></div>
-        <div class="bar-legend"><span id="evProg"></span><span id="evMoney"></span></div>
-      </section>
+      {# the event's name, dates, progress and money are in the hero above #}
       <button type="button" class="btn peach block mt-3" id="evAddItem">➕ פריט לאירוע</button>
       <div id="evOpenList" class="mt-3"></div>
       <div id="evItemsEmpty" class="empty hidden"><div class="e">📝</div><div class="t">עוד אין פריטים</div><p class="muted">מה צריך לקנות לאירוע? לכל פריט אפשר להוסיף מחיר, קישור למוצר ותמונות.</p></div>
@@ -376,7 +373,7 @@
   ]);
   function guess(name) { return Pop.guessFrom(GUESS, name); }
 
-  var items = [], favs = [], busy = {}, tab = 'list', addQty = 1, addCat = '', addCatManual = false, addImg = null, editing = null, editImg = null, editWasFav = false, favEditing = null;
+  var items = [], favs = [], listLoaded = false, busy = {}, tab = 'list', addQty = 1,addCat = '', addCatManual = false, addImg = null, editing = null, editImg = null, editWasFav = false, favEditing = null;
   function isFav(it) { return !!it.favorite || favs.some(function (f) { return f.name === it.name; }); }
 
   /* ── category chip groups (radio) ── */
@@ -398,18 +395,62 @@
   /* ── load + render ── */
   async function load() {
     var r = await Pop.api('GET', '/api/shopping-items'), f = await Pop.api('GET', '/api/shopping-items/favorites');
-    if (r.ok) items = r.data; if (f.ok) favs = f.data;
+    if (r.ok) { items = r.data; listLoaded = true; } if (f.ok) favs = f.data;
     render();
   }
-  function stats() {
-    var total = items.length, done = items.filter(function (i) { return i.checked; }).length, left = total - done;
-    $('sLeft').textContent = left; $('sDone').textContent = done; $('sTotal').textContent = total;
-    $('ringLbl').textContent = done + '/' + total;
-    $('ring').setAttribute('aria-label', done + ' מתוך ' + total + ' פריטים כבר בעגלה');
-    $('ringFl').style.strokeDashoffset = 201 * (1 - (total ? done / total : 0));
-    $('heroSub').textContent = !total ? 'הרשימה ריקה' : !left ? 'הכול בעגלה! 🎉' : left === 1 ? 'עוד פריט אחד' : 'עוד ' + left + ' פריטים';
-    $('tabList').querySelector('.n').textContent = left; $('tabFav').querySelector('.n').textContent = favs.length;
-    return { left: left, done: done };
+
+  /* ── the hero sums up the tab: the weekly list (⭐ too, it feeds the list), all the events, or the open event ── */
+  function shortMoney(v) { v = Math.round(v); return v >= 1e6 ? '₪' + +(v / 1e6).toFixed(1) + 'M' : v >= 1e4 ? '₪' + +(v / 1e3).toFixed(v >= 1e5 ? 0 : 1) + 'K' : Pop.money0(v); }
+  function leftLine(left, total, allDone, none) { return !total ? none : !left ? allDone : left === 1 ? 'עוד פריט אחד' : 'עוד ' + left + ' פריטים'; }
+  /* events can carry prices: once one has a price, the shekels take the two quieter stats (the ring still shows bought/total) */
+  function evStats(left, done, total, priced, sum, sumDone) {
+    return priced ? [[left, 'נשארו לקנות'], [shortMoney(sum - sumDone), 'נשאר לשלם'], [shortMoney(sum), 'עלות כוללת']]
+                  : [[left, 'נשארו לקנות'], [done, 'כבר נקנו'], [total, 'בסך הכול']];
+  }
+  function heroSet(o) {
+    var t = $('heroTitle'), ok = o.ready;
+    t.textContent = o.title; t.classList.toggle('ev-t', !!o.event); t.classList.toggle('long', !!o.event && o.title.length > 24);
+    var sub = !ok ? ['טוען…'] : Array.isArray(o.sub) ? o.sub : o.sub.split(' · ').map(function (s, n, a) { return n < a.length - 1 ? s + ' ·' : s; });
+    $('heroSub').innerHTML = sub.map(function (s) { return '<span>' + esc(s) + '</span>'; }).join(' ');
+    $('ringLbl').textContent = ok ? o.done + '/' + o.total : '–';
+    $('ring').setAttribute('aria-label', ok ? o.done + ' מתוך ' + o.total + ' ' + o.ringSays : 'טוען');
+    $('ringFl').style.strokeDashoffset = 201 * (1 - (ok && o.total ? o.done / o.total : 0));
+    ['sLeft', 'sDone', 'sTotal'].forEach(function (id, n) {
+      var b = $(id); b.textContent = ok ? o.stats[n][0] : '–'; $(id + 'L').textContent = o.stats[n][1];
+      b.classList.remove('tight'); if (b.scrollWidth > b.clientWidth) b.classList.add('tight');
+    });
+    $('shareBtn').classList.toggle('hidden', !o.share);
+  }
+  function renderHero() {
+    var total, done, left;
+    if (tab !== 'ev') {
+      total = items.length; done = items.filter(function (i) { return i.checked; }).length; left = total - done;
+      return heroSet({ title: '🛒 רשימת קניות', share: true, ready: listLoaded, done: done, total: total, ringSays: 'פריטים כבר בעגלה',
+        sub: leftLine(left, total, 'הכול בעגלה! 🎉', 'הרשימה ריקה'), stats: [[left, 'נשארו לקנות'], [done, 'כבר בעגלה'], [total, 'בסך הכול']] });
+    }
+    if (evOpen) {
+      var e = evById(evOpen), its = evData ? evData.items : null;
+      if (!e) return heroSet({ title: '🎉 אירועים', ready: false, stats: evStats() });
+      /* from the items once they're here, so a check-off shows at once */
+      var bought = its ? its.filter(function (i) { return i.checked; }) : null;
+      total = its ? its.length : e.total; done = its ? bought.length : e.done; left = total - done;
+      return heroSet({ title: (e.emoji || '🎉') + ' ' + e.name, event: true, ready: true, done: done, total: total, ringSays: 'פריטים כבר נקנו',
+        sub: e.event_date ? evWhen(e) : leftLine(left, total, 'הכול נקנה! 🎉', 'עוד אין פריטים'),
+        stats: evStats(left, done, total, its ? its.some(function (i) { return i.price != null; }) : e.priced > 0,
+                       its ? sumPrice(its) : e.price_total, its ? sumPrice(bought) : e.price_done) });
+    }
+    /* all the events: the ones not over yet, added up; the line under the title names the next one */
+    var live = evs.filter(evLive), next = evSorted().filter(function (e) { return e.event_date && evLive(e); })[0];
+    total = tally(live, 'total'); done = tally(live, 'done'); left = total - done;
+    var many = live.length > 1 ? live.length + ' אירועים' : '';
+    heroSet({ title: '🎉 אירועים', ready: evLoaded, done: done, total: total, ringSays: 'הפריטים לאירועים כבר נקנו',
+      sub: !evs.length ? 'עוד אין אירועים' : !live.length ? 'כל האירועים כבר עברו'
+         : next ? (many ? [many + ' ·'] : []).concat(evSoon(next)) : (many || 'אירוע אחד') + ' · בלי תאריך',
+      stats: evStats(left, done, total, live.some(function (e) { return e.priced > 0; }), tally(live, 'price_total'), tally(live, 'price_done')) });
+  }
+  function badges() {
+    $('tabList').querySelector('.n').textContent = items.filter(function (i) { return !i.checked; }).length;
+    $('tabFav').querySelector('.n').textContent = favs.length;
   }
   function pill(i) {
     var by = i.added_by_name ? '<small>נוסף ע״י ' + esc(i.added_by_name.split(' ')[0]) + '</small>' : '';
@@ -420,7 +461,7 @@
       '<button type="button" class="edit" data-act="edit" aria-label="עריכת ' + esc(i.name) + '"><span aria-hidden="true">✏️</span>עריכה</button></div>';
   }
   function render() {
-    var s = stats();
+    badges(); renderHero();
     var open = items.filter(function (i) { return !i.checked; }), done = items.filter(function (i) { return i.checked; });
     var groups = {}, order = CATS.concat([]);
     open.forEach(function (i) { var c = i.category || ''; (groups[c] = groups[c] || []).push(i); if (order.indexOf(c) < 0 && c) order.push(c); });
@@ -629,7 +670,7 @@
   var SHOPS = [[/(^|\.)ksp\.co\.il$/, 'KSP'], [/(^|\.)ivory\.co\.il$/, 'Ivory'], [/(^|\.)bug\.co\.il$/, 'BUG'], [/(^|\.)zap\.co\.il$/, 'זאפ'],
     [/(^|\.)shufersal\.co\.il$/, 'שופרסל'], [/(^|\.)terminalx\.com$/, 'Terminal X'], [/(^|\.)amazon\.[a-z.]+$/, 'Amazon'],
     [/(^|\.)aliexpress\.[a-z.]+$/, 'AliExpress'], [/(^|\.)ikea\.[a-z.]+$/, 'IKEA'], [/(^|\.)ebay\.[a-z.]+$/, 'eBay'], [/(^|\.)shein\.[a-z.]+$/, 'SHEIN']];
-  var evs = [], evOpen = null, evData = null, evBusy = {}, evEditing = null, evEmoji = EV_EMOJIS[0], evEmojiManual = false, eiEditing = null, eiKeep = [], eiNew = [];
+  var evs = [], evLoaded = false, evOpen = null, evData = null, evBusy = {}, evEditing = null, evEmoji = EV_EMOJIS[0], evEmojiManual = false, eiEditing = null, eiKeep = [], eiNew = [];
 
   function photoUrl(id) { return '/api/shopping-events/photos/' + id; }
   function siteOf(url) {
@@ -659,9 +700,17 @@
     var w = n === 0 ? 'היום' : n === 1 ? 'מחר' : n > 1 && n <= 60 ? 'בעוד ' + n + ' ימים' : n < 0 && m > 0 ? 'עכשיו' : n < 0 && m === 0 ? 'יום אחרון' : n < 0 ? 'עבר' : '';
     return '📅 ' + day + (e.end_date ? '-' + evDay(e.end_date) : '') + (w ? ' · ' + w : '');
   }
+  /* ["בעוד 26 ימים:", "🏖️ אילת"] — the next event, in the hero over all the events */
+  function evSoon(e) {
+    var n = evIn(e.event_date), m = e.end_date ? evIn(e.end_date) : n;
+    return [(n > 1 ? 'בעוד ' + n + ' ימים' : n === 1 ? 'מחר' : n === 0 ? 'היום' : m > 0 ? 'עכשיו' : 'יום אחרון') + ':', (e.emoji || '🎉') + ' ' + e.name];
+  }
+  /* not over yet: undated, coming up, or under way (its last day hasn't passed) */
+  function evLive(e) { return !e.event_date || (e.end_date || e.event_date) >= Pop.iso(new Date()); }
+  function tally(list, k) { return list.reduce(function (s, e) { return s + (Number(e[k]) || 0); }, 0); }
   /* coming up or under way first (soonest on top), then undated (newest first), then the ones already over */
   function evSorted() {
-    var today = Pop.iso(new Date()), rank = function (e) { return !e.event_date ? 1 : (e.end_date || e.event_date) >= today ? 0 : 2; };
+    var rank = function (e) { return !e.event_date ? 1 : evLive(e) ? 0 : 2; };
     return evs.slice().sort(function (a, b) {
       var d = rank(a) - rank(b); if (d) return d;
       if (rank(a) === 1) return b.id - a.id;
@@ -674,7 +723,8 @@
   function sumPrice(list) { return list.reduce(function (s, i) { return s + (i.price != null ? Number(i.price) : 0); }, 0); }
 
   function renderEvents() {
-    $('tabEv').querySelector('.n').textContent = evs.length;
+    /* like the list's count (what's left to buy), the badge counts what's still ahead: events that aren't over */
+    if (evLoaded) $('tabEv').querySelector('.n').textContent = evs.filter(evLive).length;
     $('evList').innerHTML = evSorted().map(function (e) {
       var pct = e.total ? Math.round(100 * e.done / e.total) : 0;
       var bits = [e.total ? e.done + ' מתוך ' + e.total + ' נקנו' : 'עוד אין פריטים'];
@@ -690,6 +740,7 @@
     $('evHome').classList.toggle('hidden', !!evOpen);
     $('evView').classList.toggle('hidden', !evOpen);
     if (evOpen) renderEvView();
+    renderHero();
   }
   function evRow(i) {
     var ph = i.photos || [], nm = esc(i.name), bits = [];
@@ -708,18 +759,7 @@
       '</div>';
   }
   function renderEvView() {
-    var e = evById(evOpen); if (!e) return;
     var items = evData ? evData.items : null;
-    $('evIco').textContent = e.emoji || '🎉'; $('evIco').className = 'ev-ico ' + evColor(e.id);
-    $('evName').textContent = e.name;
-    $('evWhen').textContent = evWhen(e); $('evWhen').classList.toggle('hidden', !e.event_date);
-    /* the totals come from the items once they're here, so a check-off shows at once */
-    var total = items ? items.length : e.total, done = items ? items.filter(function (i) { return i.checked; }).length : e.done;
-    var priced = items ? items.some(function (i) { return i.price != null; }) : e.priced > 0;
-    var sum = items ? sumPrice(items) : e.price_total, sumDone = items ? sumPrice(items.filter(function (i) { return i.checked; })) : e.price_done;
-    $('evBar').style.width = (total ? Math.round(100 * done / total) : 0) + '%'; $('evBar').classList.toggle('zero', !done);
-    $('evProg').textContent = total ? done + ' מתוך ' + total + ' נקנו' : 'עוד אין פריטים';
-    $('evMoney').textContent = priced ? 'סה״כ ' + Pop.money(sum) + (sumDone ? ' · נקנה ' + Pop.money(sumDone) : '') : '';
     if (!items) return;
     var open = items.filter(function (i) { return !i.checked; }), dn = items.filter(function (i) { return i.checked; });
     $('evOpenList').innerHTML = open.map(evRow).join('');
@@ -731,7 +771,7 @@
   async function loadEvents() {
     var id = evOpen;
     var res = await Promise.all([Pop.api('GET', '/api/shopping-events'), id ? Pop.api('GET', '/api/shopping-events/' + id + '/items') : null]);
-    if (res[0].ok) evs = res[0].data;
+    if (res[0].ok) { evs = res[0].data; evLoaded = true; }
     if (id && id === evOpen && res[1]) {
       if (res[1].ok) evData = res[1].data;
       else if (res[1].status === 404) { Pop.toast('האירוע הזה כבר לא קיים', 'info'); closeEvent(); return; }
@@ -745,8 +785,8 @@
     evOpen = id; evData = null; evBusy = {};
     $('evOpenList').innerHTML = ''; $('evDoneList').innerHTML = ''; $('evItemsEmpty').classList.add('hidden'); $('evDoneWrap').classList.add('hidden');
     renderEvents(); loadEvents();
-    var top = $('tabsSeg').getBoundingClientRect().top + window.scrollY - 12;
-    if (window.scrollY > top) window.scrollTo(0, top);
+    /* the event's summary is the hero now: back to the top, where it is */
+    if (window.scrollY > 0) window.scrollTo(0, 0);
   }
   function closeEvent(viaHistory) {
     evOpen = null; evData = null; renderEvents();
@@ -943,6 +983,7 @@
     $('listPanel').classList.toggle('hidden', t !== 'list'); $('favPanel').classList.toggle('hidden', t !== 'fav');
     /* the quick-add card fills the weekly list, so it steps aside on the events tab */
     $('evPanel').classList.toggle('hidden', t !== 'ev'); $('addCard').classList.toggle('hidden', t === 'ev');
+    renderHero();
   }
   /* a tab tap leaves an open event, so 🎉 אירועים always lands on all the events */
   document.querySelectorAll('.seg [data-tab]').forEach(function (b) { b.addEventListener('click', function () { if (evOpen) closeEvent(); setTab(b.dataset.tab); }); });

@@ -210,6 +210,17 @@ One-off lists (a birthday, a trip to Eilat, a laptop) are kept apart from the we
   - Date rows use short labels and 16px, so "10/11/2026" with Chrome's picker icon and "ניקוי" fits a 320px phone. A browser check compares each date box with the input's natural width.
 - **Migration.** The two columns are added through the `init_db()` ALTER list, so existing rows read `''` and `1`. Tested three times each on a copy of the owner's local database, on a copy without the event tables (which get created and then gain the columns) and on a new file. Row counts were identical throughout, and only the two event tables changed.
 
+**Tabs on top, and a hero that follows the tab.** The owner found two problems. The tabs sat under the quick-add card on הרשימה and ⭐ but straight under the hero on 🎉, so they moved between tabs. And the hero always summed up the weekly list, even on the events tab.
+- **The tabs are the first thing in the hero.** They sit at the same height on every tab and inside an event. A browser check measures this.
+- **הרשימה and ⭐ keep the weekly list's summary unchanged**, as the owner asked. That includes the share button, and the quick-add card under the hero on both tabs.
+- **🎉, all the events.** The title is "🎉 אירועים". The line under it gives the count and the next event ("3 אירועים · בעוד 5 ימים: 🎂 יום הולדת לנועה"; "עכשיו:" or "יום אחרון:" while one is under way).
+  - The ring and stats add up every event that isn't over. Undated events are included; events whose last day has passed are left out, because what they didn't buy is no longer "left to buy".
+  - The tab badge counts the same way: events still ahead, like the list's badge counts items left.
+- **🎉, one event.** The hero is that event: symbol and name, its dates and countdown, bought/total in the ring. The old header card under the back/share/edit row is gone, so the summary isn't shown twice. Opening an event scrolls to the top, where its summary now is.
+- **Money in the stats.** Without prices the stats are נשארו לקנות / כבר נקנו / בסך הכול. Once any item has a price, the two quieter stats turn into נשאר לשלם / עלות כוללת; the ring still shows bought/total. From ₪10,000 sums shorten to "₪12.5K" (the history page's style). A value that doesn't fit its box, such as "₪4,650" on a 320px phone, drops to 16px.
+- **Wrapping.** The line under the title wraps between whole chunks, so a name stays with its symbol and a date range stays in one piece. A long event name (up to 60 characters) shows in full at 21px rather than being cut off, since nowhere else on the screen shows it.
+- No server change. The events list endpoint already returns each event's totals and prices.
+
 ## 9. Follow-ups (flagged, not implemented)
 
 - **The weekly list's item photo has no server-side size cap.** `POST/PUT /api/shopping-items` only check the `data:image/` prefix. The event photos added a 600KB cap and a format check (8e); the same could apply here, but it changes an existing route, so it was left alone.
